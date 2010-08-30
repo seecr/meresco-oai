@@ -46,7 +46,7 @@ class OaiJazzTest(CQ2TestCase):
     def setUp(self):
         CQ2TestCase.setUp(self)
         self.jazz = OaiJazz(self.tempdir)
-        self.stampNumber = int(mktime((2008, 07, 06, 05, 04, 03, 0, 0, 1)))*1000000
+        self.stampNumber = self.orginalStampNumber = int(mktime((2008, 07, 06, 05, 04, 03, 0, 0, 1)))*1000000
         def stamp():
             result = self.stampNumber
             self.stampNumber += 1
@@ -166,11 +166,12 @@ class OaiJazzTest(CQ2TestCase):
     def testTimeUpdateRaisesErrorButLeavesIndexCorrect(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
         self.stampNumber -= 12345 # time corrected by -0.012345 seconds
+        nextStampNumber = self.stampNumber
         try:
             self.jazz.addOaiRecord('43', sets=[('setSpec', 'setName')], metadataFormats=[('other', 'schema', 'namespace'), ('oai_dc','schema', 'namespace')])
             self.fail()
         except ValueError, e:
-            self.assertEquals('Timestamp error, original message: "list.append(1215313442987656): expected value to be greater than 1215313443000000"', str(e))
+            self.assertEquals('Timestamp error, original message: "list.append(%s): expected value to be greater than %s"' % (nextStampNumber, self.orginalStampNumber), str(e))
 
         self.assertEquals(0, len(self.jazz._getSetList('setSpec')))
         self.assertEquals(0, len(self.jazz._getPrefixList('other')))
@@ -206,17 +207,17 @@ class OaiJazzTest(CQ2TestCase):
         r2 = r[6:]
         self.assertEquals('fier', r2)
         self.assertEquals(12345, r2.stamp)
-        
+
     def testGetNrOfRecords(self):
-        self.assertEquals(0, self.jazz.getNrOfRecords('aPrefix'))        
+        self.assertEquals(0, self.jazz.getNrOfRecords('aPrefix'))
         self.jazz.addOaiRecord('id1', metadataFormats=[('aPrefix', 'schema', 'namespace')])
         self.assertEquals(1, self.jazz.getNrOfRecords('aPrefix'))
-        self.assertEquals(0, self.jazz.getNrOfRecords('anotherPrefix'))        
+        self.assertEquals(0, self.jazz.getNrOfRecords('anotherPrefix'))
         self.jazz.addOaiRecord('id2', metadataFormats=[('aPrefix', 'schema', 'namespace')])
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
         self.jazz.delete('id1')
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
-        
+
     def testIllegalSetRaisesException(self):
         # XSD: http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd
         # according to the xsd the setSpec should conform to:
@@ -225,9 +226,9 @@ class OaiJazzTest(CQ2TestCase):
         # we will only check that a , (comma) is not used.
         self.assertEquals(',', SETSPEC_SEPARATOR)
         self.assertRaises(AssertionError, lambda: self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec,', 'setName')]))
-        
+
     def testConversionNeeded(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
         rmtree(join(self.tempdir, 'identifier2setSpecs'))
         self.assertRaises(AssertionError, lambda: OaiJazz(self.tempdir))
-        
+
