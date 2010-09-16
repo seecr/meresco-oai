@@ -84,10 +84,10 @@ class OaiListMetadataFormatsTest(OaiTestCase):
         ))
         self.subject.addObserver(jazz)
         self.request.args = {'verb': ['ListMetadataFormats'], 'identifier': ['id_0']}
-        server.do.add('id_0', 'oai_dc', parseLxml("""<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/"
+        server.do.add(identifier='id_0', partname='oai_dc', lxmlNode=parseLxml("""<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/"
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
             xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"></oai_dc:dc>"""))
-        server.do.add('id_0', 'olac', parseLxml('<tag/>'))
+        server.do.add(identifier='id_0', partname='olac', lxmlNode=parseLxml('<tag/>'))
         self.subject.listMetadataFormats(self.request)
         self.assertEqualsWS(self.OAIPMH % """<request identifier="id_0" verb="ListMetadataFormats">http://server:9000/path/to/oai</request>
     <ListMetadataFormats>

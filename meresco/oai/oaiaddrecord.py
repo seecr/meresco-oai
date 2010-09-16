@@ -37,8 +37,8 @@ namespaces = {
 }
 
 class OaiAddRecord(Transparant):
-    def add(self, id, partName, record):
-        record = record if iselement(record) else record.getroot()
+    def add(self, identifier, partname, lxmlNode):
+        record = lxmlNode if iselement(lxmlNode) else lxmlNode.getroot()
         setSpecs = record.xpath('/oai:header/oai:setSpec/text()', namespaces=namespaces)
         sets = set((str(s), str(s)) for s in setSpecs)
         
@@ -46,10 +46,10 @@ class OaiAddRecord(Transparant):
         schemaLocations = record.xpath('@xsi:schemaLocation', namespaces=namespaces)
         ns2xsd = ''.join(schemaLocations).split()
         schema = dict(zip(ns2xsd[::2],ns2xsd[1::2])).get(namespace, '')
-        schema, namespace = self._magicSchemaNamespace(record.prefix, partName, schema, namespace)
-        metadataFormats=[(partName, schema, namespace)]
+        schema, namespace = self._magicSchemaNamespace(record.prefix, partname, schema, namespace)
+        metadataFormats=[(partname, schema, namespace)]
 
-        self.do.addOaiRecord(identifier=id, sets=sets, metadataFormats=metadataFormats)
+        self.do.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
 
     def _magicSchemaNamespace(self, prefix, name, schema, namespace):
         searchForPrefix = prefix or name
@@ -64,6 +64,6 @@ class OaiAddRecordWithDefaults(Transparant):
         self._metadataFormats = metadataFormats
         self._sets = sets
         
-    def add(self, id, name, record):
-        self.do.addOaiRecord(identifier=id, sets=self._sets, metadataFormats=self._metadataFormats)
+    def add(self, identifier, partname, lxmlNode):
+        self.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats=self._metadataFormats)
 
