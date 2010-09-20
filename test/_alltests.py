@@ -56,6 +56,7 @@ from oaiprovenancetest import OaiProvenanceTest
 from oaisetselecttest import OaiSetSelectTest
 from oaitooltest import OaiToolTest
 from resumptiontokentest import ResumptionTokenTest
+from oaipmhtest import OaiPmhTest2
 
 
 if __name__ == '__main__':
