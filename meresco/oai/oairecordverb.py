@@ -53,9 +53,10 @@ class OaiRecordVerb(OaiVerb):
             self.any.write(webRequest, recordId, self._metadataPrefix)
             webRequest.write('</metadata>')
 
-        provenance = self.all.provenance(recordId)
-        for line in decorate('<about>', provenance, '</about>'):
-            webRequest.write(line)
+        if writeBody:
+            provenance = self.all.provenance(recordId)
+            for line in decorate('<about>', provenance, '</about>'):
+                webRequest.write(line)
 
         if writeBody:
             webRequest.write('</record>')

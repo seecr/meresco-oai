@@ -47,7 +47,6 @@ class OaiListTest(OaiTestCase):
         oailist.addObserver(ObserverFunction(lambda: ['oai_dc'], 'getAllPrefixes'))
         return oailist
 
-
     def testListRecordsUsingMetadataPrefix(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
 
@@ -87,7 +86,6 @@ class OaiListTest(OaiTestCase):
  </ListRecords>""" , self.stream.getvalue())
         self.assertTrue(self.stream.getvalue().find('<resumptionToken') == -1)
         self.assertFalse(mockoaijazz.oaiSelectArguments[0])
-        
 
     def testListRecordsWithoutProvenance(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
@@ -137,7 +135,6 @@ class OaiListTest(OaiTestCase):
         observer.oaiSelect = oaiSelect
         self.subject.addObserver(observer)
         result = self.observable.any.listRecords(self.request)
-
 
     def testResumptionTokensAreProduced(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2000-12-31T00:00:00Z'], 'set': ['SET']}
@@ -269,6 +266,22 @@ class OaiListTest(OaiTestCase):
       <datestamp>DATESTAMP_FOR_TEST</datestamp>
     </header>
  </ListIdentifiers>""", self.stream.getvalue())
+
+    def testListIdentifiersWithProvenance(self):
+        class MockOaiProvenance(object):
+            def provenance(inner, id):
+                yield "PROVENANCE"
+        self.request.args = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
+
+        self.subject.addObserver(MockOaiJazz(
+            selectAnswer=['id_0'],
+            isAvailableDefault=(True,False),
+            isAvailableAnswer=[(None, 'oai_dc', (True,True))],
+            selectTotal=1))
+        self.subject.addObserver(MockOaiProvenance())
+        self.observable.any.listIdentifiers(self.request)
+        output = self.stream.getvalue()
+        self.assertFalse('<about>PROVENANCE</about>' in output, output)
 
     def testNoRecordsMatch(self):
         self.request.args = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
