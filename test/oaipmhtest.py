@@ -215,10 +215,12 @@ class OaiPmhWithIdentifierTest(_OaiPmhTest):
         self.prefix = 'oai:www.example.org:'
 
 class OaiPmhTest2(CQ2TestCase):
-    def testOne(self):
-        # repositoryIdentifier should match regex: [a-zA-Z][a-zA-Z0-9\-]*(\.[a-zA-Z][a-zA-Z0-9\-]+)+ 
+    def testExceptionOnInvalidRepositoryIdentifier(self):
         try:
             OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId")
             self.fail()
-        except Exception, e:
-            self.assertEquals("Invalid repositoryIdentifier: repoId")
+        except ValueError, e:
+            self.assertEquals("Invalid repositoryIdentifier: repoId", str(e))
+
+        OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
+        OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")

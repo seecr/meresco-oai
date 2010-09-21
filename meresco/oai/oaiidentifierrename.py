@@ -30,9 +30,15 @@
 from meresco.core import Observable
 from oaijazz import RecordId, WrapIterable
 
+import re
+repositoryIdentifierRe = re.compile(r"[a-zA-Z][a-zA-Z0-9\-]*(\.[a-zA-Z][a-zA-Z0-9\-]+)+")
+
 class OaiIdentifierRename(Observable):
     def __init__(self, repositoryIdentifier):
         Observable.__init__(self)
+        if not repositoryIdentifierRe.match(repositoryIdentifier):
+            raise ValueError("Invalid repositoryIdentifier: %s" % repositoryIdentifier)
+
         self._repositoryIdentifier = repositoryIdentifier
         self._prefix = 'oai:%s:' % self._repositoryIdentifier
 
