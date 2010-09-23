@@ -1,5 +1,7 @@
-python-meresco-core3.0
-python-meresco-components3.0
+python-meresco-core (>= 3.0)
+python-meresco-core (<< 3.1)
+python-meresco-components (>= 3.0)
+python-meresco-components (<< 3.1)
 python-storage (>=5.1.7)
 python-storage (<<5.2)
 python-lxml (>=1.2)
