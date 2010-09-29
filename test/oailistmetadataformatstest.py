@@ -56,7 +56,7 @@ class OaiListMetadataFormatsTest(OaiTestCase):
                 ]
         self.subject.addObserver(MockJazz())
         self.request.args = {'verb': ['ListMetadataFormats']}
-        self.observable.any.listMetadataFormats(self.request)
+        list(self.observable.all.listMetadataFormats(self.request))
         self.assertEqualsWS(self.OAIPMH % """
         <request verb="ListMetadataFormats">http://server:9000/path/to/oai</request>
   <ListMetadataFormats>
@@ -88,7 +88,7 @@ class OaiListMetadataFormatsTest(OaiTestCase):
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
             xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"></oai_dc:dc>"""))
         server.do.add(identifier='id_0', partname='olac', lxmlNode=parseLxml('<tag/>'))
-        self.subject.listMetadataFormats(self.request)
+        list(self.subject.listMetadataFormats(self.request))
         self.assertEqualsWS(self.OAIPMH % """<request identifier="id_0" verb="ListMetadataFormats">http://server:9000/path/to/oai</request>
     <ListMetadataFormats>
         <metadataFormat>
@@ -116,6 +116,6 @@ class OaiListMetadataFormatsTest(OaiTestCase):
                 return []
         self.request.args = {'verb': ['ListMetadataFormats'], 'identifier': ['DoesNotExist']}
         self.subject.addObserver(Observer())
-        self.observable.any.listMetadataFormats(self.request)
+        list(self.observable.all.listMetadataFormats(self.request))
         self.assertTrue("""<error code="idDoesNotExist">The value of the identifier argument is unknown or illegal in this repository.</error>""" in self.stream.getvalue())
         self.assertValidString(self.stream.getvalue())

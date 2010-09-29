@@ -55,7 +55,7 @@ class OaiGetRecordTest(OaiTestCase):
         observer.returnValues['getDatestamp'] = 'DATESTAMP_FOR_TEST'
         self.subject.addObserver(observer)
 
-        self.observable.any.getRecord(self.request)
+        list(self.observable.all.getRecord(self.request))
 
         self.assertEqualsWS(self.OAIPMH % """
 <request identifier="oai:ident" metadataPrefix="oai_dc" verb="GetRecord">http://server:9000/path/to/oai</request>
@@ -70,7 +70,7 @@ class OaiGetRecordTest(OaiTestCase):
         self.subject.addObserver(MockOaiJazz(
             isAvailableDefault=(True, False),
             isAvailableAnswer=[(None, 'oai_dc', (True,True))]))
-        self.observable.any.getRecord(self.request)
+        list(self.observable.all.getRecord(self.request))
         self.assertEqualsWS(self.OAIPMH % """
 <request identifier="oai:ident"
  metadataPrefix="oai_dc"
@@ -94,5 +94,5 @@ class OaiGetRecordTest(OaiTestCase):
             isAvailableDefault=(True, False),
             isAvailableAnswer=[(None, "oai_dc", (True, False))],
             deleted=['oai:ident']))
-        self.observable.any.getRecord(self.request)
+        list(self.observable.all.getRecord(self.request))
         self.assertTrue("deleted" in self.stream.getvalue(), self.stream.getvalue())

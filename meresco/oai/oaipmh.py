@@ -42,32 +42,61 @@ class OaiPmh(object):
         outside = Transparant() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
+        self._oldFashionedVerbs = ['ListRecords',
+                'ListIdentifiers',
+                'GetRecord',
+                'ListSets',
+                'ListMetadataFormats',
+                'Identify']
         self._internalObserverTree = be(
             (Observable(),
-                (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), ),
-                (OaiList(),
-                    (outside,)
-                ),
-                (OaiGetRecord(),
-                    (outside,)
-                ),
-                (OaiListMetadataFormats(),
-                    (outside,)
-                ),
-                (OaiListSets(),
-                    (outside,)
-                ),
-                (OaiSink(), )
+                (OaiError(),
+                    (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), ),
+                    (OaiList(),
+                        (outside,)
+                    ),
+                    (OaiGetRecord(),
+                        (outside,)
+                    ),
+                    (OaiListMetadataFormats(),
+                        (outside,)
+                    ),
+                    (OaiListSets(),
+                        (outside,)
+                    ),
+                )
             )
         )
 
-
-    def handleRequest(self, **kwargs):
-        # if 'ListRecords'
-        #   yield self._internalObserverTree.any.unknown("ListRecords", **kwargs)
-        # else:
-        webrequest = WebRequest(**kwargs)
-        verb = webrequest.args.get('verb',[None])[0]
+    def handleRequest(self, arguments, **kwargs):
+        verb = arguments.get('verb', [None])[0]
         message = verb and verb[0].lower() + verb[1:] or ''
-        self._internalObserverTree.any.unknown(message, webrequest)
-        return webrequest.generateResponse()
+        webrequest = None
+        if verb in self._oldFashionedVerbs:
+            webrequest = WebRequest(**kwargs)
+        yield self._internalObserverTree.all.unknown(message, arguments=arguments, webrequest=webrequest, **kwargs)
+
+class OaiError(Observable):
+    def unknown(self, message, **kwargs):
+        result = self.all.unknown(message, **kwargs)
+        try:
+            firstResult = result.next()
+        except StopIteration:
+            yield self._error(**kwargs)
+            return
+        yield firstResult
+        for remainder in result:
+            yield remainder
+
+    def _error(self, arguments, **kwargs):
+        verbs = arguments.get('verb', [None])
+        if verbs[0] is None:
+            yield oaiError('badArgument', 'No "verb" argument found.')
+        elif len(verbs) > 1:
+            yield oaiError('badArgument', 'More than one "verb" argument found.')
+        else:
+            yield oaiError('badVerb', 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.')
+
+
+def oaiError(*args, **kwargs):
+    yield 'HTTP\r\n\r\n<bad/>'

@@ -53,8 +53,9 @@ Error and Exception Conditions
             'metadataPrefix': 'required'})
         Observable.__init__(self)
 
-    def getRecord(self, webRequest):
-        self.startProcessing(webRequest)
+    def getRecord(self, webrequest, **kwargs):
+        self.startProcessing(webrequest)
+        yield webrequest.generateResponse()
 
     def preProcess(self, webRequest):
         isDeleted = self.any.isDeleted(self._identifier)

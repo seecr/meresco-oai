@@ -59,7 +59,7 @@ class OaiListTest(OaiTestCase):
                 (None, '__tombstone__', (True, False))])
         self.subject.addObserver(mockoaijazz)
         
-        self.observable.any.listRecords(self.request)
+        list(self.observable.all.listRecords(self.request))
 
         self.assertEqualsWS(self.OAIPMH % """
 <request metadataPrefix="oai_dc"
@@ -97,7 +97,7 @@ class OaiListTest(OaiTestCase):
                 (None, 'oai_dc', (True,False)),
                 (None, '__tombstone__', (True, False))]))
 
-        self.observable.any.listRecords(self.request)
+        list(self.observable.all.listRecords(self.request))
         self.assertFalse('<about' in self.stream.getvalue())
 
     def testListRecordsWithProvenance(self):
@@ -115,7 +115,7 @@ class OaiListTest(OaiTestCase):
                 (None, 'oai_dc', (True,False)),
                 (None, '__tombstone__', (True, False))]))
 
-        self.observable.any.listRecords(self.request)
+        list(self.observable.all.listRecords(self.request))
         result = self.stream.getvalue()
         self.assertTrue('<about>PROVENANCE</about>' in result, result)
 
@@ -134,7 +134,7 @@ class OaiListTest(OaiTestCase):
 
         observer.oaiSelect = oaiSelect
         self.subject.addObserver(observer)
-        result = self.observable.any.listRecords(self.request)
+        result = list(self.observable.all.listRecords(self.request))
 
     def testResumptionTokensAreProduced(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2000-12-31T00:00:00Z'], 'set': ['SET']}
@@ -148,7 +148,7 @@ class OaiListTest(OaiTestCase):
         self.subject.addObserver(observer)
         self.subject.writeRecord = writeRecord
 
-        self.observable.any.listRecords(self.request)
+        list(self.observable.all.listRecords(self.request))
 
         self.assertTrue(self.stream.getvalue().find("<resumptionToken>") > -1)
         xml = bind_string(self.stream.getvalue()).OAI_PMH.ListRecords.resumptionToken
@@ -165,7 +165,7 @@ class OaiListTest(OaiTestCase):
         self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(BATCH_SIZE)), selectTotal = BATCH_SIZE))
         self.subject.writeRecord = lambda *args, **kwargs: None
 
-        self.observable.any.listRecords(self.request)
+        list(self.observable.all.listRecords(self.request))
 
         self.assertTrue(self.stream.getvalue().find("<resumptionToken") > -1)
         self.assertEquals('', str(bind_string(self.stream.getvalue()).OAI_PMH.ListRecords.resumptionToken))
@@ -179,7 +179,7 @@ class OaiListTest(OaiTestCase):
             isAvailableDefault=(True,False),
             selectTotal = 2))
 
-        self.observable.any.listRecords(self.request)
+        list(self.observable.all.listRecords(self.request))
 
         self.assertEqualsWS(self.OAIPMH % """
 <request metadataPrefix="oai_dc"
@@ -222,7 +222,7 @@ class OaiListTest(OaiTestCase):
                 self.request.args['from'] = [oaiFrom]
             if oaiUntil:
                 self.request.args['until'] = [oaiUntil]
-            self.observable.any.listRecords(self.request)
+            list(self.observable.all.listRecords(self.request))
             return [observer.oaiSelectArguments[3], observer.oaiSelectArguments[4]]
 
         def right(oaiFrom, oaiUntil, expectedFrom = None, expectedUntil = None):
@@ -255,7 +255,7 @@ class OaiListTest(OaiTestCase):
             isAvailableDefault=(True,False),
             isAvailableAnswer=[(None, 'oai_dc', (True,True))],
             selectTotal=1))
-        self.observable.any.listIdentifiers(self.request)
+        list(self.observable.all.listIdentifiers(self.request))
 
         self.assertEqualsWS(self.OAIPMH % """
 <request metadataPrefix="oai_dc"
@@ -279,7 +279,7 @@ class OaiListTest(OaiTestCase):
             isAvailableAnswer=[(None, 'oai_dc', (True,True))],
             selectTotal=1))
         self.subject.addObserver(MockOaiProvenance())
-        self.observable.any.listIdentifiers(self.request)
+        list(self.observable.all.listIdentifiers(self.request))
         output = self.stream.getvalue()
         self.assertFalse('<about>PROVENANCE</about>' in output, output)
 
@@ -287,7 +287,7 @@ class OaiListTest(OaiTestCase):
         self.request.args = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
 
         self.subject.addObserver(MockOaiJazz(selectTotal = 0))
-        self.observable.any.listIdentifiers(self.request)
+        list(self.observable.all.listIdentifiers(self.request))
 
         self.assertTrue(self.stream.getvalue().find("noRecordsMatch") > -1)
 
@@ -303,7 +303,7 @@ class OaiListTest(OaiTestCase):
             isAvailableAnswer=[
                 (None, 'oai_dc', (True, True)),
                 (None, '__sets__', (True, True))]))
-        self.observable.any.listRecords(self.request)
+        list(self.observable.all.listRecords(self.request))
 
         self.assertTrue("<setSpec>one:two:three</setSpec>" in self.stream.getvalue())
         self.assertTrue("<setSpec>one:two:four</setSpec>" in self.stream.getvalue())

@@ -27,13 +27,7 @@
 #
 ## end license ##
 
-from oaiverb import OaiVerb
-
-class OaiSink(OaiVerb):
-
-    def __init__(self):
-        OaiVerb.__init__(self, [], {})
-
+class OaiSink(object):
     def unknown(self, message, webRequest):
         if message == '':
             self.writeError(webRequest, 'badArgument', 'No "verb" argument found.')

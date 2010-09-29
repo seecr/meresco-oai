@@ -265,7 +265,7 @@ class OaiJazzImplementationsTest(CQ2TestCase):
         webrequest.path = '/oai'
         webrequest.returnValues['getRequestHostname'] = 'www.example.org'
         webrequest.returnValues['getHost'] = host
-        oaiList.listIdentifiers(webrequest)
+        list(oaiList.listIdentifiers(webrequest))
         output.seek(0)
         lxmlNode = parse(output)
         recordIds = lxmlNode.xpath('//oai:identifier/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"})
@@ -276,7 +276,7 @@ class OaiJazzImplementationsTest(CQ2TestCase):
         output = StringIO()
         webrequest.write = output.write
         webrequest.args = {'verb': ['ListIdentifiers'], 'resumptionToken':[resumptionToken]}
-        oaiList.listIdentifiers(webrequest)
+        list(oaiList.listIdentifiers(webrequest))
         output.seek(0)
         lxmlNode = parse(output)
         recordIds = lxmlNode.xpath('//oai:identifier/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"})

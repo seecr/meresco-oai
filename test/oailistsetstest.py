@@ -45,7 +45,7 @@ class OaiListSetsTest(OaiTestCase):
         mockJazz = CallTrace(returnValues = {'getAllSets': ['some:name:id_0', 'some:name:id_1']})
         self.request.args = {'verb':['ListSets']}
         self.subject.addObserver(mockJazz)
-        self.subject.listSets(self.request)
+        list(self.subject.listSets(self.request))
         self.assertEqualsWS(self.OAIPMH % """
 <request verb="ListSets">http://server:9000/path/to/oai</request>
  <ListSets>

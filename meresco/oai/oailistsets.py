@@ -49,8 +49,9 @@ Error and Exception Conditions
         OaiRecordVerb.__init__(self, ['ListSets'], {'resumptionToken': 'exclusive'})
         Observable.__init__(self)
 
-    def listSets(self, aWebRequest):
-        self.startProcessing(aWebRequest)
+    def listSets(self, webrequest, **kwargs):
+        self.startProcessing(webrequest)
+        yield webrequest.generateResponse()
 
     def preProcess(self, webRequest):
         if self._resumptionToken:

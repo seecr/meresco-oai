@@ -30,6 +30,7 @@ from meresco.components.http.utils import CRLF
 from urllib import urlencode
 from lxml.etree import parse
 from StringIO import StringIO
+from weightless import compose
 
 class OaiPmhJazzTest(CQ2TestCase):
     def setUp(self):
@@ -54,14 +55,16 @@ class OaiPmhJazzTest(CQ2TestCase):
                 sets.append(('hierarchical', 'hierarchical toplevel only'))
             self.jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
 
-    def handleRequest(self, **kwargs):
-        return self.root.all.handleRequest(
-                RequestURI='http://example.org/oai?' + urlencode(kwargs),
-                Headers={},
-                Client=('127.0.0.1', 1324)
-               )
-
     def testBugListRecordsReturnsDoubleValueOnNoRecordsMatch(self):
-        head, body = ''.join(self.handleRequest(verb='ListRecords', metadataPrefix='oai_dc', **{'from':'9999-01-01'})).split(CRLF * 2)
+        arguments = {'verb':['ListRecords'],
+                'metadataPrefix': ['oai_dc'],
+                'from':['9999-01-01']
+            }
+        head, body = ''.join(compose(self.root.all.handleRequest(
+                RequestURI='http://example.org/oai?' + urlencode(arguments, doseq=True),
+                Headers={},
+                Client=('127.0.0.1', 1324),
+                arguments=arguments,
+            ))).split(CRLF * 2)
         self.assertTrue(parse(StringIO(body)))
 

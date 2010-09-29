@@ -39,6 +39,7 @@ from urllib import urlencode
 
 from meresco.components.xml_generic import  __file__ as xml_genericpath
 from meresco.components.http.utils import CRLF
+from weightless import compose
 
 
 class OaiTestCase(CQ2TestCase):
@@ -69,12 +70,13 @@ class OaiTestCase(CQ2TestCase):
 </OAI-PMH>"""
 
     def handleRequest(self, args):
-        result = ''.join(self.observable.all.handleRequest(
+        result = ''.join(compose(self.observable.all.handleRequest(
             port=9000,
             Client=('localhost',12345),
             RequestURI="http://server:9000/path/to/oai?%s" % urlencode(args, doseq=True),
             Method="GET",
-            Headers={'Host':'server:9000'}))
+            Headers={'Host':'server:9000'},
+            arguments=args)))
         return result.split(CRLF * 2)
 
     def assertValidString(self, aXmlString):

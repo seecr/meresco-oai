@@ -88,11 +88,13 @@ Error and Exception Conditions
         Observable.__init__(self)
         self._batchSize = batchSize
 
-    def listRecords(self, webRequest):
-        self.startProcessing(webRequest)
+    def listRecords(self, webrequest, **kwargs):
+        self.startProcessing(webrequest)
+        yield webrequest.generateResponse()
 
-    def listIdentifiers(self, webRequest):
-        self.startProcessing(webRequest)
+    def listIdentifiers(self, webrequest, **kwargs):
+        self.startProcessing(webrequest)
+        yield webrequest.generateResponse()
 
     def preProcess(self, webRequest):
         if self._resumptionToken:

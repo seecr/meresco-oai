@@ -50,8 +50,9 @@ Error and Exception Conditions
         OaiVerb.__init__(self, ['ListMetadataFormats'], {'identifier': 'optional'})
         Observable.__init__(self)
 
-    def listMetadataFormats(self, aWebRequest):
-        self.startProcessing(aWebRequest)
+    def listMetadataFormats(self, webrequest, **kwargs):
+        self.startProcessing(webrequest)
+        yield webrequest.generateResponse()
 
     def preProcess(self, webRequest):
         metadataFormats = self.any.getAllMetadataFormats()

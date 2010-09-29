@@ -72,8 +72,9 @@ The response may include multiple instances of the following optional elements:
         self._adminEmail = adminEmail
         self._repositoryIdentifier = repositoryIdentifier
 
-    def identify(self, webRequest):
-        self.startProcessing(webRequest)
+    def identify(self, webrequest, **kwargs):
+        self.startProcessing(webrequest)
+        yield webrequest.generateResponse()
 
     def process(self, webRequest):
         descriptionRepositoryIdentifier = '' if not self._repositoryIdentifier else DESCRIPTION_REPOSITORY_IDENTIFIER % { 'repositoryIdentifier': escapeXml(self._repositoryIdentifier)}
