@@ -46,7 +46,7 @@ class _OaiPmhTest(OaiTestCase):
     def testIdentify(self):
         self.request.args = {'verb': ['Identify']}
         
-        self.observable.do.handleRequest(self.request)
+        self.observable.do.handleWebRequest(self.request)
         
         result = self.stream.getvalue()
         self.assertValidString(result)
@@ -74,7 +74,7 @@ class _OaiPmhTest(OaiTestCase):
             sink.write('<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>')
         self.observer.write = write
 
-        self.observable.do.handleRequest(self.request)
+        self.observable.do.handleWebRequest(self.request)
         
         result = self.stream.getvalue()
         self.assertValidString(result)
@@ -87,7 +87,7 @@ class _OaiPmhTest(OaiTestCase):
     def assertBadArgument(self, arguments, additionalMessage = '', errorCode = "badArgument"):
         self.request.args = arguments
 
-        self.observable.do.handleRequest(self.request)
+        self.observable.do.handleWebRequest(self.request)
 
         self.assertEquals("setHeader('content-type', 'text/xml; charset=utf-8')",  str(self.request.calledMethods[0]))
         result = self.stream.getvalue()
@@ -178,7 +178,7 @@ class _OaiPmhTest(OaiTestCase):
             sink.write('<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>')
         self.observer.write = write
 
-        self.observable.do.handleRequest(self.request)
+        self.observable.do.handleWebRequest(self.request)
         
         result = self.stream.getvalue()
         self.assertValidString(result)

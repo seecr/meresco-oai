@@ -78,5 +78,5 @@ class WebRequestServer(Observable):
 
     def handleRequest(self,  **kwargs):
         webrequest = WebRequest(**kwargs)
-        self.do.handleRequest(webrequest)
+        self.do.handleWebRequest(webrequest)
         return webrequest.generateResponse()

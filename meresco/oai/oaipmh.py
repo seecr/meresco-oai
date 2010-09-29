@@ -35,6 +35,7 @@ from oailistmetadataformats import OaiListMetadataFormats
 from oailistsets import OaiListSets
 from oaisink import OaiSink
 from oaiidentifierrename import OaiIdentifierRename
+from webrequestserver import WebRequestServer
 
 class OaiPmh(object):
     def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None):
@@ -42,7 +43,7 @@ class OaiPmh(object):
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
         self._internalObserverTree = be(
-            (Observable(),
+            (WebRequestServer(),
                 (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), ),
                 (OaiList(),
                     (outside,)
@@ -61,7 +62,12 @@ class OaiPmh(object):
         )
 
 
-    def handleRequest(self, webrequest):
+    def handleWebRequest(self, webrequest):
         verb = webrequest.args.get('verb',[None])[0]
+        #if verb == "ListRecords": # bah, tijdelijke hack om af te komen van WebRequestServer
+        #    raise AttributeError("handleWebRequest")
         message = verb and verb[0].lower() + verb[1:] or ''
         return self._internalObserverTree.any.unknown(message, webrequest)
+
+    def handleRequest(self, **kwargs):
+        yield self._internalObserverTree.any.unknown("ListRecords", **kwargs)
