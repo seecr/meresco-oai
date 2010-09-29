@@ -72,6 +72,7 @@ class OaiTestCase(CQ2TestCase):
     def handleRequest(self, args):
         result = ''.join(compose(self.observable.all.handleRequest(
             port=9000,
+            path='/path/to/oai',
             Client=('localhost',12345),
             RequestURI="http://server:9000/path/to/oai?%s" % urlencode(args, doseq=True),
             Method="GET",
@@ -87,6 +88,7 @@ class OaiTestCase(CQ2TestCase):
             for nr, line in enumerate(aXmlString.split('\n')):
                 print nr+1, line
             self.fail(schema.error_log.last_error)
+        self.assertEquals(['http://server:9000/path/to/oai'], tree.xpath('//oai:request/text()', namespaces={'oai':"http://www.openarchives.org/OAI/2.0/"}))
 
 schemaLocation = join(abspath(dirname(__file__)), 'schemas')
 

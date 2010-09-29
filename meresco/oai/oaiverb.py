@@ -29,6 +29,8 @@
 
 from time import gmtime, strftime
 from xml.sax.saxutils import escape as xmlEscape
+from oaierror import ERROR_CODES
+from oaiutils import RESPONSE_DATE, REQUEST, OAIHEADER, OAIFOOTER
 
 class OaiVerb(object):
 
@@ -93,7 +95,7 @@ class OaiVerb(object):
             webRequest.write(REQUEST % locals())
         else:
             self.writeRequestArgs(webRequest)
-        webRequest.write(ERROR % locals())
+        webRequest.write("""<error code="%(statusCode)s">%(message)s</error>""" % locals())
         self.writeFooter(webRequest)
         return statusCode
 
@@ -148,30 +150,5 @@ class OaiVerb(object):
         if tooMuch:
             return 'Argument(s) %s is/are illegal.' % ", ".join(map(lambda s: '"%s"' %s, tooMuch))
 
-OAIHEADER = """<?xml version="1.0" encoding="UTF-8"?>
-<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/
-         http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
-"""
 
-RESPONSE_DATE = """<responseDate>%s</responseDate>"""
-
-REQUEST = """<request %(args)s>%(url)s</request>"""
-
-OAIFOOTER = """</OAI-PMH>"""
-
-ERROR = """<error code="%(statusCode)s">%(message)s</error>"""
-
-# http://www.openarchives.org/OAI/openarchivesprotocol.html#ErrorConditions
-ERROR_CODES = {
-    'badArgument': 'The request includes illegal arguments, is missing required arguments, includes a repeated argument, or values for arguments have an illegal syntax.',
-    'badResumptionToken': 'The value of the resumptionToken argument is invalid or expired.',
-    'badVerb': 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.',
-    'cannotDisseminateFormat': 'The metadata format identified by the value given for the metadataPrefix argument is not supported by the item or by the repository.',
-    'idDoesNotExist': 'The value of the identifier argument is unknown or illegal in this repository.',
-    'noRecordsMatch': 'The combination of the values of the from, until, set and metadataPrefix arguments results in an empty list.',
-    'noMetadataFormats': 'There are no metadata formats available for the specified item.',
-    'noSetHierarchy': 'The repository does not support sets.'
-}
 

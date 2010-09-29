@@ -33,7 +33,7 @@ from oailist import OaiList
 from oaigetrecord import OaiGetRecord
 from oailistmetadataformats import OaiListMetadataFormats
 from oailistsets import OaiListSets
-from oaisink import OaiSink
+from oaierror import OaiError
 from oaiidentifierrename import OaiIdentifierRename
 from webrequest import WebRequest
 
@@ -76,27 +76,3 @@ class OaiPmh(object):
             webrequest = WebRequest(**kwargs)
         yield self._internalObserverTree.all.unknown(message, arguments=arguments, webrequest=webrequest, **kwargs)
 
-class OaiError(Observable):
-    def unknown(self, message, **kwargs):
-        result = self.all.unknown(message, **kwargs)
-        try:
-            firstResult = result.next()
-        except StopIteration:
-            yield self._error(**kwargs)
-            return
-        yield firstResult
-        for remainder in result:
-            yield remainder
-
-    def _error(self, arguments, **kwargs):
-        verbs = arguments.get('verb', [None])
-        if verbs[0] is None:
-            yield oaiError('badArgument', 'No "verb" argument found.')
-        elif len(verbs) > 1:
-            yield oaiError('badArgument', 'More than one "verb" argument found.')
-        else:
-            yield oaiError('badVerb', 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.')
-
-
-def oaiError(*args, **kwargs):
-    yield 'HTTP\r\n\r\n<bad/>'
