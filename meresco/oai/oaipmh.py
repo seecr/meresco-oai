@@ -35,7 +35,7 @@ from oailistmetadataformats import OaiListMetadataFormats
 from oailistsets import OaiListSets
 from oaisink import OaiSink
 from oaiidentifierrename import OaiIdentifierRename
-from webrequestserver import WebRequest
+from webrequest import WebRequest
 
 class OaiPmh(object):
     def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None):
