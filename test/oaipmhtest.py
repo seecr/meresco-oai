@@ -36,6 +36,7 @@ from oaitestcase import OaiTestCase
 
 from lxml.etree import parse
 from StringIO import StringIO
+from meresco.components.http.utils import CRLF
 
 def xpath(node, path):
     return '\n'.join(node.xpath(path, namespaces={'oai':"http://www.openarchives.org/OAI/2.0/",
@@ -44,14 +45,9 @@ def xpath(node, path):
 class _OaiPmhTest(OaiTestCase):
 
     def testIdentify(self):
-        self.request.args = {'verb': ['Identify']}
-        
-        self.observable.do.handleWebRequest(self.request)
-        
-        result = self.stream.getvalue()
+        header, result = self.handleRequest({'verb':['Identify']})
         self.assertValidString(result)
-        self.stream.seek(0)
-        response = parse(self.stream)
+        response = parse(StringIO(result))
         self.assertEquals('The Repository Name', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:repositoryName/text()'))
         self.assertEquals('http://server:9000/path/to/oai', xpath(response, '/oai:OAI-PMH/oai:request/text()'))
         self.assertEquals('admin@email.extension', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:adminEmail/text()'))
@@ -64,7 +60,6 @@ class _OaiPmhTest(OaiTestCase):
 
 
     def testGetRecordUsesObservers(self):
-        self.request.args = {'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': [self.prefix + 'ident']}
         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
         self.observer.returnValues['isAvailable'] = (True, True)
         self.observer.returnValues['getDatestamp'] = '2008-11-14T15:43:00Z'
@@ -74,9 +69,8 @@ class _OaiPmhTest(OaiTestCase):
             sink.write('<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>')
         self.observer.write = write
 
-        self.observable.do.handleWebRequest(self.request)
+        header, result = self.handleRequest({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': [self.prefix + 'ident']})
         
-        result = self.stream.getvalue()
         self.assertValidString(result)
         self.assertEquals(['isDeleted', 'getAllPrefixes', 'isAvailable', 'isDeleted', 'getDatestamp', 'getSets', 'unknown'], [m.name for m in self.observer.calledMethods])
         self.assertEquals('ident', self.observer.calledMethods[0].args[0]) #isDeleted
@@ -85,12 +79,10 @@ class _OaiPmhTest(OaiTestCase):
         self.assertEquals('ident', self.observer.calledMethods[5].args[0]) #getSets
 
     def assertBadArgument(self, arguments, additionalMessage = '', errorCode = "badArgument"):
-        self.request.args = arguments
+        header, result = self.handleRequest(arguments)
 
-        self.observable.do.handleWebRequest(self.request)
-
-        self.assertEquals("setHeader('content-type', 'text/xml; charset=utf-8')",  str(self.request.calledMethods[0]))
-        result = self.stream.getvalue()
+        headers = header.split(CRLF)
+        self.assertEquals("Content-Type: text/xml; charset=utf-8", headers[-1]) 
         self.assertTrue('<error code="%s">' % errorCode in result)
         self.assertTrue(additionalMessage in result, 'Expected "%s" in "%s"' %(additionalMessage, result))
 
@@ -164,7 +156,6 @@ class _OaiPmhTest(OaiTestCase):
         self.assertTrue(observable, 'The above code failed.')
 
     def testListRecords(self):
-        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
 
         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
         self.observer.returnValues['oaiSelect'] = iter(['ident0', 'ident1'])
@@ -178,9 +169,8 @@ class _OaiPmhTest(OaiTestCase):
             sink.write('<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>')
         self.observer.write = write
 
-        self.observable.do.handleWebRequest(self.request)
+        header, result = self.handleRequest({'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']})
         
-        result = self.stream.getvalue()
         self.assertValidString(result)
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'isDeleted', 'getDatestamp', 'getSets', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'unknown'], [m.name for m in self.observer.calledMethods])
         self.assertEquals('ident0', self.observer.calledMethods[2].args[0]) #isDeleted

@@ -74,9 +74,3 @@ class WebRequest(object):
         for line in self.stream.readlines():
             yield line
 
-class WebRequestServer(Observable):
-
-    def handleRequest(self,  **kwargs):
-        webrequest = WebRequest(**kwargs)
-        self.do.handleWebRequest(webrequest)
-        return webrequest.generateResponse()

@@ -26,7 +26,6 @@ from cq2utils import CQ2TestCase, CallTrace
 
 from meresco.oai import OaiPmh, OaiJazz
 from meresco.core import Observable, be
-from meresco.oai.webrequestserver import WebRequestServer
 from meresco.components.http.utils import CRLF
 from urllib import urlencode
 from lxml.etree import parse
@@ -37,10 +36,8 @@ class OaiPmhJazzTest(CQ2TestCase):
         super(OaiPmhJazzTest, self).setUp()
         self.jazz = OaiJazz(self.tempdir)
         self.root = be((Observable(),
-            (WebRequestServer(),
-                (OaiPmh(repositoryName='Repository', adminEmail='admin@cq2.nl'),
-                    (self.jazz,)
-                )
+            (OaiPmh(repositoryName='Repository', adminEmail='admin@cq2.nl'),
+                (self.jazz,)
             )
         ))
         for i in xrange(20):

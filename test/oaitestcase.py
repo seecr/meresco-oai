@@ -35,8 +35,10 @@ from meresco.core.observable import Observable
 from StringIO import StringIO
 from os.path import join, dirname, abspath
 from glob import glob
+from urllib import urlencode
 
 from meresco.components.xml_generic import  __file__ as xml_genericpath
+from meresco.components.http.utils import CRLF
 
 
 class OaiTestCase(CQ2TestCase):
@@ -65,6 +67,15 @@ class OaiTestCase(CQ2TestCase):
 <responseDate>2007-02-07T00:00:00Z</responseDate>
 %s
 </OAI-PMH>"""
+
+    def handleRequest(self, args):
+        result = ''.join(self.observable.all.handleRequest(
+            port=9000,
+            Client=('localhost',12345),
+            RequestURI="http://server:9000/path/to/oai?%s" % urlencode(args, doseq=True),
+            Method="GET",
+            Headers={'Host':'server:9000'}))
+        return result.split(CRLF * 2)
 
     def assertValidString(self, aXmlString):
         schema = getSchema()
