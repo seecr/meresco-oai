@@ -30,7 +30,7 @@
 from time import gmtime, strftime
 from xml.sax.saxutils import escape as xmlEscape
 from oaierror import ERROR_CODES, oaiError
-from oaiutils import RESPONSE_DATE, REQUEST, OAIHEADER, zuluTime, doElementaryArgumentsValidation, OaiBadArgumentException, oaiFooter, oaiHeader
+from oaiutils import RESPONSE_DATE, REQUEST, OAIHEADER, zuluTime, doElementaryArgumentsValidation, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs
 from weightless import compose
 
 class OaiVerb(object):
@@ -83,9 +83,8 @@ class OaiVerb(object):
             webRequest.write(line)
 
     def writeRequestArgs(self, webRequest):
-        url = self.getRequestUrl(webRequest)
-        args = ' '.join(['%s="%s"' % (xmlEscape(k), xmlEscape(v[0]).replace('"', '&quot;')) for k,v in sorted(webRequest.args.items())])
-        webRequest.write(REQUEST % locals())
+        for line in compose(oaiRequestArgs(webRequest.args, **webRequest.kwargs)):
+            webRequest.write(line)
 
     def writeError(self, webRequest, statusCode, additionalMessage = '', echoArgs = True):
         for line in compose(oaiError(statusCode, additionalMessage, arguments=webRequest.args, **webRequest.kwargs)):

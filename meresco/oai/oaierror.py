@@ -28,8 +28,7 @@
 ## end license ##
 
 from meresco.core import Observable
-from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl
-from xml.sax.saxutils import escape as xmlEscape
+from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl, oaiRequestArgs
 
 class OaiError(Observable):
     def unknown(self, message, **kwargs):
@@ -59,13 +58,12 @@ def oaiError(statusCode, addionalMessage, arguments, **kwargs):
 
     yield oaiHeader()
 
-    url =  requestUrl(**kwargs)
-
-    args = ''
     if statusCode not in ["badArgument", "badResumptionToken", "badVerb"]:
         """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the responce will not validate either"""
-        args = ' '.join(['%s="%s"' % (xmlEscape(k), xmlEscape(v[0]).replace('"', '&quot;')) for k,v in sorted(arguments.items())])
-    yield REQUEST % locals()
+        yield oaiRequestArgs(arguments, **kwargs)
+    else:
+        yield oaiRequestArgs({}, **kwargs)
+
     yield """<error code="%(statusCode)s">%(message)s</error>""" % locals()
 
     yield oaiFooter()

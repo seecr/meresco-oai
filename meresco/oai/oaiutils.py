@@ -2,6 +2,7 @@
 from time import strftime, gmtime
 from socket import gethostname
 from meresco.components.http.utils import okXml
+from xml.sax.saxutils import escape as xmlEscape
 
 HOSTNAME = gethostname()
 
@@ -25,6 +26,11 @@ def oaiHeader():
 
 def oaiFooter():
     yield OAIFOOTER
+
+def oaiRequestArgs(arguments, **kwargs):
+    url = requestUrl(**kwargs)
+    args = ' '.join(['%s="%s"' % (xmlEscape(k), xmlEscape(v[0]).replace('"', '&quot;')) for k,v in sorted(arguments.items())])
+    yield REQUEST % locals()
 
 def doElementaryArgumentsValidation(arguments, argsDef):
     validatedArguments = {}

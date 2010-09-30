@@ -41,6 +41,7 @@ class OaiToolTest(CQ2TestCase):
         request.returnValues['getHost'] = getHost
         request.returnValues['getRequestHostname'] = 'localhost'
         request.path = '/oai'
+        request.kwargs = {'Headers':{'Host':'localhost'}, 'port':8000, 'path':'/oai'}
     
         verb = OaiVerb(None, None)
         request.args = {'identifier': ['with a "']}

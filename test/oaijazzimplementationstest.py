@@ -263,6 +263,7 @@ class OaiJazzImplementationsTest(CQ2TestCase):
         webrequest = CallTrace('WebRequest')
         webrequest.write = output.write
         webrequest.args = {'verb': ['ListIdentifiers'], 'metadataPrefix': ['prefix']}
+        webrequest.kwargs = {'Headers':{'Host':'www.example.org'}, 'port':12345, 'path':'/oai'}
         webrequest.path = '/oai'
         webrequest.returnValues['getRequestHostname'] = 'www.example.org'
         webrequest.returnValues['getHost'] = host
