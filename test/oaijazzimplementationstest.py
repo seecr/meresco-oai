@@ -32,6 +32,7 @@ from cq2utils import CQ2TestCase, CallTrace
 from meresco.components.facetindex import LuceneIndex
 from os.path import join
 from meresco.components import StorageComponent
+from meresco.components.http.utils import CRLF
 from time import sleep, mktime
 from StringIO import StringIO
 from lxml.etree import parse
@@ -267,7 +268,8 @@ class OaiJazzImplementationsTest(CQ2TestCase):
         webrequest.returnValues['getHost'] = host
         list(oaiList.listIdentifiers(webrequest))
         output.seek(0)
-        lxmlNode = parse(output)
+        body = output.getvalue().split(CRLF*2)[-1]
+        lxmlNode = parse(StringIO(body))
         recordIds = lxmlNode.xpath('//oai:identifier/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"})
         self.assertEquals(['id:%d' % i for i in range(BATCH_SIZE)], recordIds)
         resumptionToken = ''.join(lxmlNode.xpath('//oai:resumptionToken/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"}))
@@ -278,7 +280,8 @@ class OaiJazzImplementationsTest(CQ2TestCase):
         webrequest.args = {'verb': ['ListIdentifiers'], 'resumptionToken':[resumptionToken]}
         list(oaiList.listIdentifiers(webrequest))
         output.seek(0)
-        lxmlNode = parse(output)
+        body = output.getvalue().split(CRLF*2)[-1]
+        lxmlNode = parse(StringIO(body))
         recordIds = lxmlNode.xpath('//oai:identifier/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"})
         self.assertEquals(['id:%d' % i for i in range(BATCH_SIZE, BATCH_SIZE +5)], recordIds)
 

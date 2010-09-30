@@ -71,21 +71,10 @@ class OaiGetRecordTest(OaiTestCase):
             isAvailableDefault=(True, False),
             isAvailableAnswer=[(None, 'oai_dc', (True,True))]))
         list(self.observable.all.getRecord(self.request))
-        self.assertEqualsWS(self.OAIPMH % """
-<request identifier="oai:ident"
- metadataPrefix="oai_dc"
- verb="GetRecord">http://server:9000/path/to/oai</request>
-   <GetRecord>
-   <record>
-    <header>
-      <identifier>oai:ident</identifier>
-      <datestamp>DATESTAMP_FOR_TEST</datestamp>
-    </header>
-    <metadata>
-      <some:recorddata xmlns:some="http://some.example.org" id="oai:ident"/>
-    </metadata>
-  </record>
- </GetRecord>""", self.stream.getvalue())
+        body = self.stream.getvalue().split(CRLF*2)[-1]
+        self.assertTrue("<GetRecord>" in body, body)
+        self.assertTrue("<identifier>oai:ident</identifier>" in body, body)
+        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="oai:ident"/>""" in body, body)
 
     def testDeletedRecord(self):
         self.request.args = {'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': ['oai:ident']}

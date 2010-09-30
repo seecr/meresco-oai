@@ -26,7 +26,7 @@
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 ## end license ##
-
+from lxml.etree import parse, tostring
 from StringIO import StringIO
 
 from amara.binderytools import bind_string
@@ -35,6 +35,7 @@ from itertools import imap
 
 from mockoaijazz import MockOaiJazz
 
+from meresco.components.http.utils import CRLF
 from meresco.core import ObserverFunction
 from meresco.oai.oailist import BATCH_SIZE, OaiList
 from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionToken
@@ -60,31 +61,12 @@ class OaiListTest(OaiTestCase):
         self.subject.addObserver(mockoaijazz)
         
         list(self.observable.all.listRecords(self.request))
-
-        self.assertEqualsWS(self.OAIPMH % """
-<request metadataPrefix="oai_dc"
- verb="ListRecords">http://server:9000/path/to/oai</request>
- <ListRecords>
-   <record>
-    <header>
-      <identifier>id_0&amp;0</identifier>
-      <datestamp>DATESTAMP_FOR_TEST</datestamp>
-    </header>
-    <metadata>
-      <some:recorddata xmlns:some="http://some.example.org" id="id_0&amp;0"/>
-    </metadata>
-   </record>
-   <record>
-    <header>
-      <identifier>id_1&amp;1</identifier>
-      <datestamp>DATESTAMP_FOR_TEST</datestamp>
-    </header>
-    <metadata>
-      <some:recorddata xmlns:some="http://some.example.org" id="id_1&amp;1"/>
-    </metadata>
-   </record>
- </ListRecords>""" , self.stream.getvalue())
-        self.assertTrue(self.stream.getvalue().find('<resumptionToken') == -1)
+        body = self.stream.getvalue().split(CRLF*2)[-1]
+        self.assertTrue("""<identifier>id_0&amp;0</identifier>""" in body, body)
+        self.assertTrue("""<identifier>id_1&amp;1</identifier>""" in body, body)
+        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="id_0&amp;0"/>""" in body, body)
+        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="id_1&amp;1"/>""" in body, body)
+        self.assertTrue(body.find('<resumptionToken') == -1)
         self.assertFalse(mockoaijazz.oaiSelectArguments[0])
 
     def testListRecordsWithoutProvenance(self):
@@ -149,9 +131,9 @@ class OaiListTest(OaiTestCase):
         self.subject.writeRecord = writeRecord
 
         list(self.observable.all.listRecords(self.request))
-
-        self.assertTrue(self.stream.getvalue().find("<resumptionToken>") > -1)
-        xml = bind_string(self.stream.getvalue()).OAI_PMH.ListRecords.resumptionToken
+        body = self.stream.getvalue().split(CRLF*2)[-1]
+        self.assertTrue(body.find("<resumptionToken>") > -1)
+        xml = bind_string(body).OAI_PMH.ListRecords.resumptionToken
         resumptionToken = resumptionTokenFromString(str(xml))
         self.assertEquals('UNIQUE_FOR_TEST', resumptionToken._continueAfter)
         self.assertEquals('oai_dc', resumptionToken._metadataPrefix)
@@ -166,9 +148,10 @@ class OaiListTest(OaiTestCase):
         self.subject.writeRecord = lambda *args, **kwargs: None
 
         list(self.observable.all.listRecords(self.request))
+        body = self.stream.getvalue().split(CRLF*2)[-1]
 
-        self.assertTrue(self.stream.getvalue().find("<resumptionToken") > -1)
-        self.assertEquals('', str(bind_string(self.stream.getvalue()).OAI_PMH.ListRecords.resumptionToken))
+        self.assertTrue(body.find("<resumptionToken") > -1)
+        self.assertEquals('', str(bind_string(body).OAI_PMH.ListRecords.resumptionToken))
 
     def testDeletedTombstones(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
@@ -180,27 +163,11 @@ class OaiListTest(OaiTestCase):
             selectTotal = 2))
 
         list(self.observable.all.listRecords(self.request))
-
-        self.assertEqualsWS(self.OAIPMH % """
-<request metadataPrefix="oai_dc"
- verb="ListRecords">http://server:9000/path/to/oai</request>
- <ListRecords>
-   <record>
-    <header>
-      <identifier>id_0</identifier>
-      <datestamp>DATESTAMP_FOR_TEST</datestamp>
-    </header>
-    <metadata>
-      <some:recorddata xmlns:some="http://some.example.org" id="id_0"/>
-    </metadata>
-   </record>
-   <record>
-    <header status="deleted">
-      <identifier>id_1</identifier>
-      <datestamp>DATESTAMP_FOR_TEST</datestamp>
-    </header>
-   </record>
- </ListRecords>""", self.stream.getvalue())
+        body = self.stream.getvalue().split(CRLF*2)[-1]
+        self.assertTrue("""<header>
+            <identifier>id_0</identifier>""" in body, body)
+        self.assertTrue("""<header status="deleted">
+            <identifier>id_1</identifier>""" in body, body)
 
         self.assertTrue(self.stream.getvalue().find('<resumptionToken') == -1)
 
@@ -256,16 +223,16 @@ class OaiListTest(OaiTestCase):
             isAvailableAnswer=[(None, 'oai_dc', (True,True))],
             selectTotal=1))
         list(self.observable.all.listIdentifiers(self.request))
+        body = self.stream.getvalue().split(CRLF*2)[-1]
 
-        self.assertEqualsWS(self.OAIPMH % """
-<request metadataPrefix="oai_dc"
+        self.assertTrue("""<request metadataPrefix="oai_dc"
  verb="ListIdentifiers">http://server:9000/path/to/oai</request>
  <ListIdentifiers>
     <header>
       <identifier>id_0</identifier>
       <datestamp>DATESTAMP_FOR_TEST</datestamp>
     </header>
- </ListIdentifiers>""", self.stream.getvalue())
+ </ListIdentifiers>""", body)
 
     def testListIdentifiersWithProvenance(self):
         class MockOaiProvenance(object):

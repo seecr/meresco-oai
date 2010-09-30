@@ -34,23 +34,20 @@ from oaitestcase import OaiTestCase
 from meresco.oai.oailistsets import OaiListSets
 from meresco.components.facetindex import LuceneIndex
 from meresco.components import StorageComponent
+from meresco.components.http.utils import CRLF
 
 class OaiListSetsTest(OaiTestCase):
     def getSubject(self):
         return OaiListSets()
-
-
 
     def testListSetsNoArguments(self):
         mockJazz = CallTrace(returnValues = {'getAllSets': ['some:name:id_0', 'some:name:id_1']})
         self.request.args = {'verb':['ListSets']}
         self.subject.addObserver(mockJazz)
         list(self.subject.listSets(self.request))
-        self.assertEqualsWS(self.OAIPMH % """
-<request verb="ListSets">http://server:9000/path/to/oai</request>
- <ListSets>
-   <set><setSpec>some:name:id_0</setSpec><setName>set some:name:id_0</setName></set>
-   <set><setSpec>some:name:id_1</setSpec><setName>set some:name:id_1</setName></set>
- </ListSets>""", self.stream.getvalue())
-        self.assertFalse('<resumptionToken' in self.stream.getvalue())
+        body = self.stream.getvalue().split(CRLF*2)[-1]
+        self.assertTrue("""<ListSets>""" in body, body)
+        self.assertTrue("""<set><setSpec>some:name:id_0</setSpec><setName>set some:name:id_0</setName></set>""" in body, body)
+        self.assertTrue("""<set><setSpec>some:name:id_1</setSpec><setName>set some:name:id_1</setName></set>""" in body, body)
+        self.assertFalse('<resumptionToken' in body, body)
 

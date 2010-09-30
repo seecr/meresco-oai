@@ -58,24 +58,19 @@ class OaiListMetadataFormatsTest(OaiTestCase):
         self.subject.addObserver(MockJazz())
         self.request.args = {'verb': ['ListMetadataFormats']}
         list(self.observable.all.listMetadataFormats(self.request))
-        self.assertEqualsWS(self.OAIPMH % """
-        <request verb="ListMetadataFormats">http://server:9000/path/to/oai</request>
-  <ListMetadataFormats>
-   <metadataFormat>
-     <metadataPrefix>oai_dc</metadataPrefix>
-     <schema>http://www.openarchives.org/OAI/2.0/oai_dc.xsd
-       </schema>
-     <metadataNamespace>http://www.openarchives.org/OAI/2.0/oai_dc/
-       </metadataNamespace>
-   </metadataFormat>
-   <metadataFormat>
-     <metadataPrefix>olac</metadataPrefix>
-     <schema>http://www.language-archives.org/OLAC/olac-0.2.xsd</schema>
-     <metadataNamespace>http://www.language-archives.org/OLAC/0.2/
-      </metadataNamespace>
-   </metadataFormat>
-  </ListMetadataFormats>""", self.stream.getvalue())
-        self.assertValidString(self.stream.getvalue())
+        body = self.stream.getvalue().split(CRLF*2)[-1]
+        self.assertTrue("""<ListMetadataFormats>""" in body, body)
+        self.assertTrue("""<metadataFormat>
+                <metadataPrefix>oai_dc</metadataPrefix>
+                <schema>http://www.openarchives.org/OAI/2.0/oai_dc.xsd</schema>
+                <metadataNamespace>http://www.openarchives.org/OAI/2.0/oai_dc/</metadataNamespace>
+            </metadataFormat>""" in body, body)
+        self.assertTrue("""<metadataFormat>
+                <metadataPrefix>olac</metadataPrefix>
+                <schema>http://www.language-archives.org/OLAC/olac-0.2.xsd</schema>
+                <metadataNamespace>http://www.language-archives.org/OLAC/0.2/</metadataNamespace>
+            </metadataFormat>""" in body, body)
+        self.assertValidString(body)
 
     def assertWithJazz(self, jazz):
         server = be((Observable(),
@@ -90,20 +85,19 @@ class OaiListMetadataFormatsTest(OaiTestCase):
             xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"></oai_dc:dc>"""))
         server.do.add(identifier='id_0', partname='olac', lxmlNode=parseLxml('<tag/>'))
         list(self.subject.listMetadataFormats(self.request))
-        self.assertEqualsWS(self.OAIPMH % """<request identifier="id_0" verb="ListMetadataFormats">http://server:9000/path/to/oai</request>
-    <ListMetadataFormats>
-        <metadataFormat>
-            <metadataPrefix>oai_dc</metadataPrefix>
-            <schema>http://www.openarchives.org/OAI/2.0/oai_dc.xsd</schema>
-            <metadataNamespace>http://www.openarchives.org/OAI/2.0/oai_dc/</metadataNamespace>
-        </metadataFormat>
-        <metadataFormat>
-            <metadataPrefix>olac</metadataPrefix>
-            <schema></schema>
-            <metadataNamespace></metadataNamespace>
-        </metadataFormat>
-  </ListMetadataFormats>""", self.stream.getvalue())
-        self.assertValidString(self.stream.getvalue())
+        body = self.stream.getvalue().split(CRLF*2)[-1]
+        self.assertTrue("<ListMetadataFormats>" in body, body)
+        self.assertTrue("""<metadataFormat>
+                <metadataPrefix>oai_dc</metadataPrefix>
+                <schema>http://www.openarchives.org/OAI/2.0/oai_dc.xsd</schema>
+                <metadataNamespace>http://www.openarchives.org/OAI/2.0/oai_dc/</metadataNamespace>
+            </metadataFormat>""" in body, body)
+        self.assertTrue("""<metadataFormat>
+                <metadataPrefix>olac</metadataPrefix>
+                <schema></schema>
+                <metadataNamespace></metadataNamespace>
+            </metadataFormat>""" in body, body)
+        self.assertValidString(body)
 
     def testListMetadataFormatsForIdentifierFile(self):
         jazz = OaiJazz(self.tempdir)

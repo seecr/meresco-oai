@@ -30,7 +30,7 @@
 from time import gmtime, strftime
 from xml.sax.saxutils import escape as xmlEscape
 from oaierror import ERROR_CODES, oaiError
-from oaiutils import RESPONSE_DATE, REQUEST, OAIHEADER, OAIFOOTER, zuluTime, doElementaryArgumentsValidation, OaiBadArgumentException
+from oaiutils import RESPONSE_DATE, REQUEST, OAIHEADER, zuluTime, doElementaryArgumentsValidation, OaiBadArgumentException, oaiFooter, oaiHeader
 from weightless import compose
 
 class OaiVerb(object):
@@ -79,9 +79,8 @@ class OaiVerb(object):
         return 'http://%s:%s' % (webRequest.getRequestHostname(), webRequest.getHost().port) + webRequest.path
 
     def writeHeader(self, webRequest):
-        webRequest.setHeader('content-type', 'text/xml; charset=utf-8')
-        webRequest.write(OAIHEADER)
-        webRequest.write(RESPONSE_DATE % self.getTime())
+        for line in compose(oaiHeader()):
+            webRequest.write(line)
 
     def writeRequestArgs(self, webRequest):
         url = self.getRequestUrl(webRequest)
@@ -91,22 +90,9 @@ class OaiVerb(object):
     def writeError(self, webRequest, statusCode, additionalMessage = '', echoArgs = True):
         for line in compose(oaiError(statusCode, additionalMessage, arguments=webRequest.args, **webRequest.kwargs)):
             webRequest.write(line)
-        #        space = additionalMessage and ' ' or ''
-        #        message = ERROR_CODES[statusCode] + space + additionalMessage
-        #        self.writeHeader(webRequest)
-        #        url = self.getRequestUrl(webRequest)
-        #        if statusCode in ["badArgument", "badResumptionToken", "badVerb"]:
-        #            """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the responce will not validate either"""
-        #            args = ''
-        #            webRequest.write(REQUEST % locals())
-        #        else:
-        #            self.writeRequestArgs(webRequest)
-        #        webRequest.write("""<error code="%(statusCode)s">%(message)s</error>""" % locals())
-        #        self.writeFooter(webRequest)
         return statusCode
 
     def writeFooter(self, webRequest):
-        webRequest.write(OAIFOOTER)
-
-
+        for line in compose(oaiFooter()):
+            webRequest.write(line)
 
