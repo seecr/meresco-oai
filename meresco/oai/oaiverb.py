@@ -30,7 +30,7 @@
 from time import gmtime, strftime
 from xml.sax.saxutils import escape as xmlEscape
 from oaierror import ERROR_CODES
-from oaiutils import RESPONSE_DATE, REQUEST, OAIHEADER, OAIFOOTER, zuluTime
+from oaiutils import RESPONSE_DATE, REQUEST, OAIHEADER, OAIFOOTER, zuluTime, doElementaryArgumentsValidation, OaiBadArgumentException
 
 class OaiVerb(object):
 
@@ -43,9 +43,12 @@ class OaiVerb(object):
         if not self._verb in self._supportedVerbs:
             return
 
-        error = self._doElementaryArgumentsValidation(webRequest)
-        if error:
-            return self.writeError(webRequest, 'badArgument', error)
+        try:
+            validatedArguments = doElementaryArgumentsValidation(webRequest.args, self._argsDef)
+            for k,v in validatedArguments.items():
+                setattr(self, "_" + k, v)
+        except OaiBadArgumentException, e:
+            return self.writeError(webRequest, e.statusCode, e.additionalMessage)
 
         error = self.preProcess(webRequest)
         if error:
@@ -84,9 +87,9 @@ class OaiVerb(object):
         args = ' '.join(['%s="%s"' % (xmlEscape(k), xmlEscape(v[0]).replace('"', '&quot;')) for k,v in sorted(webRequest.args.items())])
         webRequest.write(REQUEST % locals())
 
-    def writeError(self, webRequest, statusCode, addionalMessage = '', echoArgs = True):
-        space = addionalMessage and ' ' or ''
-        message = ERROR_CODES[statusCode] + space + addionalMessage
+    def writeError(self, webRequest, statusCode, additionalMessage = '', echoArgs = True):
+        space = additionalMessage and ' ' or ''
+        message = ERROR_CODES[statusCode] + space + additionalMessage
         self.writeHeader(webRequest)
         url = self.getRequestUrl(webRequest)
         if statusCode in ["badArgument", "badResumptionToken", "badVerb"]:
@@ -101,54 +104,6 @@ class OaiVerb(object):
 
     def writeFooter(self, webRequest):
         webRequest.write(OAIFOOTER)
-
-    def _isArgumentRepeated(self, webRequest):
-        for k, v in webRequest.args.items():
-            if len(v) > 1:
-                return k
-        return False
-
-    def _select(self, neededNess):
-        result = []
-        for arg, definition in self._argsDef.items():
-            if definition == neededNess:
-                result.append(arg)
-        return result
-
-    def ___set(self, key, value):
-        setattr(self, "_" + key, value[0])
-
-    def _doElementaryArgumentsValidation(self, webRequest):
-        if self._isArgumentRepeated(webRequest):
-            return 'Argument "%s" may not be repeated.' % self._isArgumentRepeated(webRequest)
-
-        exclusiveArguments = self._select('exclusive')
-        for exclusiveArgument in exclusiveArguments:
-            if exclusiveArgument in webRequest.args.keys():
-                if set(webRequest.args.keys()) != set(['verb', exclusiveArgument]):
-                    return '"%s" argument may only be used exclusively.' % exclusiveArgument
-                self.___set(exclusiveArgument, webRequest.args[exclusiveArgument])
-                return
-            else:
-                self.___set(exclusiveArgument, [None])
-
-        missing = []
-        for requiredArgument in self._select('required'):
-            if not requiredArgument in webRequest.args.keys():
-                missing.append(requiredArgument)
-            self.___set(requiredArgument, webRequest.args.get(requiredArgument, [None]))
-        quote = lambda l: (map(lambda s: '"%s"' % s, l))
-        if missing:
-            return 'Missing argument(s) ' + \
-                " or ".join(quote(exclusiveArguments) + \
-                [" and ".join(quote(missing))]) + "."
-
-        for optionalArgument in self._select('optional'):
-            self.___set(optionalArgument, webRequest.args.get(optionalArgument, [None]))
-
-        tooMuch = set(webRequest.args.keys()).difference(self._argsDef.keys() + ['verb'])
-        if tooMuch:
-            return 'Argument(s) %s is/are illegal.' % ", ".join(map(lambda s: '"%s"' %s, tooMuch))
 
 
 
