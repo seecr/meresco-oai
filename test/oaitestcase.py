@@ -59,6 +59,7 @@ class OaiTestCase(CQ2TestCase):
         self.request.getHost = lambda: Host()
         self.stream = StringIO()
         self.request.write = self.stream.write
+        self.request.kwargs ={'Headers':{'Host':'server'}, 'port':9000, 'path':'/path/to/oai'}
 
     OAIPMH = """<?xml version="1.0" encoding="UTF-8"?>
 <OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"

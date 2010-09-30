@@ -32,6 +32,7 @@ from os.path import join
 from oaitestcase import OaiTestCase
 from meresco.components.facetindex import LuceneIndex
 from meresco.components import StorageComponent
+from meresco.components.http.utils import CRLF
 from meresco.oai import OaiAddRecord, OaiJazz
 from meresco.oai.oailistmetadataformats import OaiListMetadataFormats
 from meresco.core import be, Observable
@@ -117,5 +118,6 @@ class OaiListMetadataFormatsTest(OaiTestCase):
         self.request.args = {'verb': ['ListMetadataFormats'], 'identifier': ['DoesNotExist']}
         self.subject.addObserver(Observer())
         list(self.observable.all.listMetadataFormats(self.request))
-        self.assertTrue("""<error code="idDoesNotExist">The value of the identifier argument is unknown or illegal in this repository.</error>""" in self.stream.getvalue())
-        self.assertValidString(self.stream.getvalue())
+        body = self.stream.getvalue().split(CRLF*2)[-1]
+        self.assertTrue("""<error code="idDoesNotExist">The value of the identifier argument is unknown or illegal in this repository.</error>""" in body, body)
+        self.assertValidString(body)

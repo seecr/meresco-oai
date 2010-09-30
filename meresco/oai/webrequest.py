@@ -33,20 +33,20 @@ from StringIO import StringIO
 from socket import gethostname
 
 class WebRequest(object):
-    def __init__(self, port=None, Client=None, RequestURI=None, Method=None, Headers=None, **kwargs):
-        Scheme, Netloc, Path, Query, Fragment = urlsplit(RequestURI)
+    def __init__(self, **kwargs):
+        Scheme, Netloc, Path, Query, Fragment = urlsplit(kwargs['RequestURI'])
+        self.kwargs = kwargs
         self.stream = StringIO()
         self.write = self.stream.write
         self.path = Path
-        self.method = Method
-        self.uri = RequestURI
+        self.method = kwargs.get('Method', None)
+        self.uri = kwargs['RequestURI']
         self.args = parse_qs(Query)
-        self.received_headers = Headers
         self.client = self
-        self.host = Client[0]
-        self.headers = Headers
+        self.host = kwargs['Client'][0]
+        self.headers = kwargs['Headers']
         host = self
-        host.port = port
+        host.port = kwargs['port']
         self.getHost = lambda: host
         self.headersOut = {}
         self.responseCode = 200
@@ -66,10 +66,12 @@ class WebRequest(object):
         return '\t'.join((self.client.host, self.method, self.uri))
 
     def generateResponse(self):
-        yield 'HTTP/1.0 %s Ok\r\n' % self.responseCode
-        for key, value in self.headersOut.items():
-            yield key.title() + ': ' + value + '\r\n'
-        yield '\r\n'
+        self.stream.seek(0)
+        if not self.stream.getvalue().startswith('HTTP/1.'):
+            yield 'HTTP/1.0 %s Ok\r\n' % self.responseCode
+            for key, value in self.headersOut.items():
+                yield key.title() + ': ' + value + '\r\n'
+            yield '\r\n'
         self.stream.seek(0)
         for line in self.stream.readlines():
             yield line

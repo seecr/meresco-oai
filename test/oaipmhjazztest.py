@@ -64,7 +64,10 @@ class OaiPmhJazzTest(CQ2TestCase):
                 RequestURI='http://example.org/oai?' + urlencode(arguments, doseq=True),
                 Headers={},
                 Client=('127.0.0.1', 1324),
+                Method="GET",
+                port=9000,
                 arguments=arguments,
+                path='/oai',
             ))).split(CRLF * 2)
         self.assertTrue(parse(StringIO(body)))
 

@@ -33,6 +33,7 @@ from mockoaijazz import MockOaiJazz
 
 from meresco.core import ObserverFunction
 from meresco.oai.oaigetrecord import OaiGetRecord
+from meresco.components.http.utils import CRLF
 
 from cq2utils.calltrace import CallTrace
 
@@ -56,11 +57,10 @@ class OaiGetRecordTest(OaiTestCase):
         self.subject.addObserver(observer)
 
         list(self.observable.all.getRecord(self.request))
-
-        self.assertEqualsWS(self.OAIPMH % """
-<request identifier="oai:ident" metadataPrefix="oai_dc" verb="GetRecord">http://server:9000/path/to/oai</request>
-<error code="idDoesNotExist">The value of the identifier argument is unknown or illegal in this repository.</error>""", self.stream.getvalue())
-        self.assertValidString(self.stream.getvalue())
+        body = self.stream.getvalue().split(CRLF*2)[-1]
+        self.assertTrue("""<request identifier="oai:ident" metadataPrefix="oai_dc" verb="GetRecord">http://server:9000/path/to/oai</request>""" in body, body)
+        self.assertTrue("""<error code="idDoesNotExist">The value of the identifier argument is unknown or illegal in this repository.</error>""" in body, body)
+        self.assertValidString(body)
 
         self.assertEquals([('oai:ident', 'oai_dc')], notifications)
 
