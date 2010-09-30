@@ -28,8 +28,7 @@
 ## end license ##
 
 from meresco.core import Observable
-from meresco.components.http.utils import okXml
-from oaiutils import OAIHEADER, RESPONSE_DATE, zuluTime, REQUEST, OAIFOOTER, requestUrl
+from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl
 from xml.sax.saxutils import escape as xmlEscape
 
 class OaiError(Observable):
@@ -55,21 +54,21 @@ class OaiError(Observable):
 
 
 def oaiError(statusCode, addionalMessage, arguments, **kwargs):
-        space = addionalMessage and ' ' or ''
-        message = ERROR_CODES[statusCode] + space + addionalMessage
+    space = addionalMessage and ' ' or ''
+    message = ERROR_CODES[statusCode] + space + addionalMessage
 
-        yield okXml
-        yield OAIHEADER
-        yield RESPONSE_DATE % zuluTime()
-        url =  requestUrl(**kwargs)
+    yield oaiHeader()
 
-        args = ''
-        if statusCode not in ["badArgument", "badResumptionToken", "badVerb"]:
-            """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the responce will not validate either"""
-            args = ' '.join(['%s="%s"' % (xmlEscape(k), xmlEscape(v[0]).replace('"', '&quot;')) for k,v in sorted(arguments.items())])
-        yield REQUEST % locals()
-        yield """<error code="%(statusCode)s">%(message)s</error>""" % locals()
-        yield OAIFOOTER
+    url =  requestUrl(**kwargs)
+
+    args = ''
+    if statusCode not in ["badArgument", "badResumptionToken", "badVerb"]:
+        """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the responce will not validate either"""
+        args = ' '.join(['%s="%s"' % (xmlEscape(k), xmlEscape(v[0]).replace('"', '&quot;')) for k,v in sorted(arguments.items())])
+    yield REQUEST % locals()
+    yield """<error code="%(statusCode)s">%(message)s</error>""" % locals()
+
+    yield oaiFooter()
 
 # http://www.openarchives.org/OAI/openarchivesprotocol.html#ErrorConditions
 ERROR_CODES = {

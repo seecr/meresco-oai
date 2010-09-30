@@ -1,6 +1,8 @@
 
 from time import strftime, gmtime
 from socket import gethostname
+from meresco.components.http.utils import okXml
+
 HOSTNAME = gethostname()
 
 def zuluTime():
@@ -9,6 +11,14 @@ def zuluTime():
 def requestUrl(Headers, path, port, **kwargs):
     hostname = Headers.get('Host', HOSTNAME).split(':')[0]
     return 'http://%s:%s%s' % (hostname, port, path)
+
+def oaiHeader():
+    yield okXml
+    yield OAIHEADER
+    yield RESPONSE_DATE % zuluTime()
+
+def oaiFooter():
+    yield OAIFOOTER
 
 OAIHEADER = """<?xml version="1.0" encoding="UTF-8"?>
 <OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"

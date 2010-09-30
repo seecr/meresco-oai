@@ -30,7 +30,7 @@
 from time import gmtime, strftime
 from xml.sax.saxutils import escape as xmlEscape
 from oaierror import ERROR_CODES
-from oaiutils import RESPONSE_DATE, REQUEST, OAIHEADER, OAIFOOTER
+from oaiutils import RESPONSE_DATE, REQUEST, OAIHEADER, OAIFOOTER, zuluTime
 
 class OaiVerb(object):
 
