@@ -41,6 +41,7 @@ from meresco.oai.oailist import BATCH_SIZE, OaiList
 from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionToken
 
 from oaitestcase import OaiTestCase
+from meresco.oai.oaiutils import OaiException
 
 from weightless import compose
 
@@ -229,8 +230,8 @@ class OaiListTest(OaiTestCase):
             isAvailableDefault=(True,False),
             isAvailableAnswer=[(None, 'oai_dc', (True,True))],
             selectTotal=1))
-        list(self.observable.all.listIdentifiers(self.request))
-        body = self.stream.getvalue().split(CRLF*2)[-1]
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
 
         self.assertTrue("""<request metadataPrefix="oai_dc"
  verb="ListIdentifiers">http://server:9000/path/to/oai</request>
@@ -253,9 +254,9 @@ class OaiListTest(OaiTestCase):
             isAvailableAnswer=[(None, 'oai_dc', (True,True))],
             selectTotal=1))
         self.subject.addObserver(MockOaiProvenance())
-        list(self.observable.all.listIdentifiers(self.request))
-        output = self.stream.getvalue()
-        self.assertFalse('<about>PROVENANCE</about>' in output, output)
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
+        self.assertFalse('<about>PROVENANCE</about>' in body, body)
 
     def testNoRecordsMatch(self):
         self.request.args = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
@@ -264,7 +265,10 @@ class OaiListTest(OaiTestCase):
         result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
         body = result.split(CRLF*2)[-1]
         self.assertTrue(body.find("noRecordsMatch") > -1)
-        self.assertEquals('noRecordsMatch', self.subject.preProcess(self.request.args, **self.request.kwargs))
+        try:
+            self.subject.preProcess(self.request.args, **self.request.kwargs)
+        except OaiException, e:
+            self.assertEquals('noRecordsMatch', e.statusCode)
 
     def testSetsInHeader(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
