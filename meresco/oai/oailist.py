@@ -33,10 +33,14 @@ from resumptiontoken import resumptionTokenFromString, ResumptionToken
 from oaitool import ISO8601, ISO8601Exception
 from oairecordverb import OaiRecordVerb
 from itertools import chain
+from oaiutils import OaiBadArgumentException, doElementaryArgumentsValidation, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+from oaierror import oaiError
+from xml.sax.saxutils import escape as xmlEscape
+from meresco.core.generatorutils import decorate
 
 BATCH_SIZE = 200
 
-class OaiList(OaiRecordVerb, Observable):
+class OaiList(Observable):
     """4.3 ListIdentifiers
 Summary and Usage Notes
 
@@ -79,28 +83,54 @@ Error and Exception Conditions
     * noSetHierarchy - The repository does not support sets.
 """
     def __init__(self, batchSize=BATCH_SIZE):
-        OaiRecordVerb.__init__(self, ['ListIdentifiers', 'ListRecords'], {
+        self._supportedVerbs = ['ListIdentifiers', 'ListRecords']
+        self._argsDef = {
             'from': 'optional',
             'until': 'optional',
             'set': 'optional',
             'resumptionToken': 'exclusive',
-            'metadataPrefix': 'required'})
+            'metadataPrefix': 'required'}
         Observable.__init__(self)
         self._batchSize = batchSize
 
-    def listRecords(self, webrequest, **kwargs):
-        self.startProcessing(webrequest)
-        yield webrequest.generateResponse()
+    def listRecords(self, arguments, **kwargs):
+        #self.startProcessing(webrequest)
+        #yield webrequest.generateResponse()
+        self._verb = arguments.get('verb', [None])[0]
+        if not self._verb in self._supportedVerbs:
+            return
+
+        try:
+            validatedArguments = doElementaryArgumentsValidation(arguments, self._argsDef)
+            for k,v in validatedArguments.items():
+                setattr(self, "_" + k, v)
+        except OaiBadArgumentException, e:
+            yield oaiError(e.statusCode, e.additionalMessage, arguments, **kwargs)
+
+        try:
+            self.preProcess(arguments, **kwargs)
+        except OaiException, e:
+            yield oaiError(e.statusCode, e.additionalMessage, arguments, **kwargs)
+            return
+
+        yield oaiHeader()
+        yield oaiRequestArgs(arguments, **kwargs)
+
+        yield '<%s>' % self._verb
+        yield self.process(arguments, **kwargs)
+        yield '</%s>' % self._verb
+
+        yield oaiFooter()
 
     def listIdentifiers(self, webrequest, **kwargs):
         self.startProcessing(webrequest)
         yield webrequest.generateResponse()
 
-    def preProcess(self, webRequest):
+    def preProcess(self, arguments, **kwargs):
         if self._resumptionToken:
             token = resumptionTokenFromString(self._resumptionToken)
             if not token:
-                return self.writeError(webRequest, "badResumptionToken")
+                raise OaiException("badResumptionToken")
             self._continueAfter = token._continueAfter
             self._metadataPrefix = token._metadataPrefix
             self._from = token._from
@@ -113,16 +143,16 @@ Error and Exception Conditions
                 self._until  = self._until and ISO8601(self._until)
                 if self._from and self._until:
                     if self._from.isShort() != self._until.isShort():
-                        return self.writeError(webRequest, 'badArgument', 'from and/or until arguments must match in length')
+                        raise OaiBadArgumentException('from and/or until arguments must match in length')
                     if str(self._from) > str(self._until):
-                        return self.writeError(webRequest, 'badArgument', 'from argument must be smaller than until argument')
+                        raise OaiBadArgumentException('from argument must be smaller than until argument')
                 self._from = self._from and self._from.floor()
                 self._until = self._until and self._until.ceil()
             except ISO8601Exception, e:
-                return self.writeError(webRequest, 'badArgument', 'from and/or until arguments are faulty')
+                raise OaiBadArgumentException('from and/or until arguments are faulty')
 
         if not self._metadataPrefix in set(self.any.getAllPrefixes()):
-            return self.writeError(webRequest, 'cannotDisseminateFormat')
+            raise OaiException('cannotDisseminateFormat')
 
         result = self.any.oaiSelect(
             sets=self._set and [self._set] or None,
@@ -136,20 +166,52 @@ Error and Exception Conditions
             self._queryRecordIds = chain(iter([firstRecord]), result)
         except StopIteration:
             self._queryRecordIds = iter([])
-            return self.writeError(webRequest, 'noRecordsMatch')
+            raise OaiException('noRecordsMatch')
 
-    def process(self, webRequest):
+    def process(self, arguments, **kwargs):
         for i, id in enumerate(self._queryRecordIds):
             if i == self._batchSize:
-                webRequest.write('<resumptionToken>%s</resumptionToken>' % ResumptionToken(
+                yield('<resumptionToken>%s</resumptionToken>' % ResumptionToken(
                     self._metadataPrefix,
                     self.any.getUnique(prevId),
                     self._from,
                     self._until,
                     self._set))
-                return
-            self.writeRecord(webRequest, id, self._verb == "ListRecords")
+            yield self.oaiRecord(id, self._verb == "ListRecords")
             prevId = id
 
         if self._resumptionToken:
-            webRequest.write('<resumptionToken/>')
+            yield '<resumptionToken/>'
+
+    def oaiRecord(self, recordId, writeBody=True):
+        isDeletedStr = self.any.isDeleted(recordId) and ' status="deleted"' or ''
+        datestamp = self.any.getDatestamp(recordId)
+        setSpecs = self._getSetSpecs(recordId)
+        if writeBody:
+            yield '<record>'
+
+        yield """<header%s>
+            <identifier>%s</identifier>
+            <datestamp>%s</datestamp>
+            %s
+        </header>""" % (isDeletedStr, xmlEscape(recordId.encode('utf-8')), datestamp, setSpecs)
+
+        if writeBody and not isDeletedStr:
+            yield '<metadata>'
+            yield self.any.write(None, recordId, self._metadataPrefix)
+            yield '</metadata>'
+
+        if writeBody:
+            provenance = self.all.provenance(recordId)
+            for line in decorate('<about>', provenance, '</about>'):
+                yield line
+
+        if writeBody:
+            yield '</record>'
+
+    def _getSetSpecs(self, recordId):
+        sets = self.any.getSets(recordId)
+        if sets:
+            return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in sets)
+        return ''
+

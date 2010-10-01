@@ -6,11 +6,15 @@ from xml.sax.saxutils import escape as xmlEscape
 
 HOSTNAME = gethostname()
 
-class OaiBadArgumentException(Exception):
-    def __init__(self, additionalMessage):
+class OaiException(Exception):
+    def __init__(self, statusCode, additionalMessage=""):
         Exception.__init__(self, additionalMessage)
         self.additionalMessage = additionalMessage
-        self.statusCode = 'badArgument'
+        self.statusCode = statusCode
+
+class OaiBadArgumentException(OaiException):
+    def __init__(self, additionalMessage):
+        OaiException.__init__(self, 'badArgument', additionalMessage)
 
 def zuluTime():
     return strftime('%Y-%m-%dT%H:%M:%SZ', gmtime())
@@ -31,6 +35,7 @@ def oaiRequestArgs(arguments, **kwargs):
     url = requestUrl(**kwargs)
     args = ' '.join(['%s="%s"' % (xmlEscape(k), xmlEscape(v[0]).replace('"', '&quot;')) for k,v in sorted(arguments.items())])
     yield REQUEST % locals()
+
 
 def doElementaryArgumentsValidation(arguments, argsDef):
     validatedArguments = {}

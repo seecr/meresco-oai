@@ -42,6 +42,8 @@ from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionTok
 
 from oaitestcase import OaiTestCase
 
+from weightless import compose
+
 class OaiListTest(OaiTestCase):
     def getSubject(self):
         oailist = OaiList()
@@ -60,8 +62,8 @@ class OaiListTest(OaiTestCase):
                 (None, '__tombstone__', (True, False))])
         self.subject.addObserver(mockoaijazz)
         
-        list(self.observable.all.listRecords(self.request))
-        body = self.stream.getvalue().split(CRLF*2)[-1]
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
         self.assertTrue("""<identifier>id_0&amp;0</identifier>""" in body, body)
         self.assertTrue("""<identifier>id_1&amp;1</identifier>""" in body, body)
         self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="id_0&amp;0"/>""" in body, body)
@@ -79,8 +81,9 @@ class OaiListTest(OaiTestCase):
                 (None, 'oai_dc', (True,False)),
                 (None, '__tombstone__', (True, False))]))
 
-        list(self.observable.all.listRecords(self.request))
-        self.assertFalse('<about' in self.stream.getvalue())
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
+        self.assertFalse('<about' in body)
 
     def testListRecordsWithProvenance(self):
         class MockOaiProvenance(object):
@@ -97,9 +100,9 @@ class OaiListTest(OaiTestCase):
                 (None, 'oai_dc', (True,False)),
                 (None, '__tombstone__', (True, False))]))
 
-        list(self.observable.all.listRecords(self.request))
-        result = self.stream.getvalue()
-        self.assertTrue('<about>PROVENANCE</about>' in result, result)
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
+        self.assertTrue('<about>PROVENANCE</about>' in body, body)
 
     def testListRecordsUsingToken(self):
         self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '10', 'FROM', 'UNTIL', 'SET'))]}
@@ -116,7 +119,7 @@ class OaiListTest(OaiTestCase):
 
         observer.oaiSelect = oaiSelect
         self.subject.addObserver(observer)
-        result = list(self.observable.all.listRecords(self.request))
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
 
     def testResumptionTokensAreProduced(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2000-12-31T00:00:00Z'], 'set': ['SET']}
@@ -125,13 +128,18 @@ class OaiListTest(OaiTestCase):
             return imap(lambda i: 'id_%i' % i, range(batchSize+1))
         def writeRecord(*args, **kwargs):
             pass
+        def provenance(*args, **kwargs):
+            yield ""
+        def write(*args, **kwargs):
+            yield ""
         observer.oaiSelect = oaiSelect
+        observer.provenance = provenance
+        observer.write = write
         observer.getUnique = lambda x: 'UNIQUE_FOR_TEST'
         self.subject.addObserver(observer)
         self.subject.writeRecord = writeRecord
-
-        list(self.observable.all.listRecords(self.request))
-        body = self.stream.getvalue().split(CRLF*2)[-1]
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
         self.assertTrue(body.find("<resumptionToken>") > -1)
         xml = bind_string(body).OAI_PMH.ListRecords.resumptionToken
         resumptionToken = resumptionTokenFromString(str(xml))
@@ -147,8 +155,8 @@ class OaiListTest(OaiTestCase):
         self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(BATCH_SIZE)), selectTotal = BATCH_SIZE))
         self.subject.writeRecord = lambda *args, **kwargs: None
 
-        list(self.observable.all.listRecords(self.request))
-        body = self.stream.getvalue().split(CRLF*2)[-1]
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
 
         self.assertTrue(body.find("<resumptionToken") > -1)
         self.assertEquals('', str(bind_string(body).OAI_PMH.ListRecords.resumptionToken))
@@ -162,8 +170,8 @@ class OaiListTest(OaiTestCase):
             isAvailableDefault=(True,False),
             selectTotal = 2))
 
-        list(self.observable.all.listRecords(self.request))
-        body = self.stream.getvalue().split(CRLF*2)[-1]
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
         self.assertTrue("""<header>
             <identifier>id_0</identifier>""" in body, body)
         self.assertTrue("""<header status="deleted">
@@ -182,14 +190,13 @@ class OaiListTest(OaiTestCase):
         self.subject.addObserver(observer)
 
         def doIt(oaiFrom, oaiUntil):
-            self.stream = StringIO()
-            self.request.write = self.stream.write
             self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
             if oaiFrom:
                 self.request.args['from'] = [oaiFrom]
             if oaiUntil:
                 self.request.args['until'] = [oaiUntil]
-            list(self.observable.all.listRecords(self.request))
+            result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+            self.body = result.split(CRLF*2)[-1]
             return [observer.oaiSelectArguments[3], observer.oaiSelectArguments[4]]
 
         def right(oaiFrom, oaiUntil, expectedFrom = None, expectedUntil = None):
@@ -198,11 +205,11 @@ class OaiListTest(OaiTestCase):
             resultingOaiFrom, resultingOaiUntil = doIt(oaiFrom, oaiUntil)
             self.assertEquals(expectedFrom, resultingOaiFrom)
             self.assertEquals(expectedUntil, resultingOaiUntil)
-            self.assertTrue(not "<error" in self.stream.getvalue(), self.stream.getvalue())
+            self.assertTrue(not "<error" in self.body, self.body)
 
         def wrong(oaiFrom, oaiUntil):
             doIt(oaiFrom, oaiUntil)
-            self.assertTrue("""<error code="badArgument">""" in self.stream.getvalue())
+            self.assertTrue("""<error code="badArgument">""" in self.body)
 
         #start reading here
         right(None, None)
@@ -254,11 +261,10 @@ class OaiListTest(OaiTestCase):
         self.request.args = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
 
         self.subject.addObserver(MockOaiJazz(selectTotal = 0))
-        list(self.observable.all.listIdentifiers(self.request))
-
-        self.assertTrue(self.stream.getvalue().find("noRecordsMatch") > -1)
-
-        self.assertEquals('noRecordsMatch', self.subject.preProcess(self.request))
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
+        self.assertTrue(body.find("noRecordsMatch") > -1)
+        self.assertEquals('noRecordsMatch', self.subject.preProcess(self.request.args, **self.request.kwargs))
 
     def testSetsInHeader(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
@@ -270,8 +276,8 @@ class OaiListTest(OaiTestCase):
             isAvailableAnswer=[
                 (None, 'oai_dc', (True, True)),
                 (None, '__sets__', (True, True))]))
-        list(self.observable.all.listRecords(self.request))
-
-        self.assertTrue("<setSpec>one:two:three</setSpec>" in self.stream.getvalue())
-        self.assertTrue("<setSpec>one:two:four</setSpec>" in self.stream.getvalue())
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        
+        self.assertTrue("<setSpec>one:two:three</setSpec>" in result)
+        self.assertTrue("<setSpec>one:two:four</setSpec>" in result)
 

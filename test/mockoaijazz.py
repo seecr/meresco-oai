@@ -62,26 +62,26 @@ class MockOaiJazz:
 
     def write(self, sink, id, partName):
         if partName == 'oai_dc':
-            sink.write('<some:recorddata xmlns:some="http://some.example.org" id="%s"/>' % id.replace('&', '&amp;'))
+            yield '<some:recorddata xmlns:some="http://some.example.org" id="%s"/>' % id.replace('&', '&amp;')
         elif partName == 'meta':
-            sink.write("""<meta>
+            yield """<meta>
   <repository>
     <baseurl>META_BASEURL</baseurl>
     <harvestdate>META_HARVESTDATE</harvestdate>
     <metadataNamespace>META_METADATANAMESPACE</metadataNamespace>
   </repository>
-</meta>""")
+</meta>"""
         elif partName == 'header':
-            sink.write("""<header xmlns="http://www.openarchives.org/OAI/2.0/">
+            yield """<header xmlns="http://www.openarchives.org/OAI/2.0/">
             <identifier>HEADER_IDENTIFIER</identifier>
             <datestamp>HEADER_DATESTAMP</datestamp>
-        </header>""")
+        </header>"""
         elif partName == '__stamp__':
-            sink.write("""<__stamp__>
+            yield """<__stamp__>
     <datestamp>DATESTAMP_FOR_TEST</datestamp>
-</__stamp__>""")
+</__stamp__>"""
         elif partName == '__sets__':
-            sink.write("""<__sets__><set><setSpec>one:two:three</setSpec><setName>Three Piggies</setName></set><set><setSpec>one:two:four</setSpec><setName>Four Chickies</setName></set></__sets__>""")
+            yield """<__sets__><set><setSpec>one:two:three</setSpec><setName>Three Piggies</setName></set><set><setSpec>one:two:four</setSpec><setName>Four Chickies</setName></set></__sets__>"""
         else:
             self.fail(partName + ' is unexpected')
 
