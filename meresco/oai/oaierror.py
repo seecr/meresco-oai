@@ -52,7 +52,7 @@ class OaiError(Observable):
             yield oaiError('badVerb', 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', arguments=arguments, **kwargs)
 
 
-def oaiError(statusCode, addionalMessage, arguments, **kwargs):
+def oaiError(statusCode, addionalMessage, arguments, **httpkwargs):
     space = addionalMessage and ' ' or ''
     message = ERROR_CODES[statusCode] + space + addionalMessage
 
@@ -60,9 +60,9 @@ def oaiError(statusCode, addionalMessage, arguments, **kwargs):
 
     if statusCode not in ["badArgument", "badResumptionToken", "badVerb"]:
         """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the responce will not validate either"""
-        yield oaiRequestArgs(arguments, **kwargs)
+        yield oaiRequestArgs(arguments, **httpkwargs)
     else:
-        yield oaiRequestArgs({}, **kwargs)
+        yield oaiRequestArgs({}, **httpkwargs)
 
     yield """<error code="%(statusCode)s">%(message)s</error>""" % locals()
 

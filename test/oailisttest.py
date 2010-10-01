@@ -109,13 +109,12 @@ class OaiListTest(OaiTestCase):
         self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '10', 'FROM', 'UNTIL', 'SET'))]}
 
         observer = CallTrace('RecordAnswering')
-        def oaiSelect(sets, prefix, continueAfter, oaiFrom, oaiUntil, batchSize):
+        def oaiSelect(sets, prefix, continueAfter, oaiFrom, oaiUntil):
             self.assertEquals('SET', sets[0])
             self.assertEquals('oai_dc', prefix)
             self.assertEquals('10', continueAfter)
             self.assertEquals('FROM', oaiFrom)
             self.assertEquals('UNTIL', oaiUntil)
-            self.assertEquals(BATCH_SIZE, batchSize)
             return (f for f in [])
 
         observer.oaiSelect = oaiSelect
@@ -125,17 +124,17 @@ class OaiListTest(OaiTestCase):
     def testResumptionTokensAreProduced(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2000-12-31T00:00:00Z'], 'set': ['SET']}
         observer = CallTrace('RecordAnswering')
-        def oaiSelect(sets, prefix, continueAfter, oaiFrom, oaiUntil, batchSize):
-            return imap(lambda i: 'id_%i' % i, range(batchSize+1))
+        def oaiSelect(sets, prefix, continueAfter, oaiFrom, oaiUntil):
+            return imap(lambda i: 'id_%i' % i, xrange(999999))
         def writeRecord(*args, **kwargs):
             pass
         def provenance(*args, **kwargs):
             yield ""
-        def write(*args, **kwargs):
+        def yieldRecord(*args, **kwargs):
             yield ""
         observer.oaiSelect = oaiSelect
         observer.provenance = provenance
-        observer.write = write
+        observer.yieldRecord = yieldRecord
         observer.getUnique = lambda x: 'UNIQUE_FOR_TEST'
         self.subject.addObserver(observer)
         self.subject.writeRecord = writeRecord
@@ -265,10 +264,6 @@ class OaiListTest(OaiTestCase):
         result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
         body = result.split(CRLF*2)[-1]
         self.assertTrue(body.find("noRecordsMatch") > -1)
-        try:
-            self.subject.preProcess(self.request.args, **self.request.kwargs)
-        except OaiException, e:
-            self.assertEquals('noRecordsMatch', e.statusCode)
 
     def testSetsInHeader(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}

@@ -64,10 +64,10 @@ class _OaiPmhTest(OaiTestCase):
         self.observer.returnValues['isAvailable'] = (True, True)
         self.observer.returnValues['getDatestamp'] = '2008-11-14T15:43:00Z'
         self.observer.ignoredAttributes.append('provenance')
-        def write(sink, identifier, partName):
+        def yieldRecord(identifier, partName):
             self.assertEquals('ident', identifier)
-            sink.write('<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>')
-        self.observer.write = write
+            yield '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>'
+        self.observer.yieldRecord = yieldRecord
 
         header, result = self.handleRequest({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': [self.prefix + 'ident']})
         
@@ -164,10 +164,11 @@ class _OaiPmhTest(OaiTestCase):
         self.observer.returnValues['getSets'] = iter(['set0'])
         
         self.observer.ignoredAttributes.append('provenance')
-        def write(sink, identifier, partName):
+        def yieldRecord(identifier, partname):
+            print identifier, partname
             self.assertEquals('ident', identifier[:5])
-            sink.write('<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>')
-        self.observer.write = write
+            yield '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>'
+        self.observer.yieldRecord = yieldRecord
 
         header, result = self.handleRequest({'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']})
         

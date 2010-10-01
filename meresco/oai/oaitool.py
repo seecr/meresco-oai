@@ -69,7 +69,10 @@ class ISO8601:
     
     def __str__(self):
         return self.floor()
-    
+   
+    def __repr__(self):
+        return str(self.s)
+
     def isShort(self):
         return len(self.s) == self.short
 

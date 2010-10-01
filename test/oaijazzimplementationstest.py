@@ -37,8 +37,8 @@ from time import sleep, mktime
 from StringIO import StringIO
 from lxml.etree import parse
 from meresco.oai.oailist import OaiList
-
 from meresco.oai import OaiJazz, OaiAddRecord
+from weightless import compose
 
 parseLxml = lambda s: parse(StringIO(s)).getroot()
 
@@ -267,9 +267,8 @@ class OaiJazzImplementationsTest(CQ2TestCase):
         webrequest.path = '/oai'
         webrequest.returnValues['getRequestHostname'] = 'www.example.org'
         webrequest.returnValues['getHost'] = host
-        list(oaiList.listIdentifiers(webrequest))
-        output.seek(0)
-        body = output.getvalue().split(CRLF*2)[-1]
+        result = ''.join(compose(oaiList.listIdentifiers(webrequest.args, **webrequest.kwargs)))
+        body = result.split(CRLF*2)[-1]
         lxmlNode = parse(StringIO(body))
         recordIds = lxmlNode.xpath('//oai:identifier/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"})
         self.assertEquals(['id:%d' % i for i in range(BATCH_SIZE)], recordIds)
@@ -279,9 +278,8 @@ class OaiJazzImplementationsTest(CQ2TestCase):
         output = StringIO()
         webrequest.write = output.write
         webrequest.args = {'verb': ['ListIdentifiers'], 'resumptionToken':[resumptionToken]}
-        list(oaiList.listIdentifiers(webrequest))
-        output.seek(0)
-        body = output.getvalue().split(CRLF*2)[-1]
+        result = ''.join(compose(oaiList.listIdentifiers(webrequest.args, **webrequest.kwargs)))
+        body = result.split(CRLF*2)[-1]
         lxmlNode = parse(StringIO(body))
         recordIds = lxmlNode.xpath('//oai:identifier/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"})
         self.assertEquals(['id:%d' % i for i in range(BATCH_SIZE, BATCH_SIZE +5)], recordIds)

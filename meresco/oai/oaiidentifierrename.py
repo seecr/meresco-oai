@@ -71,7 +71,10 @@ class OaiIdentifierRename(Observable):
 
     def write(self, sink, id, partName):
         return self.any.write(sink, self._strip(id), partName)
-    
+
+    def yieldRecord(self, identifier, partname):
+        return self.any.yieldRecord(self._strip(identifier), partname)
+
     def getStream(self, id, partName):
         return self.any.getStream(self._strip(id), partName)
     

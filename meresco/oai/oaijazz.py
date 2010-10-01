@@ -84,7 +84,7 @@ class OaiJazz(object):
         self._add(stamp, identifier, oldSets, oldPrefixes)
         self._tombStones.append(stamp)
 
-    def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, batchSize='ignored'):
+    def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None):
         sets = [] if sets == None else sets
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
         stop = self._untilTime(oaiUntil)

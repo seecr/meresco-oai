@@ -31,8 +31,8 @@ def oaiHeader():
 def oaiFooter():
     yield OAIFOOTER
 
-def oaiRequestArgs(arguments, **kwargs):
-    url = requestUrl(**kwargs)
+def oaiRequestArgs(arguments, **httpkwargs):
+    url = requestUrl(**httpkwargs)
     args = ' '.join(['%s="%s"' % (xmlEscape(k), xmlEscape(v[0]).replace('"', '&quot;')) for k,v in sorted(arguments.items())])
     yield REQUEST % locals()
 

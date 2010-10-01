@@ -42,7 +42,7 @@ class OaiPmh(object):
         outside = Transparant() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
-        self._oldFashionedVerbs = ['ListIdentifiers',
+        self._oldFashionedVerbs = [
                 'GetRecord',
                 'ListSets',
                 'ListMetadataFormats',
