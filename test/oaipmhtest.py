@@ -37,6 +37,10 @@ from oaitestcase import OaiTestCase
 from lxml.etree import parse
 from StringIO import StringIO
 from meresco.components.http.utils import CRLF
+from meresco.components.http import ObservableHttpServer
+from weightless import Reactor
+
+from mockoaijazz import MockOaiJazz
 
 def xpath(node, path):
     return '\n'.join(node.xpath(path, namespaces={'oai':"http://www.openarchives.org/OAI/2.0/",
@@ -155,8 +159,42 @@ class _OaiPmhTest(OaiTestCase):
         ))
         self.assertTrue(observable, 'The above code failed.')
 
-    def testListRecords(self):
+    def testListRecordsUsingXWait(self):
+        counts = []
+       
+        reactor = Reactor()
+        oaiPmh = OaiPmh('repositoryName', 'adminEmail')
+        mockoaijazz = MockOaiJazz(
+            selectAnswer=['id_0&0', 'id_1&1'],
+            selectTotal=2,
+            isAvailableDefault=(True,True),
+            isAvailableAnswer=[
+                (None, 'oai_dc', (True,False)),
+                (None, '__tombstone__', (True, False))])
+        def oaiSelect(*args, **kwargs):
+            counts.append(True)
+            if len(counts) == 1:
+                raise StopIteration()
+            return (i for i in ['ident0', 'ident1'])
+        mockoaijazz.oaiSelect = oaiSelect
 
+        server = be(
+            (ObservableHttpServer(reactor, 99999),
+                (oaiPmh,
+                    (mockoaijazz,),
+                )
+            )
+        )
+        server.printTree()
+
+        result = server.all.handleRequest({'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait':['True']})
+        result.next()
+        print reactor._suspended
+        oaiPmh.add('identifier', 'partname', 'data')
+        reactor.step()
+        body = ''.join(compose(result))
+
+    def testListRecords(self):
         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
         self.observer.returnValues['oaiSelect'] = iter(['ident0', 'ident1'])
         self.observer.returnValues['isDeleted'] = False

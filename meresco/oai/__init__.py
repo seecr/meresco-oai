@@ -35,3 +35,4 @@ from oaiidentifierrename import OaiIdentifierRename
 from fields2oairecord import Fields2OaiRecordTx
 from oaijazz import OaiJazz
 from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
+from oairesume import OaiResume

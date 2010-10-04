@@ -37,7 +37,7 @@ from oaiutils import OaiBadArgumentException, doElementaryArgumentsValidation, o
 from oaierror import oaiError
 from xml.sax.saxutils import escape as xmlEscape
 from meresco.core.generatorutils import decorate
-from weightless import compose
+from weightless import compose, Suspend
 
 BATCH_SIZE = 200
 
@@ -90,7 +90,8 @@ Error and Exception Conditions
             'until': 'optional',
             'set': 'optional',
             'resumptionToken': 'exclusive',
-            'metadataPrefix': 'required'}
+            'metadataPrefix': 'required',
+            'x-wait': 'optional'}
         Observable.__init__(self)
         self._batchSize = batchSize
 
@@ -111,15 +112,22 @@ Error and Exception Conditions
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
 
-        try:
-            results = self.preProcess(validatedArguments, **httpkwargs)
-        except OaiException, e:
-            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
-            return
-
+        while True:
+            try:
+                results = self.preProcess(validatedArguments, **httpkwargs)
+                break
+            except OaiException, e:
+                if e.statusCode == "noRecordsMatch" and validatedArguments.get("x-wait", 'False') == 'True':
+                    suspend = Suspend()
+                    self.do.addSuspend(suspend)
+                    yield suspend
+                    suspend.getResult()
+                else:
+                    yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+                    return
+        
         yield oaiHeader()
         yield oaiRequestArgs(arguments, **httpkwargs)
-
         yield '<%s>' % self._verb
         yield self.process(results, validatedArguments, **httpkwargs)
         yield '</%s>' % self._verb
@@ -164,13 +172,14 @@ Error and Exception Conditions
         validatedArguments['until'] = _until
         validatedArguments['set'] = _set
         validatedArguments['metadataPrefix'] = _metadataPrefix
-
+        print self._observers
         result = self.any.oaiSelect(
             sets = [_set] if _set else None,
             prefix = _metadataPrefix,
             continueAfter  = self._continueAfter,
             oaiFrom = _from,
             oaiUntil = _until)
+        print result
         try:
             firstRecord = result.next()
             return chain(iter([firstRecord]), result)

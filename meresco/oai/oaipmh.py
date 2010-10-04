@@ -35,6 +35,7 @@ from oailistmetadataformats import OaiListMetadataFormats
 from oailistsets import OaiListSets
 from oaierror import OaiError
 from oaiidentifierrename import OaiIdentifierRename
+from oairesume import OaiResume
 from webrequest import WebRequest
 
 class OaiPmh(object):
@@ -47,12 +48,15 @@ class OaiPmh(object):
                 'ListSets',
                 'ListMetadataFormats',
                 'Identify']
+        self._oaiResume = OaiResume()
         self._internalObserverTree = be(
             (Observable(),
                 (OaiError(),
                     (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), ),
                     (OaiList(),
-                        (outside,)
+                        (self._oaiResume,
+                            (outside,)
+                        )
                     ),
                     (OaiGetRecord(),
                         (outside,)
@@ -66,6 +70,9 @@ class OaiPmh(object):
                 )
             )
         )
+
+    def add(self, *args, **kwargs):
+        self._oaiResume.resume()
 
     def handleRequest(self, arguments, **kwargs):
         verb = arguments.get('verb', [None])[0]

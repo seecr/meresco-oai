@@ -43,7 +43,7 @@ from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionTok
 from oaitestcase import OaiTestCase
 from meresco.oai.oaiutils import OaiException
 
-from weightless import compose
+from weightless import compose, Reactor
 
 class OaiListTest(OaiTestCase):
     def getSubject(self):
@@ -71,6 +71,41 @@ class OaiListTest(OaiTestCase):
         self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="id_1&amp;1"/>""" in body, body)
         self.assertTrue(body.find('<resumptionToken') == -1)
         self.assertFalse(mockoaijazz.oaiSelectArguments[0])
+
+    def testListRecordsUsingXWait(self):
+        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}
+        counts = []
+        myreactor = CallTrace("reactor")
+        myreactor.returnValues['suspend'] = 'handle'
+        calltrace = CallTrace("oairesume", ignoredAttributes=['oaiSelect', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'yieldRecord', 'provenance'])
+        self.subject.addObserver(calltrace)
+        mockoaijazz = MockOaiJazz(
+            selectAnswer=['id_0&0', 'id_1&1'],
+            selectTotal=2,
+            isAvailableDefault=(True,True),
+            isAvailableAnswer=[
+                (None, 'oai_dc', (True,False)),
+                (None, '__tombstone__', (True, False))])
+        def oaiSelect(*args, **kwargs):
+            counts.append(True)
+            if len(counts) == 1:
+                raise StopIteration()
+            yield "RESULT" + str(len(counts))
+
+        mockoaijazz.oaiSelect = oaiSelect
+        self.subject.addObserver(mockoaijazz)
+       
+        result = self.observable.all.listRecords(self.request.args, **self.request.kwargs)
+        suspend = result.next()
+        suspend(myreactor, lambda: None)
+        suspend.resume()
+        self.assertEquals("addSuspend", calltrace.calledMethods[0].name)
+        self.assertEquals(suspend, calltrace.calledMethods[0].args[0])
+        self.assertEquals("<class 'weightless._suspend.Suspend'>", str(suspend.__class__))
+        result = ''.join(compose(result))
+        body = result.split(CRLF*2)[-1]
+        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="RESULT2"/>""" in body, body)
+        self.assertTrue(body.find('<resumptionToken') == -1)
 
     def testListRecordsWithoutProvenance(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
