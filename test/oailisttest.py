@@ -229,7 +229,7 @@ class OaiListTest(OaiTestCase):
             isAvailableDefault=(True,False),
             isAvailableAnswer=[(None, 'oai_dc', (True,True))],
             selectTotal=1))
-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        result = ''.join(compose(self.observable.all.listIdentifiers(self.request.args, **self.request.kwargs)))
         body = result.split(CRLF*2)[-1]
 
         self.assertTrue("""<request metadataPrefix="oai_dc"
@@ -253,7 +253,7 @@ class OaiListTest(OaiTestCase):
             isAvailableAnswer=[(None, 'oai_dc', (True,True))],
             selectTotal=1))
         self.subject.addObserver(MockOaiProvenance())
-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        result = ''.join(compose(self.observable.all.listIdentifiers(self.request.args, **self.request.kwargs)))
         body = result.split(CRLF*2)[-1]
         self.assertFalse('<about>PROVENANCE</about>' in body, body)
 
@@ -261,7 +261,7 @@ class OaiListTest(OaiTestCase):
         self.request.args = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
 
         self.subject.addObserver(MockOaiJazz(selectTotal = 0))
-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        result = ''.join(compose(self.observable.all.listIdentifiers(self.request.args, **self.request.kwargs)))
         body = result.split(CRLF*2)[-1]
         self.assertTrue(body.find("noRecordsMatch") > -1)
 

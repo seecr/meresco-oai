@@ -255,19 +255,17 @@ class OaiJazzImplementationsTest(CQ2TestCase):
         BATCH_SIZE = 10
         for i in xrange(BATCH_SIZE + 5):
             self.jazz.addOaiRecord('id:%i' % i, metadataFormats=[('prefix', 'schema', 'namespace')])
-        output = StringIO()
         oaiList = OaiList(batchSize=BATCH_SIZE)
         oaiList.addObserver(self.jazz)
         host = CallTrace('Host')
         host.port = 12345
-        webrequest = CallTrace('WebRequest')
-        webrequest.write = output.write
-        webrequest.args = {'verb': ['ListIdentifiers'], 'metadataPrefix': ['prefix']}
-        webrequest.kwargs = {'Headers':{'Host':'www.example.org'}, 'port':12345, 'path':'/oai'}
-        webrequest.path = '/oai'
-        webrequest.returnValues['getRequestHostname'] = 'www.example.org'
-        webrequest.returnValues['getHost'] = host
-        result = ''.join(compose(oaiList.listIdentifiers(webrequest.args, **webrequest.kwargs)))
+        request = CallTrace('Request')
+        request.args = {'verb': ['ListIdentifiers'], 'metadataPrefix': ['prefix']}
+        request.kwargs = {'Headers':{'Host':'www.example.org'}, 'port':12345, 'path':'/oai'}
+        request.path = '/oai'
+        request.returnValues['getRequestHostname'] = 'www.example.org'
+        request.returnValues['getHost'] = host
+        result = ''.join(compose(oaiList.listIdentifiers(request.args, **request.kwargs)))
         body = result.split(CRLF*2)[-1]
         lxmlNode = parse(StringIO(body))
         recordIds = lxmlNode.xpath('//oai:identifier/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"})
@@ -275,10 +273,8 @@ class OaiJazzImplementationsTest(CQ2TestCase):
         resumptionToken = ''.join(lxmlNode.xpath('//oai:resumptionToken/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"}))
 
         # now use resumptiontoken
-        output = StringIO()
-        webrequest.write = output.write
-        webrequest.args = {'verb': ['ListIdentifiers'], 'resumptionToken':[resumptionToken]}
-        result = ''.join(compose(oaiList.listIdentifiers(webrequest.args, **webrequest.kwargs)))
+        request.args = {'verb': ['ListIdentifiers'], 'resumptionToken':[resumptionToken]}
+        result = ''.join(compose(oaiList.listIdentifiers(request.args, **request.kwargs)))
         body = result.split(CRLF*2)[-1]
         lxmlNode = parse(StringIO(body))
         recordIds = lxmlNode.xpath('//oai:identifier/text()', namespaces = {'oai':"http://www.openarchives.org/OAI/2.0/"})

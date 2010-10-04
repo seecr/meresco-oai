@@ -165,7 +165,6 @@ class _OaiPmhTest(OaiTestCase):
         
         self.observer.ignoredAttributes.append('provenance')
         def yieldRecord(identifier, partname):
-            print identifier, partname
             self.assertEquals('ident', identifier[:5])
             yield '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>'
         self.observer.yieldRecord = yieldRecord

@@ -60,7 +60,7 @@ class MockOaiJazz:
     def getAllPrefixes(self):
         return ['oai_dc']
 
-    def write(self, sink, id, partName):
+    def yieldRecord(self, id, partName):
         if partName == 'oai_dc':
             yield '<some:recorddata xmlns:some="http://some.example.org" id="%s"/>' % id.replace('&', '&amp;')
         elif partName == 'meta':

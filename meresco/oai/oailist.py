@@ -37,6 +37,7 @@ from oaiutils import OaiBadArgumentException, doElementaryArgumentsValidation, o
 from oaierror import oaiError
 from xml.sax.saxutils import escape as xmlEscape
 from meresco.core.generatorutils import decorate
+from weightless import compose
 
 BATCH_SIZE = 200
 
@@ -210,8 +211,7 @@ Error and Exception Conditions
 
         if writeBody and not isDeletedStr:
             yield '<metadata>'
-            print "recordId = %s" % recordId
-            yield self.any.yieldRecord(recordId, validatedArguments['metadataPrefix'])
+            yield self.all.yieldRecord(recordId, validatedArguments['metadataPrefix'])
             yield '</metadata>'
 
         if writeBody:
