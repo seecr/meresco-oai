@@ -10,6 +10,9 @@ class OaiResume(Transparant):
         if self.ctx.tx.name == self._transation_name :
             self.ctx.tx.join(self)
 
+    def oaiSelect(self, *args, **kwargs):
+        return self.all.oaiSelect(*args, **kwargs)
+
     def addSuspend(self, suspend):
         self._suspended.append(suspend) 
 

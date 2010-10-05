@@ -26,18 +26,22 @@
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 ## end license ##
-class MockOaiJazz:
-    def __init__(self, selectAnswer = [], setsAnswer = [], deleted=[], isAvailableDefault=(True,True), isAvailableAnswer=[], selectTotal=5000):
-        self._selectAnswer = selectAnswer
-        self._setsAnswer = setsAnswer
-        self._deleted = deleted
+
+class MockOaiJazz(object):
+    def __init__(self, selectAnswer=None, setsAnswer=None, deleted=None, isAvailableDefault=(True,True), isAvailableAnswer=None, selectTotal=5000):
+        self._selectAnswer = selectAnswer if selectAnswer else []
+        self._setsAnswer = setsAnswer if setsAnswer else []
+        self._deleted = deleted if deleted else []
         self._isAvailableDefault = isAvailableDefault
-        self._isAvailableAnswer = isAvailableAnswer
+        self._isAvailableAnswer = isAvailableAnswer if isAvailableAnswer else []
         self.oaiSelectArguments = {}
 
-    def oaiSelect(self, sets=[], prefix=None, continueAfter=None, oaiFrom=None, oaiUntil=None, batchSize=0):
-        self.oaiSelectArguments = (sets, prefix, continueAfter, oaiFrom, oaiUntil, batchSize)
-        return (i for i in self._selectAnswer)
+    def oaiSelect(self, sets=None, prefix=None, continueAfter=None, oaiFrom=None, oaiUntil=None, batchSize=0):
+        print __file__
+        self.oaiSelectArguments = (sets if sets else [], prefix, continueAfter, oaiFrom, oaiUntil, batchSize)
+        
+        for i in self._selectAnswer:
+            yield i
 
     def getUnique(self, id):
         return 'Unique for test'

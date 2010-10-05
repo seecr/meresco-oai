@@ -29,10 +29,11 @@
 
 
 from cq2utils import CQ2TestCase, CallTrace
-from meresco.core import Observable, be
+from meresco.core import Observable, be, Transparant
 
 from meresco.oai import OaiPmh
 from oaitestcase import OaiTestCase
+from unittest import TestCase
 
 from lxml.etree import parse
 from StringIO import StringIO
@@ -46,7 +47,7 @@ def xpath(node, path):
     return '\n'.join(node.xpath(path, namespaces={'oai':"http://www.openarchives.org/OAI/2.0/",
                                                   'tkit':"http://oai.dlib.vt.edu/OAI/metadata/toolkit"}))
 
-class _OaiPmhTest(OaiTestCase):
+class _OaiPmhTest(TestCase):
 
     def testIdentify(self):
         header, result = self.handleRequest({'verb':['Identify']})
@@ -164,6 +165,7 @@ class _OaiPmhTest(OaiTestCase):
        
         reactor = Reactor()
         oaiPmh = OaiPmh('repositoryName', 'adminEmail')
+
         mockoaijazz = MockOaiJazz(
             selectAnswer=['id_0&0', 'id_1&1'],
             selectTotal=2,
@@ -175,24 +177,29 @@ class _OaiPmhTest(OaiTestCase):
             counts.append(True)
             if len(counts) == 1:
                 raise StopIteration()
-            return (i for i in ['ident0', 'ident1'])
+            yield "identX"
+            yield "ident1"
+            return
         mockoaijazz.oaiSelect = oaiSelect
 
         server = be(
-            (ObservableHttpServer(reactor, 99999),
-                (oaiPmh,
-                    (mockoaijazz,),
+            (Transparant(),
+                (ObservableHttpServer(reactor, 99999),
+                    (oaiPmh,
+                        (mockoaijazz,),
+                    )
                 )
             )
         )
-        server.printTree()
-
-        result = server.all.handleRequest({'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait':['True']})
-        result.next()
-        print reactor._suspended
-        oaiPmh.add('identifier', 'partname', 'data')
-        reactor.step()
-        body = ''.join(compose(result))
+        server.once.observer_init()
+        result = server.all.handleRequest(
+                RequestURI="http://www.example.org", 
+                arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait':['True']}
+        )
+        print result.next() # == suspended
+        #oaiPmh.add('identifier', 'partname', 'data')
+        ## next should not raise an error
+        #body = ''.join(compose(result))
 
     def testListRecords(self):
         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']

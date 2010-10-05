@@ -172,14 +172,12 @@ Error and Exception Conditions
         validatedArguments['until'] = _until
         validatedArguments['set'] = _set
         validatedArguments['metadataPrefix'] = _metadataPrefix
-        print self._observers
         result = self.any.oaiSelect(
             sets = [_set] if _set else None,
             prefix = _metadataPrefix,
             continueAfter  = self._continueAfter,
             oaiFrom = _from,
             oaiUntil = _until)
-        print result
         try:
             firstRecord = result.next()
             return chain(iter([firstRecord]), result)
