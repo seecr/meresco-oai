@@ -58,7 +58,7 @@ from oaisetselecttest import OaiSetSelectTest
 from oaitooltest import OaiToolTest
 from resumptiontokentest import ResumptionTokenTest
 from oaipmhtest import OaiPmhTest2
-
+from oaiharvestertest import OaiHarvesterTest
 
 if __name__ == '__main__':
     unittest.main()
