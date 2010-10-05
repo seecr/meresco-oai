@@ -33,7 +33,6 @@ from meresco.core import Observable, be, Transparant
 
 from meresco.oai import OaiPmh
 from oaitestcase import OaiTestCase
-from unittest import TestCase
 
 from lxml.etree import parse
 from StringIO import StringIO
@@ -47,7 +46,7 @@ def xpath(node, path):
     return '\n'.join(node.xpath(path, namespaces={'oai':"http://www.openarchives.org/OAI/2.0/",
                                                   'tkit':"http://oai.dlib.vt.edu/OAI/metadata/toolkit"}))
 
-class _OaiPmhTest(TestCase):
+class _OaiPmhTest(OaiTestCase):
 
     def testIdentify(self):
         header, result = self.handleRequest({'verb':['Identify']})
@@ -161,45 +160,31 @@ class _OaiPmhTest(TestCase):
         self.assertTrue(observable, 'The above code failed.')
 
     def testListRecordsUsingXWait(self):
-        counts = []
-       
-        reactor = Reactor()
         oaiPmh = OaiPmh('repositoryName', 'adminEmail')
-
-        mockoaijazz = MockOaiJazz(
-            selectAnswer=['id_0&0', 'id_1&1'],
-            selectTotal=2,
-            isAvailableDefault=(True,True),
-            isAvailableAnswer=[
-                (None, 'oai_dc', (True,False)),
-                (None, '__tombstone__', (True, False))])
-        def oaiSelect(*args, **kwargs):
-            counts.append(True)
-            if len(counts) == 1:
-                raise StopIteration()
-            yield "identX"
-            yield "ident1"
-            return
-        mockoaijazz.oaiSelect = oaiSelect
-
+        mockoaijazz = MockOaiJazz()
+        mockoaijazz._selectAnswer = []
         server = be(
             (Transparant(),
-                (ObservableHttpServer(reactor, 99999),
-                    (oaiPmh,
-                        (mockoaijazz,),
-                    )
+                (oaiPmh,
+                    (mockoaijazz,),
                 )
             )
         )
-        server.once.observer_init()
         result = server.all.handleRequest(
-                RequestURI="http://www.example.org", 
+                Headers={'Host': 'example.org'},
+                path="/path/to/oai",
+                port=99999,
                 arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait':['True']}
         )
-        print result.next() # == suspended
-        #oaiPmh.add('identifier', 'partname', 'data')
-        ## next should not raise an error
-        #body = ''.join(compose(result))
+        suspend = result.next()
+        self.assertEquals("<class 'weightless._suspend.Suspend'>", str(type(suspend)))
+        suspend(CallTrace('reactor'), lambda: None)
+        oaiPmh.add('ignored-id', 'partname', 'data')
+        mockoaijazz._selectAnswer = ['ident0', 'ident1']
+        body = ''.join(list(result))
+        self.assertTrue("<identifier>ident0</identifier>" in body, body)
+        self.assertTrue("<identifier>ident1</identifier>" in body, body)
+
 
     def testListRecords(self):
         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']

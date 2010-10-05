@@ -9,10 +9,10 @@ class OaiResumeTest(CQ2TestCase):
         oaiResume.addSuspend(suspend)
         self.assertTrue([suspend], oaiResume._suspended)
 
-    def testCommit(self):
+    def testResume(self):
         oaiResume = OaiResume()
         suspend = CallTrace("suspend")
         oaiResume.addSuspend(suspend)
-        oaiResume.commit()
+        oaiResume.resume()
         self.assertEquals("resume", suspend.calledMethods[0].name)
         self.assertEquals([], oaiResume._suspended)

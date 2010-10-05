@@ -37,11 +37,8 @@ class MockOaiJazz(object):
         self.oaiSelectArguments = {}
 
     def oaiSelect(self, sets=None, prefix=None, continueAfter=None, oaiFrom=None, oaiUntil=None, batchSize=0):
-        print __file__
         self.oaiSelectArguments = (sets if sets else [], prefix, continueAfter, oaiFrom, oaiUntil, batchSize)
-        
-        for i in self._selectAnswer:
-            yield i
+        return iter(self._selectAnswer) 
 
     def getUnique(self, id):
         return 'Unique for test'
