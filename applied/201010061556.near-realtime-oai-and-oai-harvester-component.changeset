@@ -1,0 +1,936 @@
+Changeset created on Wed Oct  6 15:56:52 CEST 2010 by Seek You Too
+
+Description: Near realtime OAI + OaiHarvester component
+
+    OaiPmh (specifically OaiList) now supports the custom 'x-wait' parameter on ListRecords verb that enables long polling for OAI updates over HTTP between harvester and provider. The new OaiHarvester component enables non-blocking harvesting from within a Meresco DNA server. It calls 'add' on an obeserver for each ListRecords response and supports the 'x-wait' custom parameter.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.2.1-Edurep/version_2
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/meresco/oai/__init__.py version_3-oai-near-realtime-harvest/meresco/oai/__init__.py
+--- version_2/meresco/oai/__init__.py	2010-10-04 11:02:33.000000000 +0200
++++ version_3-oai-near-realtime-harvest/meresco/oai/__init__.py	2010-10-06 09:17:13.000000000 +0200
+@@ -35,3 +35,6 @@
+ from fields2oairecord import Fields2OaiRecordTx
+ from oaijazz import OaiJazz
+ from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
++from oaisuspend import OaiSuspend
++from oaiharvester import OaiHarvester
++
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/meresco/oai/oaiharvester.py version_3-oai-near-realtime-harvest/meresco/oai/oaiharvester.py
+--- version_2/meresco/oai/oaiharvester.py	1970-01-01 01:00:00.000000000 +0100
++++ version_3-oai-near-realtime-harvest/meresco/oai/oaiharvester.py	2010-10-06 15:37:27.000000000 +0200
+@@ -0,0 +1,136 @@
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2010 Stichting Kennisnet Ict op school.
++#       http://www.kennisnetictopschool.nl
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++
++import sys
++from socket import socket, error as SocketError, SHUT_WR, SHUT_RD, SOL_SOCKET, SO_ERROR
++from errno import EINPROGRESS, ECONNREFUSED
++from lxml.etree import parse
++from StringIO import StringIO
++from traceback import format_exc
++
++from meresco.core import Observable
++from weightless import compose
++
++
++namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
++
++class OaiHarvester(Observable):
++    def __init__(self, reactor, host, port, path, metadataPrefix, xWait=True):
++        super(OaiHarvester, self).__init__()
++        self._reactor = reactor
++        self._host = host
++        self._port = port 
++        self._path = path
++        self._prefix = metadataPrefix
++        self._xWait = xWait
++
++    def observer_init(self):
++        self._loop = compose(self.loop())
++        self._reactor.addTimer(1, self._loop.next)
++
++    def loop(self):
++        resumptionToken = None
++        while True:
++            sok = yield self._tryConnect()
++            sok.send(self._buildRequest(resumptionToken))
++            sok.shutdown(SHUT_WR)
++            self._reactor.addReader(sok, self._loop.next)
++            responses = []
++            while True:
++                yield
++                response = sok.recv(4096)
++                if response == '':
++                     break
++                responses.append(response)
++            self._reactor.removeReader(sok)
++            sok.close()
++            try:
++                resumptionToken = self._processResponse(''.join(responses))
++            except Exception:
++                self._logError(format_exc())
++            self._reactor.addTimer(1, self._loop.next)
++            yield
++
++    def _buildRequest(self, resumptionToken):
++        request = LISTRECORDS % self._path
++        if resumptionToken:
++            request += "&resumptionToken=%s" % resumptionToken
++        else:
++            request += "&metadataPrefix=%s" % self._prefix
++        if self._xWait:
++            request += "&x-wait=True"
++        return STATUSLINE % request
++
++    def _tryConnect(self):
++        sok = socket()
++        sok.setblocking(0)
++        while True:
++            try:
++                sok.connect((self._host, self._port))
++            except SocketError, (errno, msg):
++                if errno != EINPROGRESS:
++                    yield self._retryAfterError("%s: %s" % (errno, msg))
++                    continue
++            self._reactor.addWriter(sok, self._loop.next)
++            yield
++            self._reactor.removeWriter(sok)
++
++            err = sok.getsockopt(SOL_SOCKET, SO_ERROR)
++            if err == ECONNREFUSED:
++                yield self._retryAfterError("Connection to %s:%s%s refused." % (self._host, self._port, self._path))
++                continue
++            if err != 0:   # any other error
++                raise IOError(err)
++            break
++        raise StopIteration(sok)
++
++    def _retryAfterError(self, message):
++        self._logError(message)
++        self._reactor.addTimer(1, self._loop.next)
++        yield
++        
++    def _processResponse(self, response):
++        headers, body = response.split("\r\n\r\n")
++        lxmlNode = parse(StringIO(body))
++        errors = lxmlNode.xpath("/oai:OAI-PMH/oai:error", namespaces=namespaces)
++        if len(errors) > 0:
++            for error in errors:
++                self._logError("%s: %s" % (error.get("code"), error.text))
++            return None
++        else:
++            self.any.add(lxmlNode)
++            return head(lxmlNode.xpath("/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()", 
++                                       namespaces=namespaces))
++
++    def _logError(self, message):
++        print >> sys.stderr,  message
++
++
++def head(l):
++    return l[0] if l else None
++
++
++STATUSLINE = "GET %s HTTP/1.0\r\n\r\n"
++LISTRECORDS = "%s?verb=ListRecords"
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/meresco/oai/oailist.py version_3-oai-near-realtime-harvest/meresco/oai/oailist.py
+--- version_2/meresco/oai/oailist.py	2010-10-04 11:02:33.000000000 +0200
++++ version_3-oai-near-realtime-harvest/meresco/oai/oailist.py	2010-10-06 14:53:27.000000000 +0200
+@@ -33,13 +33,11 @@
+ from oaitool import ISO8601, ISO8601Exception
+ from oairecordverb import OaiRecordVerb
+ from itertools import chain, islice
+-from oaiutils import OaiBadArgumentException, doElementaryArgumentsValidation, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
++from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+ from oaierror import oaiError
+ from xml.sax.saxutils import escape as xmlEscape
+ from meresco.core.generatorutils import decorate
+-from weightless import compose
+ 
+-BATCH_SIZE = 200
+ 
+ class OaiList(Observable):
+     """4.3 ListIdentifiers
+@@ -83,14 +81,11 @@
+     * noRecordsMatch - The combination of the values of the from, until, set and metadataPrefix arguments results in an empty list.
+     * noSetHierarchy - The repository does not support sets.
+ """
+-    def __init__(self, batchSize=BATCH_SIZE):
++
++    DEFAULT_BATCH_SIZE = 200
++
++    def __init__(self, batchSize=DEFAULT_BATCH_SIZE):
+         self._supportedVerbs = ['ListIdentifiers', 'ListRecords']
+-        self._argsDef = {
+-            'from': 'optional',
+-            'until': 'optional',
+-            'set': 'optional',
+-            'resumptionToken': 'exclusive',
+-            'metadataPrefix': 'required'}
+         Observable.__init__(self)
+         self._batchSize = batchSize
+ 
+@@ -106,26 +101,45 @@
+             return
+ 
+         try:
+-            validatedArguments = doElementaryArgumentsValidation(arguments, self._argsDef)
++            validatedArguments = self._validateArguments(arguments)
+         except OaiBadArgumentException, e:
+             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+             return
+ 
+-        try:
+-            results = self.preProcess(validatedArguments, **httpkwargs)
+-        except OaiException, e:
+-            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+-            return
+-
++        while True:
++            try:
++                results = self.preProcess(validatedArguments, **httpkwargs)
++                break
++            except OaiException, e:
++                if e.statusCode == "noRecordsMatch" and validatedArguments.get("x-wait", 'False') == 'True':
++                    yield self.all.suspend()
++                else:
++                    yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
++                    return
++        
+         yield oaiHeader()
+         yield oaiRequestArgs(arguments, **httpkwargs)
+-
+         yield '<%s>' % self._verb
+         yield self.process(results, validatedArguments, **httpkwargs)
+         yield '</%s>' % self._verb
+ 
+         yield oaiFooter()
+ 
++    def _validateArguments(self, arguments):
++        arguments = dict(arguments)
++        validatedArguments = {}
++        checkNoRepeatedArguments(arguments)
++        arguments.pop('verb')
++        checkArgument(arguments, 'x-wait', validatedArguments)
++        if checkArgument(arguments, 'resumptionToken', validatedArguments):
++            checkNoMoreArguments(arguments, '"resumptionToken" argument may only be used exclusively.')
++        else:
++            if not checkArgument(arguments, 'metadataPrefix', validatedArguments):
++                raise OaiBadArgumentException('Missing argument(s) "resumptionToken" or "metadataPrefix".')
++            for name in ['from', 'until', 'set']:
++                checkArgument(arguments, name, validatedArguments)
++            checkNoMoreArguments(arguments, 'Argument(s) ' + ', '.join('"%s"' % t for t in arguments.keys()) + ' is/are illegal.')
++        return validatedArguments
+ 
+     def preProcess(self, validatedArguments, **httpkwargs):
+         if validatedArguments.get('resumptionToken', None):
+@@ -164,7 +178,6 @@
+         validatedArguments['until'] = _until
+         validatedArguments['set'] = _set
+         validatedArguments['metadataPrefix'] = _metadataPrefix
+-
+         result = self.any.oaiSelect(
+             sets = [_set] if _set else None,
+             prefix = _metadataPrefix,
+@@ -182,7 +195,8 @@
+             yield self.oaiRecord(validatedArguments, id, self._verb == "ListRecords")
+ 
+         try:
+-            results.next()
++            if not 'x-wait' in validatedArguments:
++                results.next()
+             yield '<resumptionToken>%s</resumptionToken>' % ResumptionToken(
+                 validatedArguments['metadataPrefix'],
+                 self.any.getUnique(id),
+@@ -193,7 +207,7 @@
+         except StopIteration:
+             pass
+ 
+-        if validatedArguments['resumptionToken']:
++        if 'resumptionToken' in validatedArguments:
+             yield '<resumptionToken/>'
+ 
+     def oaiRecord(self, validatedArguments, recordId, writeBody=True):
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/meresco/oai/oaipmh.py version_3-oai-near-realtime-harvest/meresco/oai/oaipmh.py
+--- version_2/meresco/oai/oaipmh.py	2010-10-04 11:02:33.000000000 +0200
++++ version_3-oai-near-realtime-harvest/meresco/oai/oaipmh.py	2010-10-06 14:52:22.000000000 +0200
+@@ -38,7 +38,7 @@
+ from webrequest import WebRequest
+ 
+ class OaiPmh(object):
+-    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None):
++    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=OaiList.DEFAULT_BATCH_SIZE):
+         outside = Transparant() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
+         self.addObserver = outside.addObserver
+         self.addStrand = outside.addStrand
+@@ -51,7 +51,7 @@
+             (Observable(),
+                 (OaiError(),
+                     (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), ),
+-                    (OaiList(),
++                    (OaiList(batchSize=batchSize),
+                         (outside,)
+                     ),
+                     (OaiGetRecord(),
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/meresco/oai/oaisuspend.py version_3-oai-near-realtime-harvest/meresco/oai/oaisuspend.py
+--- version_2/meresco/oai/oaisuspend.py	1970-01-01 01:00:00.000000000 +0100
++++ version_3-oai-near-realtime-harvest/meresco/oai/oaisuspend.py	2010-10-06 15:56:09.000000000 +0200
+@@ -0,0 +1,44 @@
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2010 Stichting Kennisnet Ict op school.
++#       http://www.kennisnetictopschool.nl
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++
++from meresco.core import Transparant
++from weightless import Suspend
++
++class OaiSuspend(Transparant):
++
++    def __init__(self):
++        Transparant.__init__(self)
++        self._suspended = []
++
++    def suspend(self):
++        suspend = Suspend()
++        self._suspended.append(suspend) 
++        yield suspend
++        suspend.getResult()
++
++    def addOaiRecord(self, identifier, sets, metadataFormats):
++        self.do.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
++        while len(self._suspended) > 0:
++            self._suspended.pop().resume()
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/meresco/oai/oaiutils.py version_3-oai-near-realtime-harvest/meresco/oai/oaiutils.py
+--- version_2/meresco/oai/oaiutils.py	2010-10-04 11:02:33.000000000 +0200
++++ version_3-oai-near-realtime-harvest/meresco/oai/oaiutils.py	2010-10-06 11:36:29.000000000 +0200
+@@ -40,9 +40,7 @@
+ def doElementaryArgumentsValidation(arguments, argsDef):
+     validatedArguments = {}
+ 
+-    if _isArgumentRepeated(arguments):
+-        raise OaiBadArgumentException('Argument "%s" may not be repeated.' % _isArgumentRepeated(arguments))
+-
++    checkNoRepeatedArguments(arguments)
+     exclusiveArguments = _select('exclusive', argsDef)
+     for exclusiveArgument in exclusiveArguments:
+         if exclusiveArgument in arguments.keys():
+@@ -74,11 +72,22 @@
+ 
+     return validatedArguments
+ 
+-def _isArgumentRepeated(arguments):
++def checkNoRepeatedArguments(arguments):
+     for k, v in arguments.items():
+         if len(v) > 1:
+-            return k
+-    return False
++            raise OaiBadArgumentException('Argument "%s" may not be repeated.' % k)
++
++def checkNoMoreArguments(arguments, message):
++    if len(arguments) > 0:
++        raise OaiBadArgumentException(message)
++
++def checkArgument(arguments, name, validatedArguments):
++    try:
++        value = arguments.pop(name)
++    except KeyError:
++        return False
++    validatedArguments[name] = value[0]
++    return True
+ 
+ def _select(neededNess, argsDef):
+     result = []
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/test/_alltests.py version_3-oai-near-realtime-harvest/test/_alltests.py
+--- version_2/test/_alltests.py	2010-10-04 11:02:33.000000000 +0200
++++ version_3-oai-near-realtime-harvest/test/_alltests.py	2010-10-06 09:17:13.000000000 +0200
+@@ -53,11 +53,12 @@
+ from oaipmhjazztest import OaiPmhJazzTest
+ from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
+ from oaiprovenancetest import OaiProvenanceTest
++from oaisuspendtest import OaiSuspendTest
+ from oaisetselecttest import OaiSetSelectTest
+ from oaitooltest import OaiToolTest
+ from resumptiontokentest import ResumptionTokenTest
+ from oaipmhtest import OaiPmhTest2
+-
++from oaiharvestertest import OaiHarvesterTest
+ 
+ if __name__ == '__main__':
+     unittest.main()
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/test/mockoaijazz.py version_3-oai-near-realtime-harvest/test/mockoaijazz.py
+--- version_2/test/mockoaijazz.py	2010-10-04 11:02:33.000000000 +0200
++++ version_3-oai-near-realtime-harvest/test/mockoaijazz.py	2010-10-06 09:17:13.000000000 +0200
+@@ -26,18 +26,19 @@
+ #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ #
+ ## end license ##
+-class MockOaiJazz:
+-    def __init__(self, selectAnswer = [], setsAnswer = [], deleted=[], isAvailableDefault=(True,True), isAvailableAnswer=[], selectTotal=5000):
+-        self._selectAnswer = selectAnswer
+-        self._setsAnswer = setsAnswer
+-        self._deleted = deleted
++
++class MockOaiJazz(object):
++    def __init__(self, selectAnswer=None, setsAnswer=None, deleted=None, isAvailableDefault=(True,True), isAvailableAnswer=None, selectTotal=5000):
++        self._selectAnswer = selectAnswer if selectAnswer else []
++        self._setsAnswer = setsAnswer if setsAnswer else []
++        self._deleted = deleted if deleted else []
+         self._isAvailableDefault = isAvailableDefault
+-        self._isAvailableAnswer = isAvailableAnswer
++        self._isAvailableAnswer = isAvailableAnswer if isAvailableAnswer else []
+         self.oaiSelectArguments = {}
+ 
+-    def oaiSelect(self, sets=[], prefix=None, continueAfter=None, oaiFrom=None, oaiUntil=None, batchSize=0):
+-        self.oaiSelectArguments = (sets, prefix, continueAfter, oaiFrom, oaiUntil, batchSize)
+-        return (i for i in self._selectAnswer)
++    def oaiSelect(self, sets=None, prefix=None, continueAfter=None, oaiFrom=None, oaiUntil=None, batchSize=0):
++        self.oaiSelectArguments = (sets if sets else [], prefix, continueAfter, oaiFrom, oaiUntil, batchSize)
++        return iter(self._selectAnswer) 
+ 
+     def getUnique(self, id):
+         return 'Unique for test'
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/test/oaiharvestertest.py version_3-oai-near-realtime-harvest/test/oaiharvestertest.py
+--- version_2/test/oaiharvestertest.py	1970-01-01 01:00:00.000000000 +0100
++++ version_3-oai-near-realtime-harvest/test/oaiharvestertest.py	2010-10-06 15:07:33.000000000 +0200
+@@ -0,0 +1,241 @@
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2010 Stichting Kennisnet Ict op school.
++#       http://www.kennisnetictopschool.nl
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++
++from __future__ import with_statement
++from contextlib import contextmanager
++from random import randint
++from threading import Event, Thread
++from time import sleep
++from socket import socket, error as SocketError
++from lxml.etree import tostring
++from StringIO import StringIO
++
++from cq2utils import CQ2TestCase, CallTrace
++from meresco.core import Observable, be
++from meresco.oai import OaiHarvester
++
++@contextmanager
++def server(responses, bufsize=4096):
++    port = randint(2**10, 2**16)
++    start = Event()
++    messages = []
++    def serverThread():
++        s = socket()
++        s.bind(('127.0.0.1', port))
++        s.listen(0)
++        start.set()
++        for response in responses:
++            connection, address = s.accept()
++            msg = connection.recv(bufsize)
++            messages.append(msg)
++            connection.send(response)
++            connection.close()
++    thread = Thread(None, serverThread)
++    thread.start()
++    start.wait()
++    yield port, messages
++    thread.join()
++
++
++class OaiHarvesterTest(CQ2TestCase):
++    def testOne(self):
++        reactor = CallTrace("reactor")
++        with server([RESPONSE]) as (port, msgs):
++            harvester, observer, reactor = self.getHarvester("localhost", port, "/oai", 'dc')
++            self.assertEquals('addTimer', reactor.calledMethods[0].name)
++            self.assertEquals(1, reactor.calledMethods[0].args[0])
++            callback = reactor.calledMethods[0].args[1]
++            callback() # connect
++            self.assertEquals('addWriter', reactor.calledMethods[1].name)
++            callback = reactor.calledMethods[1].args[1]
++            callback() # HTTP GET
++            sleep(0.01)
++            self.assertEquals("GET", msgs[0][:3])
++            self.assertEquals('removeWriter', reactor.calledMethods[2].name)
++            self.assertEquals('addReader', reactor.calledMethods[3].name)
++            callback = reactor.calledMethods[3].args[1]
++            callback() # sok.recv
++            callback() # sok.recv
++            self.assertEquals('add', observer.calledMethods[0].name)
++            self.assertEqualsWS(BODY, tostring(observer.calledMethods[0].args[0]))
++
++    def testNoConnectionPossible(self):
++        harvester, observer, reactor = self.getHarvester("some.nl", 'no-port', "/oai", 'dc')
++        callback = reactor.calledMethods[0].args[1]
++        try:
++            callback() # connect
++            self.fail()
++        except TypeError, e:
++            self.assertEquals("an integer is required", str(e))
++
++    def testInvalidPortConnectionRefused(self):
++        harvester, observer, reactor = self.getHarvester("localhost", 88, "/oai", 'dc')
++        callback = reactor.calledMethods[0].args[1]
++        callback() # connect
++        self.assertEquals("addWriter", reactor.calledMethods[1].name)
++        callback() # connect
++        self.assertEquals("removeWriter", reactor.calledMethods[2].name)
++        self.assertEquals("addTimer", reactor.calledMethods[3].name)
++        self.assertEquals("Connection to localhost:88/oai refused.\n", self._err.getvalue())
++
++    def testInvalidHost(self):
++        harvester, observer, reactor = self.getHarvester("UEYR^$*FD(#>NDJ.khfd9.(*njnd", 88, "/oai", 'dc')
++        callback = reactor.calledMethods[0].args[1]
++        callback() # connect
++        self.assertEquals('addTimer', reactor.calledMethods[-1].name)
++        self.assertEquals("-2: Name or service not known\n", self._err.getvalue())
++
++    def testInvalidHostConnectionRefused(self):
++        harvester, observer, reactor = self.getHarvester("127.0.0.255", 9876, "/oai", 'dc')
++        callback = reactor.calledMethods[0].args[1]
++        callback()
++        self.assertEquals("addWriter", reactor.calledMethods[1].name)
++        callback()
++        self.assertEquals("removeWriter", reactor.calledMethods[2].name)
++        self.assertEquals("addTimer", reactor.calledMethods[3].name)
++
++    def testSuccess(self):
++        with server([RESPONSE]) as (port, msgs):
++            harvester, observer, reactor = self.getHarvester("localhost", port, "/", "dc")
++            callback = self.doConnect()
++            callback() # HTTP GET
++            sleep(0.01)
++            callback = reactor.calledMethods[3].args[1]
++            callback() # sok.recv
++            callback() # recv = ''
++            self.assertEquals('add', observer.calledMethods[0].name)
++            self.assertEqualsWS(BODY, tostring(observer.calledMethods[0].args[0]))
++            self.assertEquals('removeReader', reactor.calledMethods[4].name)
++            self.assertEquals('addTimer', reactor.calledMethods[-1].name)
++
++    def testListRecordsRequest(self):
++        with server([LISTRECORDS_RESPONSE % '']) as (port, msgs):
++            harvester, observer, reactor = self.getHarvester('localhost', port, '/oai', 'dc', xWait=False)
++            callback = self.doConnect()
++            callback() # HTTP GET
++            sleep(0.01)
++            self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc HTTP/1.0\r\n\r\n", msgs[0])
++
++    def testListRecordsRequestError(self):
++        with server([ERROR_RESPONSE]) as (port, msgs):
++            harvester, observer, reactor = self.getHarvester('localhost', port, '/oai', 'dc')
++            callback = self.doConnect()
++            callback() # HTTP GET
++            sleep(0.01)
++            callback() # sok.recv
++            callback() # sok.recv == ''
++            self.assertEquals("someError: Some error occurred.\n", self._err.getvalue())
++            self.assertEquals(0, len(observer.calledMethods))
++            self.assertEquals('addTimer', reactor.calledMethods[-1].name)
++    
++    def testUseResumptionToken(self):
++        with server([LISTRECORDS_RESPONSE % RESUMPTION_TOKEN, LISTRECORDS_RESPONSE % ""]) as (port, msgs):
++            harvester, observer, reactor = self.getHarvester('localhost', port, '/oai', 'dc')
++            callback = self.doConnect()
++            callback() # HTTP GET
++            sleep(0.01)
++            self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc&x-wait=True HTTP/1.0\r\n\r\n", msgs[0])
++            callback() # sok.recv
++            callback() # sok.recv == ''
++            self.assertEquals(['add'], [m.name for m in observer.calledMethods])
++            self.assertEquals('addTimer', reactor.calledMethods[-1].name)            
++            callback() # (re)connect
++            callback() # HTTP GET
++            sleep(0.01)
++            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[1])
++
++    def testKeepResumptionTokenOnInvalidResponse(self):
++        with server([LISTRECORDS_RESPONSE % RESUMPTION_TOKEN, STATUSLINE + 'not XML']) as (port, msgs):
++            harvester, observer, reactor = self.getHarvester('localhost', port, '/oai', 'dc')
++            callback = self.doConnect()
++            callback() # HTTP GET
++            sleep(0.01)
++            self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc&x-wait=True HTTP/1.0\r\n\r\n", msgs[0])
++            callback() # sok.recv
++            callback() # soc.recv == ''
++            callback() # (re)connect
++            callback() # HTTP GET
++            sleep(0.01)
++            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
++            callback() # sok.recv
++            callback() # sok.recv == ''
++            self.assertTrue("XMLSyntaxError: Start tag expected, '<' not found, line 1, column 1" in self._err.getvalue(), self._err.getvalue())
++            callback() # (re)connect
++            callback() # HTTP GET
++            sleep(0.01)
++            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
++
++
++    def getHarvester(self, host, port, path, metadataPrefix, xWait=True):
++        self._err = StringIO()
++        self._reactor = CallTrace("reactor")
++        self._harvester = OaiHarvester(self._reactor, host, port, path, metadataPrefix, xWait=xWait)
++        self._harvester._logError = lambda s: self._err.write(s + '\n')
++        self._observer = CallTrace("observer")
++        self._harvester.addObserver(self._observer)
++        self._harvester.observer_init()
++        return self._harvester, self._observer, self._reactor
++
++    def doConnect(self):
++        callback = self._reactor.calledMethods[0].args[1]
++        callback() # connect
++        callback = self._reactor.calledMethods[1].args[1]
++        return callback
++
++STATUSLINE = """HTTP/1.0 200 OK \r\n\r\n"""
++BODY = "<body>BODY</body>"
++RESPONSE = STATUSLINE + BODY
++
++LISTRECORDS_RESPONSE = STATUSLINE + """<?xml version="1.0" encoding="UTF-8" ?>
++<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" 
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/
++         http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
++  <responseDate>2002-06-01T19:20:30Z</responseDate>
++  <request verb="ListRecords" from="1998-01-15" 
++           metadataPrefix="dc">http://an.oa.org/OAI-script</request>
++  <ListRecords>
++    <record>ignored</record>
++    %s
++  </ListRecords>
++</OAI-PMH>
++"""
++
++ERROR_RESPONSE = STATUSLINE + """<?xml version="1.0" encoding="UTF-8" ?>
++<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" 
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/
++         http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
++  <responseDate>2002-06-01T19:20:30Z</responseDate>
++  <request verb="ListRecords" from="1998-01-15" 
++           metadataPrefix="dc">http://an.oa.org/OAI-script</request>
++  <error code="someError">Some error occurred.</error>
++</OAI-PMH>
++"""
++ 
++RESUMPTION_TOKEN = """<resumptionToken expirationDate="2002-06-01T23:20:00Z" 
++      completeListSize="6" 
++      cursor="0">xyz</resumptionToken>"""
++
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/test/oailisttest.py version_3-oai-near-realtime-harvest/test/oailisttest.py
+--- version_2/test/oailisttest.py	2010-10-04 11:02:33.000000000 +0200
++++ version_3-oai-near-realtime-harvest/test/oailisttest.py	2010-10-06 14:55:59.000000000 +0200
+@@ -37,13 +37,13 @@
+ 
+ from meresco.components.http.utils import CRLF
+ from meresco.core import ObserverFunction
+-from meresco.oai.oailist import BATCH_SIZE, OaiList
++from meresco.oai.oailist import OaiList
+ from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionToken
+ 
+ from oaitestcase import OaiTestCase
+ from meresco.oai.oaiutils import OaiException
+ 
+-from weightless import compose
++from weightless import compose, Reactor
+ 
+ class OaiListTest(OaiTestCase):
+     def getSubject(self):
+@@ -72,6 +72,23 @@
+         self.assertTrue(body.find('<resumptionToken') == -1)
+         self.assertFalse(mockoaijazz.oaiSelectArguments[0])
+ 
++    def testListRecordsUsingXWait(self):
++        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}
++        calltrace = CallTrace("oaisuspend", ignoredAttributes=['oaiSelect', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'yieldRecord', 'provenance'])
++
++        self.subject.addObserver(calltrace)
++        mockoaijazz = MockOaiJazz()
++        mockoaijazz._selectAnswer = []
++        self.subject.addObserver(mockoaijazz)
++       
++        result = self.observable.all.listRecords(self.request.args, **self.request.kwargs)
++        suspend = result.next()
++        mockoaijazz._selectAnswer=['RESULT']
++        result = ''.join(compose(result))
++        body = result.split(CRLF*2)[-1]
++        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="RESULT"/>""" in body, body)
++        self.assertTrue('<resumptionToken' in body, body)
++
+     def testListRecordsWithoutProvenance(self):
+         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+ 
+@@ -152,7 +169,7 @@
+     def testFinalResumptionToken(self):
+         self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '200'))]}
+ 
+-        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(BATCH_SIZE)), selectTotal = BATCH_SIZE))
++        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(OaiList.DEFAULT_BATCH_SIZE)), selectTotal=OaiList.DEFAULT_BATCH_SIZE))
+         self.subject.writeRecord = lambda *args, **kwargs: None
+ 
+         result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+@@ -161,6 +178,18 @@
+         self.assertTrue(body.find("<resumptionToken") > -1)
+         self.assertEquals('', str(bind_string(body).OAI_PMH.ListRecords.resumptionToken))
+ 
++    def testNoEmptyFinalResumptionTokenUsingXWait(self):
++        self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '200'))], 'x-wait': ['True']}
++
++        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(OaiList.DEFAULT_BATCH_SIZE)), selectTotal=OaiList.DEFAULT_BATCH_SIZE))
++        self.subject.writeRecord = lambda *args, **kwargs: None
++
++        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
++        body = result.split(CRLF*2)[-1]
++
++        self.assertTrue("<resumptionToken" in body, body)
++        self.assertEquals('u|cUnique for test|moai_dc|s|f', str(bind_string(body).OAI_PMH.ListRecords.resumptionToken))
++
+     def testDeletedTombstones(self):
+         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+ 
+@@ -180,8 +209,6 @@
+         self.assertTrue(self.stream.getvalue().find('<resumptionToken') == -1)
+ 
+     def testFromAndUntil(self):
+-        #ok, deze test wordt zo lang dat het haast wel lijkt of hier iets niet klopt.... KVS
+-
+         observer = MockOaiJazz(
+             selectAnswer=['id_0', 'id_1'],
+             isAvailableDefault=(True, False),
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/test/oaipmhtest.py version_3-oai-near-realtime-harvest/test/oaipmhtest.py
+--- version_2/test/oaipmhtest.py	2010-10-04 11:02:33.000000000 +0200
++++ version_3-oai-near-realtime-harvest/test/oaipmhtest.py	2010-10-06 14:25:32.000000000 +0200
+@@ -29,7 +29,7 @@
+ 
+ 
+ from cq2utils import CQ2TestCase, CallTrace
+-from meresco.core import Observable, be
++from meresco.core import Observable, be, Transparant
+ 
+ from meresco.oai import OaiPmh
+ from oaitestcase import OaiTestCase
+@@ -37,6 +37,10 @@
+ from lxml.etree import parse
+ from StringIO import StringIO
+ from meresco.components.http.utils import CRLF
++from meresco.components.http import ObservableHttpServer
++from weightless import Reactor
++
++from mockoaijazz import MockOaiJazz
+ 
+ def xpath(node, path):
+     return '\n'.join(node.xpath(path, namespaces={'oai':"http://www.openarchives.org/OAI/2.0/",
+@@ -156,7 +160,6 @@
+         self.assertTrue(observable, 'The above code failed.')
+ 
+     def testListRecords(self):
+-
+         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
+         self.observer.returnValues['oaiSelect'] = iter(['ident0', 'ident1'])
+         self.observer.returnValues['isDeleted'] = False
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/test/oaisuspendtest.py version_3-oai-near-realtime-harvest/test/oaisuspendtest.py
+--- version_2/test/oaisuspendtest.py	1970-01-01 01:00:00.000000000 +0100
++++ version_3-oai-near-realtime-harvest/test/oaisuspendtest.py	2010-10-06 15:52:17.000000000 +0200
+@@ -0,0 +1,142 @@
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2010 Stichting Kennisnet Ict op school.
++#       http://www.kennisnetictopschool.nl
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++
++from os.path import join
++from random import randint
++from threading import Thread
++from time import sleep
++
++from meresco.core import be, Observable
++from meresco.components.http import ObservableHttpServer
++from meresco.components import StorageComponent
++from meresco.oai import OaiPmh, OaiJazz, OaiSuspend, OaiHarvester
++
++from cq2utils import CQ2TestCase, CallTrace
++from weightless import Suspend, Reactor
++
++from lxml.etree import tostring
++
++class OaiSuspendTest(CQ2TestCase):
++
++    def testAddSuspendedListRecord(self):
++        oaiSuspend = OaiSuspend()
++        suspend = oaiSuspend.suspend().next()
++        self.assertTrue([suspend], oaiSuspend._suspended)
++        self.assertEquals(Suspend, type(suspend))
++
++    def testAddOaiRecord(self):
++        oaiSuspend = OaiSuspend()
++        observer = CallTrace("oaijazz")
++        oaiSuspend.addObserver(observer)
++        reactor = CallTrace("reactor")
++        suspend = oaiSuspend.suspend().next()
++        resumed = []
++        suspend(reactor, lambda: resumed.append(True))
++        oaiSuspend.addOaiRecord("ignored", "sets", "metadataFormats")
++        self.assertEquals([True], resumed)
++        self.assertEquals([], oaiSuspend._suspended)
++        self.assertEquals("addOaiRecord", observer.calledMethods[0].name)
++
++    def testNearRealtimeOai(self):
++        self.run = True
++        portNumber = randint(50000, 60000)
++        observer = CallTrace("observer", ignoredAttributes=["observer_init"])
++        oaiJazz = be(
++            (OaiSuspend(),
++                (OaiJazz(join(self.tempdir, 'oai')),),
++            )
++        )
++        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
++
++        oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
++        harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
++        oaiPmhThread.start()
++        harvestThread.start()
++
++        requests = 3
++        sleep(1.0 + 1.0 * requests)
++       
++        self.assertEquals(2, len(observer.calledMethods))
++        arg = tostring(observer.calledMethods[0].args[0])
++        self.assertTrue("id0" in arg, arg)
++        self.assertTrue("id1" in arg, arg)
++        arg = tostring(observer.calledMethods[1].args[0])
++        self.assertTrue("id2" in arg, arg)
++
++        self.assertEquals(1, len(oaiJazz._suspended))
++
++        storageComponent.add("id3", "prefix", "<a>a3</a>")
++        oaiJazz.addOaiRecord("id3", sets=[], metadataFormats=[("prefix", "", "")])
++        sleep(0.1)
++        self.assertEquals(0, len(oaiJazz._suspended))
++        self.assertEquals(3, len(observer.calledMethods))
++        arg = tostring(observer.calledMethods[2].args[0])
++        self.assertTrue("id3" in arg, arg)
++        sleep(1.0)
++        self.assertEquals(1, len(oaiJazz._suspended))
++
++        self.run = False
++        oaiPmhThread.join()
++        harvestThread.join()
++
++    def startOaiHarvester(self, portNumber, observer):
++        reactor = Reactor()
++        server = be(
++            (Observable(),
++                (OaiHarvester(reactor, 'localhost', portNumber, '/', 'prefix'),
++                    (observer,),
++                )
++            )
++        )
++        server.once.observer_init()
++        self._loopReactor(reactor)
++
++    def startOaiPmh(self, portNumber, oaiJazz, storageComponent):
++        reactor = Reactor()
++        server = be(
++            (Observable(),
++                (ObservableHttpServer(reactor, portNumber),
++                    (OaiPmh(repositoryName='repositoryName', adminEmail='adminEmail', batchSize=2),
++                        (oaiJazz,),
++                        (storageComponent,)
++                    )
++                )
++            )
++        )
++        server.once.observer_init()
++
++        for i in range(3):            
++            storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)
++            oaiJazz.addOaiRecord("id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
++
++
++        self._loopReactor(reactor)
++
++    def _loopReactor(self, reactor):
++        def tick():
++            reactor.addTimer(0.1, tick)
++        tick()
++        while self.run:
++            reactor.step()
