@@ -74,37 +74,19 @@ class OaiListTest(OaiTestCase):
 
     def testListRecordsUsingXWait(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}
-        counts = []
-        myreactor = CallTrace("reactor")
-        myreactor.returnValues['suspend'] = 'handle'
-        calltrace = CallTrace("oairesume", ignoredAttributes=['oaiSelect', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'yieldRecord', 'provenance'])
-        self.subject.addObserver(calltrace)
-        mockoaijazz = MockOaiJazz(
-            selectAnswer=['id_0&0', 'id_1&1'],
-            selectTotal=2,
-            isAvailableDefault=(True,True),
-            isAvailableAnswer=[
-                (None, 'oai_dc', (True,False)),
-                (None, '__tombstone__', (True, False))])
-        def oaiSelect(*args, **kwargs):
-            counts.append(True)
-            if len(counts) == 1:
-                raise StopIteration()
-            yield "RESULT" + str(len(counts))
+        calltrace = CallTrace("oaisuspend", ignoredAttributes=['oaiSelect', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'yieldRecord', 'provenance'])
 
-        mockoaijazz.oaiSelect = oaiSelect
+        self.subject.addObserver(calltrace)
+        mockoaijazz = MockOaiJazz()
+        mockoaijazz._selectAnswer = []
         self.subject.addObserver(mockoaijazz)
        
         result = self.observable.all.listRecords(self.request.args, **self.request.kwargs)
         suspend = result.next()
-        suspend(myreactor, lambda: None)
-        suspend.resume()
-        self.assertEquals("suspend", calltrace.calledMethods[0].name)
-        self.assertEquals(suspend, calltrace.calledMethods[0].args[0])
-        self.assertEquals("<class 'weightless._suspend.Suspend'>", str(suspend.__class__))
+        mockoaijazz._selectAnswer=['RESULT']
         result = ''.join(compose(result))
         body = result.split(CRLF*2)[-1]
-        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="RESULT2"/>""" in body, body)
+        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="RESULT"/>""" in body, body)
         self.assertTrue(body.find('<resumptionToken') == -1)
 
     def testListRecordsWithoutProvenance(self):

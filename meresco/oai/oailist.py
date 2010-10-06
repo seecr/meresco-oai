@@ -37,7 +37,6 @@ from oaiutils import OaiBadArgumentException, doElementaryArgumentsValidation, o
 from oaierror import oaiError
 from xml.sax.saxutils import escape as xmlEscape
 from meresco.core.generatorutils import decorate
-from weightless import compose, Suspend
 
 BATCH_SIZE = 200
 
@@ -118,11 +117,7 @@ Error and Exception Conditions
                 break
             except OaiException, e:
                 if e.statusCode == "noRecordsMatch" and validatedArguments.get("x-wait", 'False') == 'True':
-                    suspend = Suspend()
-                    self.do.suspend(suspend)
-                    yield suspend
-                    suspend.getResult()
-                    #yield self.any.suspend()
+                    yield self.all.suspend()
                 else:
                     yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
                     return

@@ -28,6 +28,7 @@
 ## end license ##
 
 from meresco.core import Transparant
+from weightless import Suspend
 
 class OaiSuspend(Transparant):
 
@@ -35,8 +36,11 @@ class OaiSuspend(Transparant):
         Transparant.__init__(self)
         self._suspended = []
 
-    def suspend(self, suspend):
+    def suspend(self):
+        suspend = Suspend()
         self._suspended.append(suspend) 
+        yield suspend
+        suspend.getResult()
 
     def resume(self):
         while len(self._suspended) > 0:
