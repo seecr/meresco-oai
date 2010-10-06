@@ -53,7 +53,7 @@ from oailisttest import OaiListTest
 from oaipmhjazztest import OaiPmhJazzTest
 from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
 from oaiprovenancetest import OaiProvenanceTest
-from oairesumetest import OaiResumeTest
+from oaisuspendtest import OaiSuspendTest
 from oaisetselecttest import OaiSetSelectTest
 from oaitooltest import OaiToolTest
 from resumptiontokentest import ResumptionTokenTest

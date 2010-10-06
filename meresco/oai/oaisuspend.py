@@ -8,7 +8,6 @@
 #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
 #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
-#    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -28,13 +27,17 @@
 #
 ## end license ##
 
-from oaipmh import OaiPmh
-from oaiprovenance import OaiProvenance
-from oaisetselect import OaiSetSelect
-from oaiidentifierrename import OaiIdentifierRename
-from fields2oairecord import Fields2OaiRecordTx
-from oaijazz import OaiJazz
-from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
-from oaisuspend import OaiSuspend
-from oaiharvester import OaiHarvester
+from meresco.core import Transparant
 
+class OaiSuspend(Transparant):
+
+    def __init__(self):
+        Transparant.__init__(self)
+        self._suspended = []
+
+    def suspend(self, suspend):
+        self._suspended.append(suspend) 
+
+    def resume(self):
+        while len(self._suspended) > 0:
+            self._suspended.pop().resume()

@@ -119,9 +119,10 @@ Error and Exception Conditions
             except OaiException, e:
                 if e.statusCode == "noRecordsMatch" and validatedArguments.get("x-wait", 'False') == 'True':
                     suspend = Suspend()
-                    self.do.addSuspend(suspend)
+                    self.do.suspend(suspend)
                     yield suspend
                     suspend.getResult()
+                    #yield self.any.suspend()
                 else:
                     yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
                     return

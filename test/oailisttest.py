@@ -99,7 +99,7 @@ class OaiListTest(OaiTestCase):
         suspend = result.next()
         suspend(myreactor, lambda: None)
         suspend.resume()
-        self.assertEquals("addSuspend", calltrace.calledMethods[0].name)
+        self.assertEquals("suspend", calltrace.calledMethods[0].name)
         self.assertEquals(suspend, calltrace.calledMethods[0].args[0])
         self.assertEquals("<class 'weightless._suspend.Suspend'>", str(suspend.__class__))
         result = ''.join(compose(result))
