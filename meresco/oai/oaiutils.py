@@ -40,9 +40,7 @@ def oaiRequestArgs(arguments, **httpkwargs):
 def doElementaryArgumentsValidation(arguments, argsDef):
     validatedArguments = {}
 
-    if _isArgumentRepeated(arguments):
-        raise OaiBadArgumentException('Argument "%s" may not be repeated.' % _isArgumentRepeated(arguments))
-
+    checkNoRepeatedArguments(arguments)
     exclusiveArguments = _select('exclusive', argsDef)
     for exclusiveArgument in exclusiveArguments:
         if exclusiveArgument in arguments.keys():
@@ -74,11 +72,22 @@ def doElementaryArgumentsValidation(arguments, argsDef):
 
     return validatedArguments
 
-def _isArgumentRepeated(arguments):
+def checkNoRepeatedArguments(arguments):
     for k, v in arguments.items():
         if len(v) > 1:
-            return k
-    return False
+            raise OaiBadArgumentException('Argument "%s" may not be repeated.' % k)
+
+def checkNoMoreArguments(arguments, message):
+    if len(arguments) > 0:
+        raise OaiBadArgumentException(message)
+
+def checkArgument(arguments, name, validatedArguments):
+    try:
+        value = arguments.pop(name)
+    except KeyError:
+        return False
+    validatedArguments[name] = value[0]
+    return True
 
 def _select(neededNess, argsDef):
     result = []

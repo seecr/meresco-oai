@@ -87,7 +87,7 @@ class OaiListTest(OaiTestCase):
         result = ''.join(compose(result))
         body = result.split(CRLF*2)[-1]
         self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="RESULT"/>""" in body, body)
-        self.assertTrue(body.find('<resumptionToken') == -1)
+        self.assertTrue('<resumptionToken' in body, body)
 
     def testListRecordsWithoutProvenance(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
@@ -178,6 +178,18 @@ class OaiListTest(OaiTestCase):
         self.assertTrue(body.find("<resumptionToken") > -1)
         self.assertEquals('', str(bind_string(body).OAI_PMH.ListRecords.resumptionToken))
 
+    def testNoEmptyFinalResumptionTokenUsingXWait(self):
+        self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '200'))], 'x-wait': ['True']}
+
+        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(BATCH_SIZE)), selectTotal = BATCH_SIZE))
+        self.subject.writeRecord = lambda *args, **kwargs: None
+
+        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+        body = result.split(CRLF*2)[-1]
+
+        self.assertTrue("<resumptionToken" in body, body)
+        self.assertEquals('u|cUnique for test|moai_dc|s|f', str(bind_string(body).OAI_PMH.ListRecords.resumptionToken))
+
     def testDeletedTombstones(self):
         self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
 
@@ -197,8 +209,6 @@ class OaiListTest(OaiTestCase):
         self.assertTrue(self.stream.getvalue().find('<resumptionToken') == -1)
 
     def testFromAndUntil(self):
-        #ok, deze test wordt zo lang dat het haast wel lijkt of hier iets niet klopt.... KVS
-
         observer = MockOaiJazz(
             selectAnswer=['id_0', 'id_1'],
             isAvailableDefault=(True, False),

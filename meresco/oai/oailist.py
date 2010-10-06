@@ -33,7 +33,7 @@ from resumptiontoken import resumptionTokenFromString, ResumptionToken
 from oaitool import ISO8601, ISO8601Exception
 from oairecordverb import OaiRecordVerb
 from itertools import chain, islice
-from oaiutils import OaiBadArgumentException, doElementaryArgumentsValidation, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
 from oaierror import oaiError
 from xml.sax.saxutils import escape as xmlEscape
 from meresco.core.generatorutils import decorate
@@ -84,13 +84,6 @@ Error and Exception Conditions
 """
     def __init__(self, batchSize=BATCH_SIZE):
         self._supportedVerbs = ['ListIdentifiers', 'ListRecords']
-        self._argsDef = {
-            'from': 'optional',
-            'until': 'optional',
-            'set': 'optional',
-            'resumptionToken': 'exclusive',
-            'metadataPrefix': 'required',
-            'x-wait': 'optional'}
         Observable.__init__(self)
         self._batchSize = batchSize
 
@@ -106,7 +99,7 @@ Error and Exception Conditions
             return
 
         try:
-            validatedArguments = doElementaryArgumentsValidation(arguments, self._argsDef)
+            validatedArguments = self._validateArguments(arguments)
         except OaiBadArgumentException, e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
@@ -130,6 +123,21 @@ Error and Exception Conditions
 
         yield oaiFooter()
 
+    def _validateArguments(self, arguments):
+        arguments = dict(arguments)
+        validatedArguments = {}
+        checkNoRepeatedArguments(arguments)
+        arguments.pop('verb')
+        checkArgument(arguments, 'x-wait', validatedArguments)
+        if checkArgument(arguments, 'resumptionToken', validatedArguments):
+            checkNoMoreArguments(arguments, '"resumptionToken" argument may only be used exclusively.')
+        else:
+            if not checkArgument(arguments, 'metadataPrefix', validatedArguments):
+                raise OaiBadArgumentException('Missing argument(s) "resumptionToken" or "metadataPrefix".')
+            for name in ['from', 'until', 'set']:
+                checkArgument(arguments, name, validatedArguments)
+            checkNoMoreArguments(arguments, 'Argument(s) ' + ', '.join('"%s"' % t for t in arguments.keys()) + ' is/are illegal.')
+        return validatedArguments
 
     def preProcess(self, validatedArguments, **httpkwargs):
         if validatedArguments.get('resumptionToken', None):
@@ -185,7 +193,8 @@ Error and Exception Conditions
             yield self.oaiRecord(validatedArguments, id, self._verb == "ListRecords")
 
         try:
-            results.next()
+            if not 'x-wait' in validatedArguments:
+                results.next()
             yield '<resumptionToken>%s</resumptionToken>' % ResumptionToken(
                 validatedArguments['metadataPrefix'],
                 self.any.getUnique(id),
@@ -196,7 +205,7 @@ Error and Exception Conditions
         except StopIteration:
             pass
 
-        if validatedArguments['resumptionToken']:
+        if 'resumptionToken' in validatedArguments:
             yield '<resumptionToken/>'
 
     def oaiRecord(self, validatedArguments, recordId, writeBody=True):
