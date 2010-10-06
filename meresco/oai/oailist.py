@@ -38,7 +38,6 @@ from oaierror import oaiError
 from xml.sax.saxutils import escape as xmlEscape
 from meresco.core.generatorutils import decorate
 
-BATCH_SIZE = 200
 
 class OaiList(Observable):
     """4.3 ListIdentifiers
@@ -82,7 +81,10 @@ Error and Exception Conditions
     * noRecordsMatch - The combination of the values of the from, until, set and metadataPrefix arguments results in an empty list.
     * noSetHierarchy - The repository does not support sets.
 """
-    def __init__(self, batchSize=BATCH_SIZE):
+
+    DEFAULT_BATCH_SIZE = 200
+
+    def __init__(self, batchSize=DEFAULT_BATCH_SIZE):
         self._supportedVerbs = ['ListIdentifiers', 'ListRecords']
         Observable.__init__(self)
         self._batchSize = batchSize

@@ -35,11 +35,10 @@ from oailistmetadataformats import OaiListMetadataFormats
 from oailistsets import OaiListSets
 from oaierror import OaiError
 from oaiidentifierrename import OaiIdentifierRename
-from oaisuspend import OaiSuspend
 from webrequest import WebRequest
 
 class OaiPmh(object):
-    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None):
+    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=OaiList.DEFAULT_BATCH_SIZE):
         outside = Transparant() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
@@ -48,15 +47,12 @@ class OaiPmh(object):
                 'ListSets',
                 'ListMetadataFormats',
                 'Identify']
-        self._oaiSuspend = OaiSuspend()
         self._internalObserverTree = be(
             (Observable(),
                 (OaiError(),
                     (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), ),
-                    (OaiList(),
-                        (self._oaiSuspend,
-                            (outside,)
-                        )
+                    (OaiList(batchSize=batchSize),
+                        (outside,)
                     ),
                     (OaiGetRecord(),
                         (outside,)
@@ -70,9 +66,6 @@ class OaiPmh(object):
                 )
             )
         )
-
-    def add(self, *args, **kwargs):
-        self._oaiSuspend.resume()
 
     def handleRequest(self, arguments, **kwargs):
         verb = arguments.get('verb', [None])[0]

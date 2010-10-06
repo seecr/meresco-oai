@@ -37,7 +37,7 @@ from weightless import compose
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiHarvester(Observable):
-    def __init__(self, reactor, host, port, path, metadataPrefix, workingdir, xWait=True):
+    def __init__(self, reactor, host, port, path, metadataPrefix, xWait=True):
         super(OaiHarvester, self).__init__()
         self._reactor = reactor
         self._host = host
@@ -74,9 +74,11 @@ class OaiHarvester(Observable):
             yield
 
     def _buildRequest(self, resumptionToken):
-        request = LISTRECORDS % (self._path, self._prefix)
+        request = LISTRECORDS % self._path
         if resumptionToken:
             request += "&resumptionToken=%s" % resumptionToken
+        else:
+            request += "&metadataPrefix=%s" % self._prefix
         if self._xWait:
             request += "&x-wait=True"
         return STATUSLINE % request
@@ -131,4 +133,4 @@ def head(l):
 
 
 STATUSLINE = "GET %s HTTP/1.0\r\n\r\n"
-LISTRECORDS = "%s?verb=ListRecords&metadataPrefix=%s"
+LISTRECORDS = "%s?verb=ListRecords"

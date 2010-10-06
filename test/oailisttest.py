@@ -37,7 +37,7 @@ from mockoaijazz import MockOaiJazz
 
 from meresco.components.http.utils import CRLF
 from meresco.core import ObserverFunction
-from meresco.oai.oailist import BATCH_SIZE, OaiList
+from meresco.oai.oailist import OaiList
 from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionToken
 
 from oaitestcase import OaiTestCase
@@ -169,7 +169,7 @@ class OaiListTest(OaiTestCase):
     def testFinalResumptionToken(self):
         self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '200'))]}
 
-        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(BATCH_SIZE)), selectTotal = BATCH_SIZE))
+        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(OaiList.DEFAULT_BATCH_SIZE)), selectTotal=OaiList.DEFAULT_BATCH_SIZE))
         self.subject.writeRecord = lambda *args, **kwargs: None
 
         result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
@@ -181,7 +181,7 @@ class OaiListTest(OaiTestCase):
     def testNoEmptyFinalResumptionTokenUsingXWait(self):
         self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '200'))], 'x-wait': ['True']}
 
-        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(BATCH_SIZE)), selectTotal = BATCH_SIZE))
+        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(OaiList.DEFAULT_BATCH_SIZE)), selectTotal=OaiList.DEFAULT_BATCH_SIZE))
         self.subject.writeRecord = lambda *args, **kwargs: None
 
         result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))

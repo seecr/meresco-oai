@@ -159,33 +159,6 @@ class _OaiPmhTest(OaiTestCase):
         ))
         self.assertTrue(observable, 'The above code failed.')
 
-    def testListRecordsUsingXWait(self):
-        oaiPmh = OaiPmh('repositoryName', 'adminEmail')
-        mockoaijazz = MockOaiJazz()
-        mockoaijazz._selectAnswer = []
-        server = be(
-            (Transparant(),
-                (oaiPmh,
-                    (mockoaijazz,),
-                )
-            )
-        )
-        result = server.all.handleRequest(
-                Headers={'Host': 'example.org'},
-                path="/path/to/oai",
-                port=99999,
-                arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait':['True']}
-        )
-        suspend = result.next()
-        self.assertEquals("<class 'weightless._suspend.Suspend'>", str(type(suspend)))
-        suspend(CallTrace('reactor'), lambda: None)
-        oaiPmh.add('ignored-id', 'partname', 'data')
-        mockoaijazz._selectAnswer = ['ident0', 'ident1']
-        body = ''.join(list(result))
-        self.assertTrue("<identifier>ident0</identifier>" in body, body)
-        self.assertTrue("<identifier>ident1</identifier>" in body, body)
-
-
     def testListRecords(self):
         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
         self.observer.returnValues['oaiSelect'] = iter(['ident0', 'ident1'])

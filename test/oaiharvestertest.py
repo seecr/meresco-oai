@@ -164,7 +164,7 @@ class OaiHarvesterTest(CQ2TestCase):
             callback() # (re)connect
             callback() # HTTP GET
             sleep(0.01)
-            self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[1])
+            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[1])
 
     def testKeepResumptionTokenOnInvalidResponse(self):
         with server([LISTRECORDS_RESPONSE % RESUMPTION_TOKEN, STATUSLINE + 'not XML']) as (port, msgs):
@@ -178,20 +178,20 @@ class OaiHarvesterTest(CQ2TestCase):
             callback() # (re)connect
             callback() # HTTP GET
             sleep(0.01)
-            self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
+            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
             callback() # sok.recv
             callback() # sok.recv == ''
             self.assertTrue("XMLSyntaxError: Start tag expected, '<' not found, line 1, column 1" in self._err.getvalue(), self._err.getvalue())
             callback() # (re)connect
             callback() # HTTP GET
             sleep(0.01)
-            self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
+            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
 
 
     def getHarvester(self, host, port, path, metadataPrefix, xWait=True):
         self._err = StringIO()
         self._reactor = CallTrace("reactor")
-        self._harvester = OaiHarvester(self._reactor, host, port, path, metadataPrefix, self.tempdir, xWait=xWait)
+        self._harvester = OaiHarvester(self._reactor, host, port, path, metadataPrefix, xWait=xWait)
         self._harvester._logError = lambda s: self._err.write(s + '\n')
         self._observer = CallTrace("observer")
         self._harvester.addObserver(self._observer)

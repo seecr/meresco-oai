@@ -42,6 +42,7 @@ class OaiSuspend(Transparant):
         yield suspend
         suspend.getResult()
 
-    def resume(self):
+    def addOaiRecord(self, identifier, sets, metadataFormats):
+        self.do.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
         while len(self._suspended) > 0:
             self._suspended.pop().resume()
