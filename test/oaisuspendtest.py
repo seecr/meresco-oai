@@ -69,6 +69,7 @@ class OaiSuspendTest(CQ2TestCase):
             )
         )
         storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+        self._addOaiRecords(storageComponent, oaiJazz, 3)
 
         oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
         harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
@@ -101,11 +102,58 @@ class OaiSuspendTest(CQ2TestCase):
         oaiPmhThread.join()
         harvestThread.join()
 
+    def testNearRealtimeOaiSavesState(self):
+        observer = CallTrace("observer", ignoredAttributes=["observer_init"])
+        oaiJazz = be(
+            (OaiSuspend(),
+                (OaiJazz(join(self.tempdir, 'oai')),),
+            )
+        )
+        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+        self._addOaiRecords(storageComponent, oaiJazz, 1)
+        
+        oaiPmhThread = None
+        harvestThread = None
+
+        def start():
+            global oaiPmhThread, harvestThread
+            self.run = True
+            portNumber = randint(50000, 60000)
+            oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
+            harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
+            oaiPmhThread.start()
+            harvestThread.start()
+
+        def stop():
+            self.run = False
+            oaiPmhThread.join()
+            harvestThread.join()
+
+        start()
+        requests = 1
+        sleep(1.0 + 1.0 * requests)
+        self.assertEquals(1, len(observer.calledMethods))
+        arg = tostring(observer.calledMethods[0].args[0])
+        self.assertTrue("id0" in arg, arg)
+        stop()
+
+        storageComponent.add("id1", "prefix", "<a>a1</a>")
+        oaiJazz.addOaiRecord("id1", sets=[], metadataFormats=[("prefix", "", "")])
+
+        start()
+        requests = 1
+        sleep(1.0 + 1.0 * requests)
+        self.assertEquals(2, len(observer.calledMethods))
+        arg = tostring(observer.calledMethods[1].args[0])
+        self.assertFalse("id0" in arg, arg)
+        self.assertTrue("id1" in arg, arg)
+        stop()
+
     def startOaiHarvester(self, portNumber, observer):
         reactor = Reactor()
         server = be(
             (Observable(),
-                (OaiHarvester(reactor, 'localhost', portNumber, '/', 'prefix'),
+                (OaiHarvester(reactor, 'localhost', portNumber, '/', 'prefix', self.tempdir),
                     (observer,),
                 )
             )
@@ -126,13 +174,12 @@ class OaiSuspendTest(CQ2TestCase):
             )
         )
         server.once.observer_init()
+        self._loopReactor(reactor)
 
-        for i in range(3):            
+    def _addOaiRecords(self, storageComponent, oaiJazz, count):
+        for i in range(count):            
             storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)
             oaiJazz.addOaiRecord("id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
-
-
-        self._loopReactor(reactor)
 
     def _loopReactor(self, reactor):
         def tick():

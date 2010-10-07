@@ -29,6 +29,7 @@ from errno import EINPROGRESS, ECONNREFUSED
 from lxml.etree import parse
 from StringIO import StringIO
 from traceback import format_exc
+from os.path import join, isfile
 
 from meresco.core import Observable
 from weightless import compose
@@ -37,7 +38,7 @@ from weightless import compose
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiHarvester(Observable):
-    def __init__(self, reactor, host, port, path, metadataPrefix, xWait=True):
+    def __init__(self, reactor, host, port, path, metadataPrefix, workingDir, xWait=True):
         super(OaiHarvester, self).__init__()
         self._reactor = reactor
         self._host = host
@@ -45,13 +46,14 @@ class OaiHarvester(Observable):
         self._path = path
         self._prefix = metadataPrefix
         self._xWait = xWait
+        self._stateFilePath = join(workingDir, "harvester.state")
 
     def observer_init(self):
-        self._loop = compose(self.loop())
+        resumptionToken = self._readState()
+        self._loop = compose(self.loop(resumptionToken))
         self._reactor.addTimer(1, self._loop.next)
 
-    def loop(self):
-        resumptionToken = None
+    def loop(self, resumptionToken=None):
         while True:
             sok = yield self._tryConnect()
             sok.send(self._buildRequest(resumptionToken))
@@ -70,8 +72,16 @@ class OaiHarvester(Observable):
                 resumptionToken = self._processResponse(''.join(responses))
             except Exception:
                 self._logError(format_exc())
+            finally:
+                open(self._stateFilePath, 'w').write("Resumptiontoken: %s" % resumptionToken)
             self._reactor.addTimer(1, self._loop.next)
             yield
+
+    def _readState(self):
+        state = []
+        if isfile(self._stateFilePath):
+            state = open(self._stateFilePath).read().split("Resumptiontoken: ")
+        return state[1] if len(state)  == 2 else "" 
 
     def _buildRequest(self, resumptionToken):
         request = LISTRECORDS % self._path
@@ -129,7 +139,7 @@ class OaiHarvester(Observable):
 
 
 def head(l):
-    return l[0] if l else None
+    return l[0] if l else ""
 
 
 STATUSLINE = "GET %s HTTP/1.0\r\n\r\n"
