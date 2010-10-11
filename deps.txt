@@ -1,4 +1,5 @@
-python-meresco-components-3.3-edurep (>= 2)
+python-meresco-components (>= 3.4)
+python-meresco-components (<< 3.5)
 python-storage (>=5.1.7)
 python-storage (<<5.2)
 python-lxml (>=2.1)
