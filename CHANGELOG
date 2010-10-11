@@ -1,6 +1,32 @@
 CHANGELOG Meresco-Oai
 =====================
 
+version: 3.2.1 -> 3.3
+date:    2010-10-11
+
+Save the OAI Harvester state.
+-----------------------------
+The OAI Harvester state (only the ResumptionToken) is saved in the workingdir of
+the harvester. When restarting the resumptionToken will be read and the
+harveseter will continue from the last state.
+(2010-10-07, 3.2.1-Edurep)
+
+Near realtime OAI + OaiHarvester component
+------------------------------------------
+OaiPmh (specifically OaiList) now supports the custom 'x-wait' parameter on
+ListRecords verb that enables long polling for OAI updates over HTTP between
+harvester and provider. The new OaiHarvester component enables non-blocking
+harvesting from within a Meresco DNA server. It calls 'add' on an obeserver for
+each ListRecords response and supports the 'x-wait' custom parameter.
+(2010-10-06, 3.2.1-Edurep)
+
+Oai ListRecords using yields
+----------------------------
+Oai ListRecords now uses yield statements instead of WebRequestServer-writes.
+(2010-10-04, 3.2.1-Edurep)
+
+==============================================================================
+
 version: 3.2 -> 3.2.1
 date:    2010-09-21
 
