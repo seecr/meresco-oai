@@ -132,7 +132,7 @@ class OaiHarvester(Observable):
                 self._logError("%s: %s" % (error.get("code"), error.text))
             return None
         else:
-            self.any.add(lxmlNode)
+            self.any.add(lxmlNode=lxmlNode)
             return head(lxmlNode.xpath("/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()", 
                                        namespaces=namespaces))
 

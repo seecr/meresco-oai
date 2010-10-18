@@ -80,7 +80,9 @@ class OaiHarvesterTest(CQ2TestCase):
             callback() # sok.recv
             callback() # sok.recv
             self.assertEquals('add', observer.calledMethods[0].name)
-            self.assertEqualsWS(BODY, tostring(observer.calledMethods[0].args[0]))
+            self.assertFalse(len(observer.calledMethods[0].args))
+            self.assertEquals(['lxmlNode'], observer.calledMethods[0].kwargs.keys())
+            self.assertEqualsWS(BODY, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
 
     def testNoConnectionPossible(self):
         harvester, observer, reactor = self.getHarvester("some.nl", 'no-port', "/oai", 'dc')
@@ -127,7 +129,7 @@ class OaiHarvesterTest(CQ2TestCase):
             callback() # sok.recv
             callback() # recv = ''
             self.assertEquals('add', observer.calledMethods[0].name)
-            self.assertEqualsWS(BODY, tostring(observer.calledMethods[0].args[0]))
+            self.assertEqualsWS(BODY, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
             self.assertEquals('removeReader', reactor.calledMethods[4].name)
             self.assertEquals('addTimer', reactor.calledMethods[-1].name)
 
