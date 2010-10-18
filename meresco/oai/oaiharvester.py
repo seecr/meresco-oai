@@ -29,7 +29,8 @@ from errno import EINPROGRESS, ECONNREFUSED
 from lxml.etree import parse
 from StringIO import StringIO
 from traceback import format_exc
-from os.path import join, isfile
+from os import makedirs
+from os.path import join, isfile, isdir
 
 from meresco.core import Observable
 from weightless import compose
@@ -45,6 +46,7 @@ class OaiHarvester(Observable):
         self._port = port 
         self._path = path
         self._prefix = metadataPrefix
+        isdir(workingDir) or makedirs(workingDir)
         self._xWait = xWait
         self._stateFilePath = join(workingDir, "harvester.state")
 

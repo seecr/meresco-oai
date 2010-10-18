@@ -226,10 +226,12 @@ class OaiHarvesterTest(CQ2TestCase):
         open(harvester._stateFilePath, 'w').write("invalid")
         self.assertEquals("", harvester._readState())
 
-    def getHarvester(self, host, port, path, metadataPrefix, xWait=True):
+    def getHarvester(self, host, port, path, metadataPrefix, workingDir=None, xWait=True):
+        if workingDir == None:
+            workingDir = join(self.tempdir, 'harvesterstate')
         self._err = StringIO()
         self._reactor = CallTrace("reactor")
-        self._harvester = OaiHarvester(self._reactor, host, port, path, metadataPrefix, self.tempdir, xWait=xWait)
+        self._harvester = OaiHarvester(self._reactor, host, port, path, metadataPrefix, workingDir=workingDir, xWait=xWait)
         self._harvester._logError = lambda s: self._err.write(s + '\n')
         self._observer = CallTrace("observer")
         self._harvester.addObserver(self._observer)
