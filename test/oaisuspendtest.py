@@ -80,11 +80,11 @@ class OaiSuspendTest(CQ2TestCase):
         sleep(1.0 + 1.0 * requests)
        
         self.assertEquals(2, len(observer.calledMethods))
-        arg = tostring(observer.calledMethods[0].args[0])
-        self.assertTrue("id0" in arg, arg)
-        self.assertTrue("id1" in arg, arg)
-        arg = tostring(observer.calledMethods[1].args[0])
-        self.assertTrue("id2" in arg, arg)
+        kwarg = tostring(observer.calledMethods[0].kwargs['lxmlNode'])
+        self.assertTrue("id0" in kwarg, kwarg)
+        self.assertTrue("id1" in kwarg, kwarg)
+        kwarg = tostring(observer.calledMethods[1].kwargs['lxmlNode'])
+        self.assertTrue("id2" in kwarg, kwarg)
 
         self.assertEquals(1, len(oaiJazz._suspended))
 
@@ -93,8 +93,8 @@ class OaiSuspendTest(CQ2TestCase):
         sleep(0.1)
         self.assertEquals(0, len(oaiJazz._suspended))
         self.assertEquals(3, len(observer.calledMethods))
-        arg = tostring(observer.calledMethods[2].args[0])
-        self.assertTrue("id3" in arg, arg)
+        kwarg = tostring(observer.calledMethods[2].kwargs['lxmlNode'])
+        self.assertTrue("id3" in kwarg, kwarg)
         sleep(1.0)
         self.assertEquals(1, len(oaiJazz._suspended))
 
@@ -133,8 +133,8 @@ class OaiSuspendTest(CQ2TestCase):
         requests = 1
         sleep(1.0 + 1.0 * requests)
         self.assertEquals(1, len(observer.calledMethods))
-        arg = tostring(observer.calledMethods[0].args[0])
-        self.assertTrue("id0" in arg, arg)
+        kwarg = tostring(observer.calledMethods[0].kwargs['lxmlNode'])
+        self.assertTrue("id0" in kwarg, kwarg)
         stop()
 
         storageComponent.add("id1", "prefix", "<a>a1</a>")
@@ -144,9 +144,9 @@ class OaiSuspendTest(CQ2TestCase):
         requests = 1
         sleep(1.0 + 1.0 * requests)
         self.assertEquals(2, len(observer.calledMethods))
-        arg = tostring(observer.calledMethods[1].args[0])
-        self.assertFalse("id0" in arg, arg)
-        self.assertTrue("id1" in arg, arg)
+        kwarg = tostring(observer.calledMethods[1].kwargs['lxmlNode'])
+        self.assertFalse("id0" in kwarg, kwarg)
+        self.assertTrue("id1" in kwarg, kwarg)
         stop()
 
     def startOaiHarvester(self, portNumber, observer):
