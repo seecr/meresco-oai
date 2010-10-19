@@ -133,6 +133,22 @@ class OaiHarvesterTest(CQ2TestCase):
             self.assertEquals('removeReader', reactor.calledMethods[4].name)
             self.assertEquals('addTimer', reactor.calledMethods[-1].name)
 
+    def testSuccessWithMoreObservers(self):
+        with server([RESPONSE]) as (port, msgs):
+            harvester, observer, reactor = self.getHarvester("localhost", port, "/", "dc")
+            anotherObserver = CallTrace('another observer')
+            harvester.addObserver(anotherObserver)
+
+            callback = self.doConnect()
+            callback() # HTTP GET
+            sleep(0.01)
+            callback = reactor.calledMethods[3].args[1]
+            callback() # sok.recv
+            callback() # recv = ''
+            
+            self.assertEquals('add', observer.calledMethods[0].name)
+            self.assertEquals('add', anotherObserver.calledMethods[0].name)
+
     def testListRecordsRequest(self):
         with server([LISTRECORDS_RESPONSE % '']) as (port, msgs):
             harvester, observer, reactor = self.getHarvester('localhost', port, '/oai', 'dc', xWait=False)
