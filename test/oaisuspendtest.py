@@ -54,10 +54,27 @@ class OaiSuspendTest(CQ2TestCase):
         suspend = oaiSuspend.suspend().next()
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
-        oaiSuspend.addOaiRecord("ignored", "sets", "metadataFormats")
+
+        oaiSuspend.addOaiRecord(identifier="ignored", sets="sets", metadataFormats="metadataFormats")
+
         self.assertEquals([True], resumed)
         self.assertEquals([], oaiSuspend._suspended)
         self.assertEquals("addOaiRecord", observer.calledMethods[0].name)
+
+    def testDelete(self):
+        oaiSuspend = OaiSuspend()
+        observer = CallTrace("oaijazz")
+        oaiSuspend.addObserver(observer)
+        reactor = CallTrace("reactor")
+        suspend = oaiSuspend.suspend().next()
+        resumed = []
+        suspend(reactor, lambda: resumed.append(True))
+
+        oaiSuspend.delete(identifier='identifier')
+
+        self.assertEquals([True], resumed)
+        self.assertEquals([], oaiSuspend._suspended)
+        self.assertEquals("delete", observer.calledMethods[0].name)
 
     def testNearRealtimeOai(self):
         self.run = True
@@ -89,7 +106,7 @@ class OaiSuspendTest(CQ2TestCase):
         self.assertEquals(1, len(oaiJazz._suspended))
 
         storageComponent.add("id3", "prefix", "<a>a3</a>")
-        oaiJazz.addOaiRecord("id3", sets=[], metadataFormats=[("prefix", "", "")])
+        oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
         sleep(0.1)
         self.assertEquals(0, len(oaiJazz._suspended))
         self.assertEquals(3, len(observer.calledMethods))
@@ -138,7 +155,7 @@ class OaiSuspendTest(CQ2TestCase):
         stop()
 
         storageComponent.add("id1", "prefix", "<a>a1</a>")
-        oaiJazz.addOaiRecord("id1", sets=[], metadataFormats=[("prefix", "", "")])
+        oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
 
         start()
         requests = 1
@@ -179,7 +196,7 @@ class OaiSuspendTest(CQ2TestCase):
     def _addOaiRecords(self, storageComponent, oaiJazz, count):
         for i in range(count):            
             storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)
-            oaiJazz.addOaiRecord("id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
+            oaiJazz.addOaiRecord(identifier="id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
 
     def _loopReactor(self, reactor):
         def tick():
