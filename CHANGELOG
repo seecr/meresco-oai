@@ -1,6 +1,24 @@
 CHANGELOG Meresco-Oai
 =====================
 
+version: 3.3 -> 3.3-Edurep-2
+date:    2010-10-19
+
+Use kwargs in OaiHarvester
+--------------------------
+OaiHarvester will now use keywordarguments to send calls to its observers.
+(2010-10-19, 3.3-Edurep)
+
+Oai Harvester state directory is created when absent
+----------------------------------------------------
+When the configured state directory (workingDir) does not exist yet it is now
+created for you (including parent directories). The Oai Harvester now has the
+same behaviour as similar meresco components which keep state in a configured
+directory.
+(2010-10-18, 3.3-Edurep)
+
+==============================================================================
+
 version: 3.2.1 -> 3.3
 date:    2010-10-11
 
