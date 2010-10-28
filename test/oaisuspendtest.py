@@ -96,21 +96,20 @@ class OaiSuspendTest(CQ2TestCase):
         requests = 3
         sleep(1.0 + 1.0 * requests)
        
-        self.assertEquals(2, len(observer.calledMethods))
-        kwarg = tostring(observer.calledMethods[0].kwargs['lxmlNode'])
-        self.assertTrue("id0" in kwarg, kwarg)
-        self.assertTrue("id1" in kwarg, kwarg)
-        kwarg = tostring(observer.calledMethods[1].kwargs['lxmlNode'])
-        self.assertTrue("id2" in kwarg, kwarg)
+        self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
+        ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods]
+        self.assertEquals([['id0'],['id1'],['id2']], ids)
 
         self.assertEquals(1, len(oaiJazz._suspended))
 
+        requests += 1
         storageComponent.add("id3", "prefix", "<a>a3</a>")
         oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
         sleep(0.1)
+
         self.assertEquals(0, len(oaiJazz._suspended))
-        self.assertEquals(3, len(observer.calledMethods))
-        kwarg = tostring(observer.calledMethods[2].kwargs['lxmlNode'])
+        self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
+        kwarg = tostring(observer.calledMethods[-1].kwargs['lxmlNode'])
         self.assertTrue("id3" in kwarg, kwarg)
         sleep(1.0)
         self.assertEquals(1, len(oaiJazz._suspended))
@@ -204,3 +203,7 @@ class OaiSuspendTest(CQ2TestCase):
         tick()
         while self.run:
             reactor.step()
+
+def xpath(node, path):
+    return node.xpath(path, namespaces={'oai':'http://www.openarchives.org/OAI/2.0/'})
+

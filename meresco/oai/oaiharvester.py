@@ -25,7 +25,7 @@
 
 from socket import socket, error as SocketError, SHUT_WR, SHUT_RD, SOL_SOCKET, SO_ERROR
 from errno import EINPROGRESS, ECONNREFUSED
-from lxml.etree import parse
+from lxml.etree import parse, ElementTree
 from StringIO import StringIO
 from traceback import format_exc
 from os import makedirs, close, remove
@@ -92,7 +92,7 @@ class OaiHarvester(Observable):
                 response = ''.join(responses)
                 headers, body = response.split("\r\n\r\n")
                 lxmlNode = parse(StringIO(body))
-                errors = lxmlNode.xpath("/oai:OAI-PMH/oai:error", namespaces=namespaces)
+                errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
                 if len(errors) > 0:
                     for error in errors:
                         self._logError("%s: %s" % (error.get("code"), error.text))
@@ -100,12 +100,13 @@ class OaiHarvester(Observable):
                 else:
                     self._reactor.addReader(alwaysReadable, self._loop.next)
                     try:
-                        self.do.add(lxmlNode=lxmlNode)
+                        records = xpath(lxmlNode, '/oai:OAI-PMH/oai:ListRecords/oai:record')
+                        for record in records:
+                            self.do.add(lxmlNode=ElementTree(record))
                         yield
                     finally:
                         self._reactor.removeReader(alwaysReadable)
-                    resumptionToken = head(lxmlNode.xpath("/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()", 
-                                               namespaces=namespaces))
+                    resumptionToken = head(xpath(lxmlNode, "/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()"))
             except Exception:
                 self._logError(format_exc())
             finally:
@@ -171,6 +172,8 @@ class OaiHarvester(Observable):
 def head(l):
     return l[0] if l else ""
 
+def xpath(node, path):
+    return node.xpath(path, namespaces=namespaces)
 
 STATUSLINE = "GET %s HTTP/1.0\r\n\r\n"
 LISTRECORDS = "%s?verb=ListRecords"
