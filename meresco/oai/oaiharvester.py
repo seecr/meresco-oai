@@ -23,7 +23,6 @@
 #
 ## end license ##
 
-import sys
 from socket import socket, error as SocketError, SHUT_WR, SHUT_RD, SOL_SOCKET, SO_ERROR
 from errno import EINPROGRESS, ECONNREFUSED
 from lxml.etree import parse
@@ -35,11 +34,14 @@ from os.path import join, isfile, isdir
 from meresco.core import Observable
 from weightless import compose
 
+from sys import stderr, stdout
+from time import time
+
 
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiHarvester(Observable):
-    def __init__(self, reactor, host, port, path, metadataPrefix, workingDir, xWait=True):
+    def __init__(self, reactor, host, port, path, metadataPrefix, workingDir, xWait=True, verbose=False):
         super(OaiHarvester, self).__init__()
         self._reactor = reactor
         self._host = host
@@ -49,6 +51,9 @@ class OaiHarvester(Observable):
         isdir(workingDir) or makedirs(workingDir)
         self._xWait = xWait
         self._stateFilePath = join(workingDir, "harvester.state")
+        if not verbose:
+            self._log = lambda x: None
+            self._logError = lambda x: None
 
     def observer_init(self):
         resumptionToken = self._readState()
@@ -125,19 +130,32 @@ class OaiHarvester(Observable):
         
     def _processResponse(self, response):
         headers, body = response.split("\r\n\r\n")
-        lxmlNode = parse(StringIO(body))
-        errors = lxmlNode.xpath("/oai:OAI-PMH/oai:error", namespaces=namespaces)
-        if len(errors) > 0:
-            for error in errors:
-                self._logError("%s: %s" % (error.get("code"), error.text))
-            return None
-        else:
-            self.do.add(lxmlNode=lxmlNode)
-            return head(lxmlNode.xpath("/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()", 
-                                       namespaces=namespaces))
+        t0 = t1 = time()
+        try:
+            lxmlNode = parse(StringIO(body))
+            t1 = time()
+            errors = lxmlNode.xpath("/oai:OAI-PMH/oai:error", namespaces=namespaces)
+            if len(errors) > 0:
+                for error in errors:
+                    self._logError("%s: %s" % (error.get("code"), error.text))
+                return None
+            else:
+                self.do.add(lxmlNode=lxmlNode)
+                return head(lxmlNode.xpath("/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()", 
+                                           namespaces=namespaces))
+        finally:
+            total = time() - t1
+            parseTime = t1 - t0
+            self._log('OAIHarvester._processResponse(...), size = %s, parseTime = %.3f s, processTime = %.3f s\n' % (len(body), parseTime, total))
+
 
     def _logError(self, message):
-        print >> sys.stderr,  message
+        stderr.write(message)
+        stderr.flush()
+
+    def _log(self, message):
+        stdout.write(message)
+        stdout.flush()
 
 
 def head(l):
