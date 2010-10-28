@@ -76,7 +76,18 @@ class OaiHarvester(Observable):
             self._reactor.removeReader(sok)
             sok.close()
             try:
-                resumptionToken = self._processResponse(''.join(responses))
+                response = ''.join(responses)
+                headers, body = response.split("\r\n\r\n")
+                lxmlNode = parse(StringIO(body))
+                errors = lxmlNode.xpath("/oai:OAI-PMH/oai:error", namespaces=namespaces)
+                if len(errors) > 0:
+                    for error in errors:
+                        self._logError("%s: %s" % (error.get("code"), error.text))
+                    resumptionToken = None
+                else:
+                    self.do.add(lxmlNode=lxmlNode)
+                    resumptionToken = head(lxmlNode.xpath("/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()", 
+                                               namespaces=namespaces))
             except Exception:
                 self._logError(format_exc())
             finally:
@@ -128,26 +139,6 @@ class OaiHarvester(Observable):
         self._reactor.addTimer(1, self._loop.next)
         yield
         
-    def _processResponse(self, response):
-        headers, body = response.split("\r\n\r\n")
-        t0 = t1 = time()
-        try:
-            lxmlNode = parse(StringIO(body))
-            t1 = time()
-            errors = lxmlNode.xpath("/oai:OAI-PMH/oai:error", namespaces=namespaces)
-            if len(errors) > 0:
-                for error in errors:
-                    self._logError("%s: %s" % (error.get("code"), error.text))
-                return None
-            else:
-                self.do.add(lxmlNode=lxmlNode)
-                return head(lxmlNode.xpath("/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()", 
-                                           namespaces=namespaces))
-        finally:
-            total = time() - t1
-            parseTime = t1 - t0
-            self._log('OAIHarvester._processResponse(...), size = %s, parseTime = %.3f s, processTime = %.3f s\n' % (len(body), parseTime, total))
-
 
     def _logError(self, message):
         stderr.write(message)
