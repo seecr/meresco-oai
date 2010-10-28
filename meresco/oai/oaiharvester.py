@@ -28,7 +28,7 @@ from errno import EINPROGRESS, ECONNREFUSED
 from lxml.etree import parse
 from StringIO import StringIO
 from traceback import format_exc
-from os import makedirs
+from os import makedirs, close, remove
 from os.path import join, isfile, isdir
 
 from meresco.core import Observable
@@ -36,6 +36,18 @@ from weightless import compose
 
 from sys import stderr, stdout
 from time import time
+from tempfile import mkstemp
+
+class AlwaysReadable(object):
+    def __init__(self):
+        self._fd, self._name = mkstemp()
+
+    def fileno(self):
+        return self._fd
+
+    def cleanUp(self):
+        close(self._fd)
+        remove(self._name)
 
 
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
@@ -75,6 +87,7 @@ class OaiHarvester(Observable):
                 responses.append(response)
             self._reactor.removeReader(sok)
             sok.close()
+            alwaysReadable = AlwaysReadable()
             try:
                 response = ''.join(responses)
                 headers, body = response.split("\r\n\r\n")
@@ -85,13 +98,19 @@ class OaiHarvester(Observable):
                         self._logError("%s: %s" % (error.get("code"), error.text))
                     resumptionToken = None
                 else:
-                    self.do.add(lxmlNode=lxmlNode)
+                    self._reactor.addReader(alwaysReadable, self._loop.next)
+                    try:
+                        self.do.add(lxmlNode=lxmlNode)
+                        yield
+                    finally:
+                        self._reactor.removeReader(alwaysReadable)
                     resumptionToken = head(lxmlNode.xpath("/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()", 
                                                namespaces=namespaces))
             except Exception:
                 self._logError(format_exc())
             finally:
                 open(self._stateFilePath, 'w').write("Resumptiontoken: %s" % resumptionToken)
+                alwaysReadable.cleanUp()
             self._reactor.addTimer(1, self._loop.next)
             yield
 

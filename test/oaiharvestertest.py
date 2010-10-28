@@ -39,7 +39,7 @@ from meresco.oai import OaiHarvester
 
 @contextmanager
 def server(responses, bufsize=4096):
-    port = randint(2**10, 2**16)
+    port = randint(10000,60000)
     start = Event()
     messages = []
     def serverThread():
@@ -128,6 +128,7 @@ class OaiHarvesterTest(CQ2TestCase):
             callback = reactor.calledMethods[3].args[1]
             callback() # sok.recv
             callback() # recv = ''
+            callback() # removeReader() after self.do.add(...
             self.assertEquals('add', observer.calledMethods[0].name)
             self.assertEqualsWS(BODY, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
             self.assertEquals('removeReader', reactor.calledMethods[4].name)
@@ -179,6 +180,7 @@ class OaiHarvesterTest(CQ2TestCase):
             callback() # sok.recv
             callback() # sok.recv == ''
             self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+            callback() # removeReader() after self.do.add(...
             self.assertEquals('addTimer', reactor.calledMethods[-1].name)
             self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
             callback() # (re)connect
@@ -187,6 +189,7 @@ class OaiHarvesterTest(CQ2TestCase):
             self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[1])
             callback() # sok.recv
             callback() # sok.recv == ''
+            callback() # removeReader() after self.do.add(...
             self.assertEquals('Resumptiontoken: ', open(self._harvester._stateFilePath).read())
 
     def testKeepResumptionTokenOnRestart(self):
@@ -198,6 +201,7 @@ class OaiHarvesterTest(CQ2TestCase):
             self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc&x-wait=True HTTP/1.0\r\n\r\n", msgs[0])
             callback() # sok.recv
             callback() # sok.recv == ''
+            callback() # removeReader() after self.do.add(...
             self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
         with server([LISTRECORDS_RESPONSE % RESUMPTION_TOKEN]) as (port, msgs):
             harvester, observer, reactor = self.getHarvester('localhost', port, '/oai', 'dc')
@@ -215,6 +219,7 @@ class OaiHarvesterTest(CQ2TestCase):
             self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc&x-wait=True HTTP/1.0\r\n\r\n", msgs[0])
             callback() # sok.recv
             callback() # soc.recv == ''
+            callback() # removeReader() after self.do.add(...
             self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
             callback() # (re)connect
             callback() # HTTP GET
@@ -222,6 +227,7 @@ class OaiHarvesterTest(CQ2TestCase):
             self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
             callback() # sok.recv
             callback() # sok.recv == ''
+            callback() # removeReader() after self.do.add(...
             self.assertTrue("XMLSyntaxError: Start tag expected, '<' not found, line 1, column 1" in self._err.getvalue(), self._err.getvalue())
             self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
             callback() # (re)connect
