@@ -40,7 +40,7 @@ from tempfile import mkstemp
 
 class AlwaysReadable(object):
     def __init__(self):
-        self._fd, self._name = mkstemp()
+        self._fd, self._name = mkstemp('oaiharvester')
 
     def fileno(self):
         return self._fd
@@ -103,7 +103,7 @@ class OaiHarvester(Observable):
                         records = xpath(lxmlNode, '/oai:OAI-PMH/oai:ListRecords/oai:record')
                         for record in records:
                             self.do.add(lxmlNode=ElementTree(record))
-                        yield
+                            yield
                     finally:
                         self._reactor.removeReader(alwaysReadable)
                     resumptionToken = head(xpath(lxmlNode, "/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()"))

@@ -79,6 +79,7 @@ class OaiHarvesterTest(CQ2TestCase):
             callback = reactor.calledMethods[3].args[1]
             callback() # sok.recv
             callback() # sok.recv
+            callback() # yield after self.do.add(...
             self.assertEquals('add', observer.calledMethods[0].name)
             self.assertFalse(len(observer.calledMethods[0].args))
             self.assertEquals(['lxmlNode'], observer.calledMethods[0].kwargs.keys())
@@ -120,7 +121,7 @@ class OaiHarvesterTest(CQ2TestCase):
         self.assertEquals("addTimer", reactor.calledMethods[3].name)
 
     def testSuccess(self):
-        with server([RESPONSE_ONE_RECORD]) as (port, msgs):
+        with server([RESPONSE_TWO_RECORDS]) as (port, msgs):
             harvester, observer, reactor = self.getHarvester("localhost", port, "/", "dc")
             callback = self.doConnect()
             callback() # HTTP GET
@@ -128,10 +129,12 @@ class OaiHarvesterTest(CQ2TestCase):
             callback = reactor.calledMethods[3].args[1]
             callback() # sok.recv
             callback() # recv = ''
-            callback() # removeReader() after self.do.add(...
+            callback() # yield after self.do.add(...
+            callback() # yield after self.do.add(...
             self.assertEquals('add', observer.calledMethods[0].name)
+            self.assertEquals('add', observer.calledMethods[1].name)
             self.assertEqualsWS(ONE_RECORD, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
-            self.assertEquals('removeReader', reactor.calledMethods[4].name)
+            self.assertEquals('removeReader', reactor.calledMethods[-2].name)
             self.assertEquals('addTimer', reactor.calledMethods[-1].name)
 
     def testSuccessWithMoreObservers(self):
@@ -146,6 +149,7 @@ class OaiHarvesterTest(CQ2TestCase):
             callback = reactor.calledMethods[3].args[1]
             callback() # sok.recv
             callback() # recv = ''
+            callback() # yield after self.do.add(...
             
             self.assertEquals('add', observer.calledMethods[0].name)
             self.assertEquals('add', anotherObserver.calledMethods[0].name)
@@ -269,20 +273,16 @@ class OaiHarvesterTest(CQ2TestCase):
         return callback
 
 STATUSLINE = """HTTP/1.0 200 OK \r\n\r\n"""
-#
-# <almost obsolete>
-BODY = "<body>BODY</body>"
-RESPONSE = STATUSLINE + BODY
-# </almost obsolete>
-#
+EMBEDDED_RECORD = '<record>ignored</record>\n'
 ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/">ignored</record>'
-BODY_ONE_RECORD = """<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/">
+BODY = """<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/">
     <ListRecords>
-        <record>ignored</record>
+        %s
     </ListRecords>
 </OAI-PMH>
 """
-RESPONSE_ONE_RECORD = STATUSLINE + BODY_ONE_RECORD
+RESPONSE_ONE_RECORD = STATUSLINE + BODY % EMBEDDED_RECORD
+RESPONSE_TWO_RECORDS = STATUSLINE + BODY % (EMBEDDED_RECORD *2)
 
 LISTRECORDS_RESPONSE = STATUSLINE + """<?xml version="1.0" encoding="UTF-8" ?>
 <OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" 
