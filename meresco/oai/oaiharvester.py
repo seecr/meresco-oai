@@ -53,7 +53,7 @@ class AlwaysReadable(object):
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiHarvester(Observable):
-    def __init__(self, reactor, host, port, path, metadataPrefix, workingDir, xWait=True, verbose=False):
+    def __init__(self, reactor, host, port, path, metadataPrefix, workingDir, xWait=True, verbose=False, prio=None):
         super(OaiHarvester, self).__init__()
         self._reactor = reactor
         self._host = host
@@ -62,6 +62,7 @@ class OaiHarvester(Observable):
         self._prefix = metadataPrefix
         isdir(workingDir) or makedirs(workingDir)
         self._xWait = xWait
+        self._prio = prio
         self._stateFilePath = join(workingDir, "harvester.state")
         if not verbose:
             self._log = lambda x: None
@@ -77,7 +78,7 @@ class OaiHarvester(Observable):
             sok = yield self._tryConnect()
             sok.send(self._buildRequest(resumptionToken))
             sok.shutdown(SHUT_WR)
-            self._reactor.addReader(sok, self._loop.next)
+            self._reactor.addReader(sok, self._loop.next, prio=self._prio)
             responses = []
             while True:
                 yield
@@ -98,7 +99,7 @@ class OaiHarvester(Observable):
                         self._logError("%s: %s" % (error.get("code"), error.text))
                     resumptionToken = None
                 else:
-                    self._reactor.addReader(alwaysReadable, self._loop.next)
+                    self._reactor.addReader(alwaysReadable, self._loop.next, prio=self._prio)
                     try:
                         records = xpath(lxmlNode, '/oai:OAI-PMH/oai:ListRecords/oai:record')
                         for record in records:

@@ -76,6 +76,7 @@ class OaiHarvesterTest(CQ2TestCase):
             self.assertEquals("GET", msgs[0][:3])
             self.assertEquals('removeWriter', reactor.calledMethods[2].name)
             self.assertEquals('addReader', reactor.calledMethods[3].name)
+            self.assertEquals(0, reactor.calledMethods[3].kwargs['prio'])
             callback = reactor.calledMethods[3].args[1]
             callback() # sok.recv
             callback() # sok.recv
@@ -259,7 +260,7 @@ class OaiHarvesterTest(CQ2TestCase):
             workingDir = join(self.tempdir, 'harvesterstate')
         self._err = StringIO()
         self._reactor = CallTrace("reactor")
-        self._harvester = OaiHarvester(self._reactor, host, port, path, metadataPrefix, workingDir=workingDir, xWait=xWait)
+        self._harvester = OaiHarvester(self._reactor, host, port, path, metadataPrefix, workingDir=workingDir, xWait=xWait, prio=0)
         self._harvester._logError = lambda s: self._err.write(s + '\n')
         self._observer = CallTrace("observer")
         self._harvester.addObserver(self._observer)
