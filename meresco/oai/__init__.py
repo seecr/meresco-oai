@@ -37,4 +37,4 @@ from oaijazz import OaiJazz
 from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
 from oaisuspend import OaiSuspend
 from oaiharvester import OaiHarvester
-
+from updateadapter import UpdateAdapterFromOaiHarvester

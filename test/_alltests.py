@@ -45,20 +45,21 @@ import unittest
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaigetrecordtest import OaiGetRecordTest
+from oaiharvestertest import OaiHarvesterTest
 from oaijazzimplementationstest import OaiJazzImplementationsTest
 from oaijazztest import OaiJazzTest
 from oailistmetadataformatstest import OaiListMetadataFormatsTest
 from oailistsetstest import OaiListSetsTest
 from oailisttest import OaiListTest
 from oaipmhjazztest import OaiPmhJazzTest
+from oaipmhtest import OaiPmhTest2
 from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
 from oaiprovenancetest import OaiProvenanceTest
-from oaisuspendtest import OaiSuspendTest
 from oaisetselecttest import OaiSetSelectTest
+from oaisuspendtest import OaiSuspendTest
 from oaitooltest import OaiToolTest
 from resumptiontokentest import ResumptionTokenTest
-from oaipmhtest import OaiPmhTest2
-from oaiharvestertest import OaiHarvesterTest
+from updateadaptertest import UpdateAdapterTest
 
 if __name__ == '__main__':
     unittest.main()
