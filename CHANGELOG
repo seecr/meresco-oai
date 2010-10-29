@@ -1,6 +1,33 @@
 CHANGELOG Meresco-Oai
 =====================
 
+version: 3.3-Edurep-2 -> 3.3-Edurep-4
+date:    2010-10-29
+
+OaiHarvester scheduling support added
+-------------------------------------
+The OaiHarvester previously processed all records from a ListRecords response in
+a single do.add(...) call.  Since do-calls are intentionally uninterruptible,
+this blocked the service containing the OaiHarvester too long. The ListRecords
+response is now handled on a per-record basis, scheduled by the Reactor
+(optionally with a specified priority); including a matching
+UpdateAdapterFromOaiHarvester.
+(2010-10-29, 3.3-Edurep)
+
+Delete message will also resume suspended objects.
+--------------------------------------------------
+OaiSuspend will now also resume suspended objects when a delete message is
+received.
+(2010-10-19, 3.3-Edurep)
+
+Use do instead of any when sending message to observers.
+--------------------------------------------------------
+Message to observers of OaiHarvester are now called using do so that more
+observers can listen to the sent message.
+(2010-10-19, 3.3-Edurep)
+
+==============================================================================
+
 version: 3.3 -> 3.3-Edurep-2
 date:    2010-10-19
 
