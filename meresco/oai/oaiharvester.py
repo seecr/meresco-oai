@@ -66,7 +66,6 @@ class OaiHarvester(Observable):
         self._stateFilePath = join(workingDir, "harvester.state")
         if not verbose:
             self._log = lambda x: None
-            self._logError = lambda x: None
 
     def observer_init(self):
         resumptionToken = self._readState()
@@ -163,10 +162,14 @@ class OaiHarvester(Observable):
 
     def _logError(self, message):
         stderr.write(message)
+        if not message.endswith('\n'):
+            stderr.write('\n')
         stderr.flush()
 
     def _log(self, message):
         stdout.write(message)
+        if not message.endswith('\n'):
+            stdout.write('\n')
         stdout.flush()
 
 
