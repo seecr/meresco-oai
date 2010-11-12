@@ -307,3 +307,29 @@ class OaiListTest(OaiTestCase):
         self.assertTrue("<setSpec>one:two:three</setSpec>" in result)
         self.assertTrue("<setSpec>one:two:four</setSpec>" in result)
 
+    def testConcurrentListRequestsDontInterfere(self):
+        httpArguments = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}
+        kwargs = self.request.kwargs
+        calltrace = CallTrace("oaisuspend", ignoredAttributes=['oaiSelect', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'yieldRecord', 'provenance'])
+
+        self.subject.addObserver(calltrace)
+        mockoaijazz = MockOaiJazz()
+        mockoaijazz._selectAnswer = []
+        self.subject.addObserver(mockoaijazz)
+       
+        # ListRecords request
+        resultListRecords = self.observable.all.listRecords(httpArguments, **kwargs)
+        suspend = resultListRecords.next()
+    
+        # ListIdentifiers request
+        httpArguments = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
+        resultListIdentifiers = self.observable.all.listIdentifiers(httpArguments, **kwargs)
+        resultListIdentifiers.next()
+
+        # resume ListRecords
+        mockoaijazz._selectAnswer=['RESULT']
+        result = ''.join(compose(resultListRecords))
+        body = result.split(CRLF*2)[-1]
+        self.assertFalse('</ListIdentifiers>' in body, body)
+        self.assertTrue('</ListRecords>' in body, body)
+

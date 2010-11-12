@@ -96,8 +96,8 @@ Error and Exception Conditions
         yield self.doProcess(arguments, **httpkwargs)
 
     def doProcess(self, arguments, **httpkwargs):
-        self._verb = arguments.get('verb', [None])[0]
-        if not self._verb in self._supportedVerbs:
+        verb = arguments.get('verb', [None])[0]
+        if not verb in self._supportedVerbs:
             return
 
         try:
@@ -119,9 +119,9 @@ Error and Exception Conditions
         
         yield oaiHeader()
         yield oaiRequestArgs(arguments, **httpkwargs)
-        yield '<%s>' % self._verb
-        yield self.process(results, validatedArguments, **httpkwargs)
-        yield '</%s>' % self._verb
+        yield '<%s>' % verb
+        yield self.process(verb, results, validatedArguments, **httpkwargs)
+        yield '</%s>' % verb
 
         yield oaiFooter()
 
@@ -190,9 +190,9 @@ Error and Exception Conditions
         except StopIteration:
             raise OaiException('noRecordsMatch')
 
-    def process(self, results, validatedArguments, **httpkwargs):
+    def process(self, verb, results, validatedArguments, **httpkwargs):
         for id in islice(results, 0, self._batchSize):
-            yield self.oaiRecord(validatedArguments, id, self._verb == "ListRecords")
+            yield self.oaiRecord(validatedArguments, id, verb == "ListRecords")
 
         try:
             if not 'x-wait' in validatedArguments:
