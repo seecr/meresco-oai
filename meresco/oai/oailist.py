@@ -146,13 +146,13 @@ Error and Exception Conditions
             token = resumptionTokenFromString(validatedArguments['resumptionToken'])
             if not token:
                 raise OaiException("badResumptionToken")
-            self._continueAfter = token._continueAfter
+            continueAfter = token._continueAfter
             _from = token._from
             _until = token._until
             _set = token._set
             _metadataPrefix = token._metadataPrefix
         else:
-            self._continueAfter = '0'
+            continueAfter = '0'
             _from = validatedArguments.get('from', None)
             _until = validatedArguments.get('until', None)
             _set = validatedArguments.get('set', None)
@@ -179,11 +179,11 @@ Error and Exception Conditions
         validatedArguments['set'] = _set
         validatedArguments['metadataPrefix'] = _metadataPrefix
         result = self.any.oaiSelect(
-            sets = [_set] if _set else None,
-            prefix = _metadataPrefix,
-            continueAfter  = self._continueAfter,
-            oaiFrom = _from,
-            oaiUntil = _until)
+            sets=[_set] if _set else None,
+            prefix=_metadataPrefix,
+            continueAfter=continueAfter,
+            oaiFrom=_from,
+            oaiUntil=_until)
         try:
             firstRecord = result.next()
             return chain(iter([firstRecord]), result)
