@@ -127,14 +127,16 @@ class OaiHarvester(Observable):
         return state.split(RESUMPTIONTOKEN_STATE)[-1].strip()
 
     def _buildRequest(self, resumptionToken):
-        request = LISTRECORDS % self._path
+        listrecords = "%s?verb=ListRecords"
+        request = listrecords % self._path
         if resumptionToken:
             request += "&resumptionToken=%s" % resumptionToken
         else:
             request += "&metadataPrefix=%s" % self._prefix
         if self._xWait:
             request += "&x-wait=True"
-        return STATUSLINE % request
+        statusline = "GET %s HTTP/1.0\r\n\r\n"
+        return statusline % request
 
     def _tryConnect(self):
         sok = socket()
@@ -184,6 +186,4 @@ def head(l):
 def xpath(node, path):
     return node.xpath(path, namespaces=namespaces)
 
-STATUSLINE = "GET %s HTTP/1.0\r\n\r\n"
-LISTRECORDS = "%s?verb=ListRecords"
 RESUMPTIONTOKEN_STATE = "Resumptiontoken: "
