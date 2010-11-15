@@ -110,16 +110,21 @@ class OaiHarvester(Observable):
             except Exception:
                 self._logError(format_exc())
             finally:
-                open(self._stateFilePath, 'w').write("Resumptiontoken: %s" % resumptionToken)
+                self._writeState(resumptionToken)
                 alwaysReadable.cleanUp()
             self._reactor.addTimer(1, self._loop.next)
             yield
 
+    def _writeState(self, resumptionToken):
+        open(self._stateFilePath, 'w').write("%s%s" % (RESUMPTIONTOKEN_STATE, resumptionToken))
+
     def _readState(self):
-        state = []
-        if isfile(self._stateFilePath):
-            state = open(self._stateFilePath).read().split("Resumptiontoken: ")
-        return state[1] if len(state)  == 2 else "" 
+        if not isfile(self._stateFilePath):
+            return ''
+        state = open(self._stateFilePath).read()
+        if not RESUMPTIONTOKEN_STATE in state:
+            return ""
+        return state.split(RESUMPTIONTOKEN_STATE)[-1].strip()
 
     def _buildRequest(self, resumptionToken):
         request = LISTRECORDS % self._path
@@ -181,3 +186,4 @@ def xpath(node, path):
 
 STATUSLINE = "GET %s HTTP/1.0\r\n\r\n"
 LISTRECORDS = "%s?verb=ListRecords"
+RESUMPTIONTOKEN_STATE = "Resumptiontoken: "

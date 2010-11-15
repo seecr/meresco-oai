@@ -246,6 +246,12 @@ class OaiHarvesterTest(CQ2TestCase):
         open(harvester._stateFilePath, 'w').write("Resumptiontoken: %s" % resumptionToken)
         self.assertEquals(resumptionToken, harvester._readState())
 
+    def testReadResumptionTokenFromStateWithNewline(self):
+        harvester, observer, reactor = self.getHarvester("localhost", 99999, "/", "prefix")
+        resumptionToken = "u|c1286437597991025|mprefix|s|f"
+        open(harvester._stateFilePath, 'w').write("Resumptiontoken: %s\n" % resumptionToken)
+        self.assertEquals(resumptionToken, harvester._readState())
+
     def testReadResumptionTokenWhenNoState(self):
         harvester, observer, reactor = self.getHarvester("localhost", 99999, "/", "prefix")
         self.assertEquals("", harvester._readState())
