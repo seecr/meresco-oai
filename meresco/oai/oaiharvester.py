@@ -30,8 +30,10 @@ from StringIO import StringIO
 from traceback import format_exc
 from os import makedirs, close, remove
 from os.path import join, isfile, isdir
+from urllib import urlencode
 
 from meresco.core import Observable
+from meresco.components.http.utils import CRLF
 from weightless import compose
 
 from sys import stderr, stdout
@@ -91,6 +93,7 @@ class OaiHarvester(Observable):
             try:
                 response = ''.join(responses)
                 headers, body = response.split("\r\n\r\n")
+                self._assertStatusOk(headers, body)
                 lxmlNode = parse(StringIO(body))
                 errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
                 if len(errors) > 0:
@@ -127,16 +130,26 @@ class OaiHarvester(Observable):
         return state.split(RESUMPTIONTOKEN_STATE)[-1].strip()
 
     def _buildRequest(self, resumptionToken):
-        listrecords = "%s?verb=ListRecords"
-        request = listrecords % self._path
+        arguments = [('verb', 'ListRecords')]
         if resumptionToken:
-            request += "&resumptionToken=%s" % resumptionToken
+            arguments.append(('resumptionToken', resumptionToken))
         else:
-            request += "&metadataPrefix=%s" % self._prefix
+            arguments.append(('metadataPrefix', self._prefix))
         if self._xWait:
-            request += "&x-wait=True"
-        statusline = "GET %s HTTP/1.0\r\n\r\n"
-        return statusline % request
+            arguments.append(('x-wait', 'True'))
+        statusline = "GET %s?%s HTTP/1.0\r\n\r\n"
+        return statusline % (self._path, urlencode(arguments))
+
+    def _assertStatusOk(self, headers, body):
+        statusLine = headers.split(CRLF)[0]
+        statusCode = statusLine.split()[1]
+        if statusCode != '200':
+            error = """Unexpected response from OAI server "%s:%s%s". Response was:\n""" % (self._host, self._port, self._path)
+            error += "-"*70
+            error += "\n%s\n\n%s\n" % (headers, body)
+            error += "-"*70
+            raise ValueError(error)
+
 
     def _tryConnect(self):
         sok = socket()

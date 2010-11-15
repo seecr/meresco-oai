@@ -95,6 +95,23 @@ class OaiHarvesterTest(CQ2TestCase):
         except TypeError, e:
             self.assertEquals("an integer is required", str(e))
 
+    def testErrorResponse(self):
+        reactor = CallTrace("reactor")
+        with server(['HTTP 400 Error\r\n\r\nIllegal Request']) as (port, msgs):
+            harvester, observer, reactor = self.getHarvester("localhost", port, "/oai", 'dc')
+            callback = reactor.calledMethods[0].args[1]
+            callback() # connect
+            callback = reactor.calledMethods[1].args[1]
+            callback() # HTTP GET
+            sleep(0.01)
+            callback = reactor.calledMethods[3].args[1]
+            callback() # sok.recv
+
+            callback() # yield After Error 
+
+            self.assertTrue('400' in self._err.getvalue(), self._err.getvalue())
+            self.assertEquals(0, len(observer.calledMethods))
+
     def testInvalidPortConnectionRefused(self):
         harvester, observer, reactor = self.getHarvester("localhost", 88, "/oai", 'dc')
         callback = reactor.calledMethods[0].args[1]
@@ -187,11 +204,11 @@ class OaiHarvesterTest(CQ2TestCase):
             self.assertEquals(['add'], [m.name for m in observer.calledMethods])
             callback() # removeReader() after self.do.add(...
             self.assertEquals('addTimer', reactor.calledMethods[-1].name)
-            self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
+            self.assertEquals('Resumptiontoken: x?y&z', open(self._harvester._stateFilePath).read())
             callback() # (re)connect
             callback() # HTTP GET
             sleep(0.01)
-            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[1])
+            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=x%3Fy%26z&x-wait=True HTTP/1.0\r\n\r\n", msgs[1])
             callback() # sok.recv
             callback() # sok.recv == ''
             callback() # removeReader() after self.do.add(...
@@ -207,13 +224,13 @@ class OaiHarvesterTest(CQ2TestCase):
             callback() # sok.recv
             callback() # sok.recv == ''
             callback() # removeReader() after self.do.add(...
-            self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
+            self.assertEquals('Resumptiontoken: x?y&z', open(self._harvester._stateFilePath).read())
         with server([LISTRECORDS_RESPONSE % RESUMPTION_TOKEN]) as (port, msgs):
             harvester, observer, reactor = self.getHarvester('localhost', port, '/oai', 'dc')
             callback = self.doConnect()
             callback() # HTTP GET
             sleep(0.01)
-            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[0])
+            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=x%3Fy%26z&x-wait=True HTTP/1.0\r\n\r\n", msgs[0])
 
     def testKeepResumptionTokenOnInvalidResponse(self):
         with server([LISTRECORDS_RESPONSE % RESUMPTION_TOKEN, STATUSLINE + 'not XML']) as (port, msgs):
@@ -225,20 +242,20 @@ class OaiHarvesterTest(CQ2TestCase):
             callback() # sok.recv
             callback() # soc.recv == ''
             callback() # removeReader() after self.do.add(...
-            self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
+            self.assertEquals('Resumptiontoken: x?y&z', open(self._harvester._stateFilePath).read())
             callback() # (re)connect
             callback() # HTTP GET
             sleep(0.01)
-            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
+            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=x%3Fy%26z&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
             callback() # sok.recv
             callback() # sok.recv == ''
             callback() # removeReader() after self.do.add(...
             self.assertTrue("XMLSyntaxError: Start tag expected, '<' not found, line 1, column 1" in self._err.getvalue(), self._err.getvalue())
-            self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
+            self.assertEquals('Resumptiontoken: x?y&z', open(self._harvester._stateFilePath).read())
             callback() # (re)connect
             callback() # HTTP GET
             sleep(0.01)
-            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
+            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=x%3Fy%26z&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
 
     def testReadResumptionTokenFromState(self):
         harvester, observer, reactor = self.getHarvester("localhost", 99999, "/", "prefix")
@@ -320,5 +337,5 @@ ERROR_RESPONSE = STATUSLINE + """<?xml version="1.0" encoding="UTF-8" ?>
  
 RESUMPTION_TOKEN = """<resumptionToken expirationDate="2002-06-01T23:20:00Z" 
       completeListSize="6" 
-      cursor="0">xyz</resumptionToken>"""
+      cursor="0">x?y&amp;z</resumptionToken>"""
 
