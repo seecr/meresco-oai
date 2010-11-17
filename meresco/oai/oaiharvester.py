@@ -92,7 +92,7 @@ class OaiHarvester(Observable):
             alwaysReadable = AlwaysReadable()
             try:
                 response = ''.join(responses)
-                headers, body = response.split("\r\n\r\n")
+                headers, body = response.split(2 * CRLF, 1)
                 self._assertStatusOk(headers, body)
                 lxmlNode = parse(StringIO(body))
                 errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
