@@ -35,7 +35,7 @@ from os import makedirs, listdir, rename
 from storage.storage import escapeName, unescapeName
 from time import time, strftime, localtime, mktime, strptime
 from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
-from meresco.components import SortedFileList, DoubleUniqueBerkeleyDict, BerkeleyDict
+from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
 from sys import maxint
 
 from bisect import bisect_left
@@ -56,8 +56,7 @@ class OaiJazz(object):
         self._prefixes = {}
         self._sets = {}
         self._stamp2identifier = DoubleUniqueBerkeleyDict(join(self._directory, 'stamp2identifier'))
-        self._tombStones = SortedFileList(join(self._directory, 'tombStones.list'),
-        mergeTrigger=MERGE_TRIGGER)
+        self._tombStones = PersistentSortedIntegerList(join(self._directory, 'tombStones.list'), use64bits=True, mergeTrigger=MERGE_TRIGGER)
         self._identifier2setSpecs = BerkeleyDict(join(self._directory, 'identifier2setSpecs'))
         self._read()
 
@@ -177,13 +176,13 @@ class OaiJazz(object):
     def _getSetList(self, setSpec):
         if setSpec not in self._sets:
             filename = join(self._directory, 'sets', '%s.list' % escapeName(setSpec))
-            self._sets[setSpec] = SortedFileList(filename, mergeTrigger=MERGE_TRIGGER)
+            self._sets[setSpec] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
         return self._sets[setSpec]
 
     def _getPrefixList(self, prefix):
         if prefix not in self._prefixes:
             filename = join(self._directory, 'prefixes', '%s.list' % escapeName(prefix))
-            self._prefixes[prefix] = SortedFileList(filename, mergeTrigger=MERGE_TRIGGER)
+            self._prefixes[prefix] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
         return self._prefixes[prefix]
 
     def _fromTime(self, oaiFrom):
