@@ -35,6 +35,9 @@ setup(
     packages = [
         'meresco.oai',
     ],
+    scripts=[
+        'bin/convert_oai_v1_to_v2.py',
+    ],
     version = '%VERSION%',
     url = 'http://www.cq2.nl',
     author = 'Seek You Too',
