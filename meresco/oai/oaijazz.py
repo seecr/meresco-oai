@@ -30,7 +30,7 @@
 ## end license ##
 
 from __future__ import with_statement
-from os.path import isdir, join
+from os.path import isdir, join, isfile
 from os import makedirs, listdir, rename
 from storage.storage import escapeName, unescapeName
 from time import time, strftime, localtime, mktime, strptime
@@ -44,10 +44,12 @@ MERGE_TRIGGER = 1000
 SETSPEC_SEPARATOR = ','
 
 class OaiJazz(object):
+
+    version = '2'
+
     def __init__(self, aDirectory):
         self._directory = aDirectory
-        if isdir(join(aDirectory, 'sets')):
-            assert isdir(join(aDirectory, 'identifier2setSpecs')), "This is an old OaiJazz data storage which doesn't have the identifier2setSpecs directory. Please convert manually or rebuild complete data storage."
+        self._versionFormatCheck()
         isdir(join(aDirectory, 'stamp2identifier')) or makedirs(join(aDirectory,'stamp2identifier'))
         isdir(join(aDirectory, 'identifier2setSpecs')) or makedirs(join(aDirectory,'identifier2setSpecs'))
         isdir(join(aDirectory, 'sets')) or makedirs(join(aDirectory,'sets'))
@@ -245,6 +247,15 @@ class OaiJazz(object):
     def _stamp(self):
         """time in microseconds"""
         return int(time()*1000000.0)
+
+    def _versionFormatCheck(self):
+        if isdir(join(self._directory, 'sets')):
+            assert isdir(join(self._directory, 'identifier2setSpecs')), "This is an old OaiJazz data storage which doesn't have the identifier2setSpecs directory. Please convert manually or rebuild complete data storage."
+
+        self._versionFile = join(self._directory, "oai.version")
+        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI indexes need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-tools)"
+        with open(join(self._directory, "oai.version"), 'w') as f:
+            f.write(self.version)
 
 # helper methods
 

@@ -30,7 +30,9 @@
 ## end license ##
 from cq2utils import CQ2TestCase, CallTrace
 
+from os import listdir, remove
 from os.path import isfile, join
+from shutil import rmtree
 from time import time, mktime, strptime, sleep
 
 from meresco.oai import OaiJazz
@@ -39,8 +41,6 @@ from StringIO import StringIO
 from lxml.etree import parse
 from meresco.core import Observable, be, Transparant
 
-from os import listdir
-from shutil import rmtree
 
 class OaiJazzTest(CQ2TestCase):
     def setUp(self):
@@ -232,3 +232,26 @@ class OaiJazzTest(CQ2TestCase):
         rmtree(join(self.tempdir, 'identifier2setSpecs'))
         self.assertRaises(AssertionError, lambda: OaiJazz(self.tempdir))
 
+    def testVersionWritten(self):
+        version = open(join(self.tempdir, "oai.version")).read()
+        self.assertEquals(version, OaiJazz.version)
+   
+    def testRefuseInitWithNoVersionFile(self):
+        self.oaiJazz = None
+        remove(join(self.tempdir, 'oai.version'))
+
+        try:
+            oaiJazz = OaiJazz(self.tempdir)
+            self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
+        except AssertionError, e:
+            self.assertEquals("The OAI indexes need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-tools)", str(e))
+
+    def testRefuseInitWithDifferentVersionFile(self):
+        self.oaiJazz = None
+        open(join(self.tempdir, 'oai.version'), 'w').write('different version')
+
+        try:
+            oaiJazz = OaiJazz(self.tempdir)
+            self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
+        except AssertionError, e:
+            self.assertEquals("The OAI indexes need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-tools)", str(e))
