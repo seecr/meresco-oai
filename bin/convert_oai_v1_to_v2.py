@@ -36,19 +36,22 @@ sysPath.insert(0,'..')                            #DO_NOT_DISTRIBUTE
 
 import sys
 from os import listdir, remove, rename
-from os.path import join, isdir
+from os.path import join, isdir, isfile
 from meresco.components.facetindex import IntegerList
+from meresco.oai import OaiJazz
 
 def convert(path):
     iList = IntegerList(0, use64bits=True)
     iList.extendFrom(path)
     iListDeleted = IntegerList(0, use64bits=True)
-    iListDeleted.extendFrom(path + '.deleted')
-    deleted = sorted(iListDeleted, reverse=True)
-    for position in deleted:
-        del iList[position]
+    if isfile(path + '.deleted'):
+        iListDeleted.extendFrom(path + '.deleted')
+        deleted = sorted(iListDeleted, reverse=True)
+        for position in deleted:
+            del iList[position]
     iList.save(path + '~', offset=0, append=False)
-    remove(path + '.deleted')
+    if isfile(path + '.deleted'):
+        remove(path + '.deleted')
     rename(path + '~', path)
 
 def convertDir(directory):
@@ -65,6 +68,7 @@ def main():
         exit(1)
     directory = sys.argv[1]
     convertDir(directory)
+    open(join(directory, 'oai.version'), 'w').write(OaiJazz.version)
     print "Finished converting %s to OAI data format v2." % directory
 
 if __name__ == '__main__':

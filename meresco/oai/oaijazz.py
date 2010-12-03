@@ -254,7 +254,7 @@ class OaiJazz(object):
             assert isdir(join(self._directory, 'identifier2setSpecs')), "This is an old OaiJazz data storage which doesn't have the identifier2setSpecs directory. Please convert manually or rebuild complete data storage."
 
         self._versionFile = join(self._directory, "oai.version")
-        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI indexes need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-oai/bin)"
+        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI index at %s need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-oai/bin)" % self._directory
         with open(join(self._directory, "oai.version"), 'w') as f:
             f.write(self.version)
 
