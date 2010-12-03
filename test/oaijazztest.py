@@ -244,7 +244,7 @@ class OaiJazzTest(CQ2TestCase):
             oaiJazz = OaiJazz(self.tempdir)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI indexes need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-tools)", str(e))
+            self.assertEquals("The OAI indexes need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-oai/bin)", str(e))
 
     def testRefuseInitWithDifferentVersionFile(self):
         self.oaiJazz = None
@@ -254,4 +254,4 @@ class OaiJazzTest(CQ2TestCase):
             oaiJazz = OaiJazz(self.tempdir)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI indexes need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-tools)", str(e))
+            self.assertEquals("The OAI indexes need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-oai/bin)", str(e))

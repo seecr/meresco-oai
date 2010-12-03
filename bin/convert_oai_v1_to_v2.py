@@ -1,14 +1,11 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 ## begin license ##
 #
 #    Meresco Oai are components to build Oai repositories, based on Meresco
 #    Core and Meresco Components.
-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
-#       http://www.kennisnetictopschool.nl
-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -28,9 +25,6 @@
 #
 ## end license ##
 
-from os import getuid
-assert getuid() != 0, "Do not run tests as 'root'"
-
 from os import system                             #DO_NOT_DISTRIBUTE
 from sys import path as sysPath                   #DO_NOT_DISTRIBUTE
 system('find .. -name "*.pyc" | xargs rm -f')     #DO_NOT_DISTRIBUTE
@@ -40,27 +34,38 @@ for path in glob('../deps.d/*'):                  #DO_NOT_DISTRIBUTE
     sysPath.insert(0, path)                       #DO_NOT_DISTRIBUTE
 sysPath.insert(0,'..')                            #DO_NOT_DISTRIBUTE
 
-import unittest
+import sys
+from os import listdir, remove, rename
+from os.path import join, isdir
+from meresco.components.facetindex import IntegerList
 
-from convertoaiv1tov2test import ConvertOaiV1ToV2Test
-from fields2oairecordtest import Fields2OaiRecordTest
-from oaiaddrecordtest import OaiAddRecordTest
-from oaigetrecordtest import OaiGetRecordTest
-from oaiharvestertest import OaiHarvesterTest
-from oaijazzimplementationstest import OaiJazzImplementationsTest
-from oaijazztest import OaiJazzTest
-from oailistmetadataformatstest import OaiListMetadataFormatsTest
-from oailistsetstest import OaiListSetsTest
-from oailisttest import OaiListTest
-from oaipmhjazztest import OaiPmhJazzTest
-from oaipmhtest import OaiPmhTest2
-from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
-from oaiprovenancetest import OaiProvenanceTest
-from oaisetselecttest import OaiSetSelectTest
-from oaisuspendtest import OaiSuspendTest
-from oaitooltest import OaiToolTest
-from resumptiontokentest import ResumptionTokenTest
-from updateadaptertest import UpdateAdapterTest
+def convert(path):
+    iList = IntegerList(0, use64bits=True)
+    iList.extendFrom(path)
+    iListDeleted = IntegerList(0, use64bits=True)
+    iListDeleted.extendFrom(path + '.deleted')
+    deleted = sorted(iListDeleted, reverse=True)
+    for position in deleted:
+        del iList[position]
+    iList.save(path + '~', offset=0, append=False)
+    remove(path + '.deleted')
+    rename(path + '~', path)
+
+def convertDir(directory):
+    for path in listdir(directory):
+        fullpath = join(directory, path)
+        if path.endswith('.list'):
+            convert(fullpath)
+        if isdir(fullpath):
+            convertDir(fullpath)
+
+def main():
+    if len(sys.argv) != 2:
+        print 'Usage: %s [OAI directory]' % sys.argv[0]
+        exit(1)
+    directory = sys.argv[1]
+    convertDir(directory)
+    print "Finished converting %s to OAI data format v2." % directory
 
 if __name__ == '__main__':
-    unittest.main()
+    main()
