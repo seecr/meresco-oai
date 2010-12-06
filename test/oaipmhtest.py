@@ -31,7 +31,7 @@
 from cq2utils import CQ2TestCase, CallTrace
 from meresco.core import Observable, be, Transparant
 
-from meresco.oai import OaiPmh
+from meresco.oai import OaiPmh, OaiBranding
 from oaitestcase import OaiTestCase
 
 from lxml.etree import parse
@@ -44,11 +44,14 @@ from mockoaijazz import MockOaiJazz
 
 def xpath(node, path):
     return '\n'.join(node.xpath(path, namespaces={'oai':"http://www.openarchives.org/OAI/2.0/",
-                                                  'tkit':"http://oai.dlib.vt.edu/OAI/metadata/toolkit"}))
+                                                  'tkit':"http://oai.dlib.vt.edu/OAI/metadata/toolkit",
+                                                  'branding':"http://www.openarchives.org/OAI/2.0/branding/"}))
 
 class _OaiPmhTest(OaiTestCase):
 
     def testIdentify(self):
+        branding = OaiBranding(url="http://www.example.org/icon.png", title="Collection title")
+        self.subject.addObserver(branding)
         header, result = self.handleRequest({'verb':['Identify']})
         self.assertValidString(result)
         response = parse(StringIO(result))
@@ -61,6 +64,7 @@ class _OaiPmhTest(OaiTestCase):
         
         self.assertEquals('Meresco', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:description/tkit:toolkit/tkit:title/text()'))
         self.assertEquals('http://www.meresco.org', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:description/tkit:toolkit/tkit:URL/text()'))
+        self.assertEquals('Collection title', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:description/branding:branding/branding:collectionIcon/branding:title/text()'))
 
 
     def testGetRecordUsesObservers(self):
@@ -74,7 +78,6 @@ class _OaiPmhTest(OaiTestCase):
         self.observer.yieldRecord = yieldRecord
 
         header, result = self.handleRequest({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': [self.prefix + 'ident']})
-        
         self.assertValidString(result)
         self.assertEquals(['isDeleted', 'getAllPrefixes', 'isAvailable', 'isDeleted', 'getDatestamp', 'getSets', 'unknown'], [m.name for m in self.observer.calledMethods])
         self.assertEquals('ident', self.observer.calledMethods[0].args[0]) #isDeleted
@@ -187,6 +190,7 @@ class OaiPmhTest(_OaiPmhTest):
     def getSubject(self):
         oaipmh = OaiPmh(repositoryName='The Repository Name', adminEmail='admin@email.extension')
         self.observer = CallTrace('Observers')
+        self.observer.returnValues["description"] = ""
         oaipmh.addObserver(self.observer)
         return oaipmh
 
@@ -200,6 +204,7 @@ class OaiPmhWithIdentifierTest(_OaiPmhTest):
         oaipmh = OaiPmh(repositoryName='The Repository Name', adminEmail='admin@email.extension',
         repositoryIdentifier='www.example.org')
         self.observer = CallTrace('Observers')
+        self.observer.returnValues["description"] = ""
         oaipmh.addObserver(self.observer)
         return oaipmh
 

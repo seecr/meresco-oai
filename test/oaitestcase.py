@@ -8,6 +8,8 @@
 #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
 #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010 Maastricht University Library
+#        http://www.maastrichtuniversity.nl/web/Library/home.htm
 #
 #    This file is part of Meresco Oai.
 #
@@ -50,8 +52,13 @@ class OaiTestCase(CQ2TestCase):
         self.subject = self.getSubject()
         self.subject.getTime = lambda : '2007-02-07T00:00:00Z'
         self.observable.addObserver(self.subject)
+        self.httpkwargs = {
+            'path': '/path/to/oai',
+            'Headers':{'Host':'server'},
+            'port':9000,
+        }
         self.request = CallTrace('Request')
-        self.request.path = '/path/to/oai'
+        self.request.path = self.httpkwargs['path']
         self.request.getRequestHostname = lambda: 'server'
         class Host:
             def __init__(self):
@@ -59,7 +66,8 @@ class OaiTestCase(CQ2TestCase):
         self.request.getHost = lambda: Host()
         self.stream = StringIO()
         self.request.write = self.stream.write
-        self.request.kwargs ={'Headers':{'Host':'server'}, 'port':9000, 'path':'/path/to/oai'}
+        self.request.kwargs = self.httpkwargs
+
 
     OAIPMH = """<?xml version="1.0" encoding="UTF-8"?>
 <OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"

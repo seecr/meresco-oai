@@ -9,6 +9,8 @@
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
 #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
 #    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
+#    Copyright (C) 2010 Maastricht University Library
+#        http://www.maastrichtuniversity.nl/web/Library/home.htm
 #
 #    This file is part of Meresco Oai.
 #
@@ -38,3 +40,4 @@ from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
 from oaisuspend import OaiSuspend
 from oaiharvester import OaiHarvester
 from updateadapter import UpdateAdapterFromOaiHarvester
+from oaibranding import OaiBranding

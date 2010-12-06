@@ -52,9 +52,9 @@ class OaiError(Observable):
             yield oaiError('badVerb', 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', arguments=arguments, **kwargs)
 
 
-def oaiError(statusCode, addionalMessage, arguments, **httpkwargs):
-    space = addionalMessage and ' ' or ''
-    message = ERROR_CODES[statusCode] + space + addionalMessage
+def oaiError(statusCode, additionalMessage, arguments, **httpkwargs):
+    space = additionalMessage and ' ' or ''
+    message = ERROR_CODES[statusCode] + space + additionalMessage
 
     yield oaiHeader()
 

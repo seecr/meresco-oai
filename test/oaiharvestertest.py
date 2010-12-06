@@ -126,11 +126,13 @@ class OaiHarvesterTest(CQ2TestCase):
         self.assertEquals("Connection to localhost:88/oai refused.\n", self._err.getvalue())
 
     def testInvalidHost(self):
-        harvester, observer, reactor = self.getHarvester("UEYR^$*FD(#>NDJ.khfd9.(*njnd", 88, "/oai", 'dc')
+        harvester, observer, reactor = self.getHarvester("UEYR^$*FD(#>NDJ.khfd9.(*njnd.nl", 88, "/oai", 'dc')
         callback = reactor.calledMethods[0].args[1]
         callback() # connect
         self.assertEquals('addTimer', reactor.calledMethods[-1].name)
-        self.assertEquals("-2: Name or service not known\n", self._err.getvalue())
+        nameOrServiceNotKnown = "-2: Name or service not known\n" ==  self._err.getvalue()
+        noAddressAssociatedWithHost = "-5: No address associated with hostname\n" == self._err.getvalue()
+        self.assertTrue(nameOrServiceNotKnown or noAddressAssociatedWithHost, self._err.getvalue())
 
     def testInvalidHostConnectionRefused(self):
         harvester, observer, reactor = self.getHarvester("127.0.0.255", 9876, "/oai", 'dc')

@@ -9,6 +9,8 @@
 #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
 #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010 Maastricht University Library
+#        http://www.maastrichtuniversity.nl/web/Library/home.htm
 #
 #    This file is part of Meresco Oai.
 #
@@ -28,10 +30,12 @@
 #
 ## end license ##
 
-from oaiverb import OaiVerb
 from xml.sax.saxutils import escape as escapeXml
+from meresco.core import Observable
+from oaiutils import oaiHeader, oaiFooter, requestUrl, oaiRequestArgs
+from oaierror import oaiError
 
-class OaiIdentify(OaiVerb):
+class OaiIdentify(Observable):
     """
 http://www.openarchives.org/OAI/openarchivesprotocol.html#Identify
 4.2 Identify
@@ -67,27 +71,38 @@ The response may include multiple instances of the following optional elements:
 
     """
     def __init__(self, repositoryName = "The Repository Name", adminEmail = 'not available', repositoryIdentifier=None):
-        OaiVerb.__init__(self, ['Identify'], {})
+        Observable.__init__(self)
         self._repositoryName = repositoryName
         self._adminEmail = adminEmail
         self._repositoryIdentifier = repositoryIdentifier
 
-    def identify(self, webrequest, **kwargs):
-        self.startProcessing(webrequest)
-        yield webrequest.generateResponse()
+    def identify(self, arguments, **httpkwargs):
+        if arguments.keys() != ['verb']:
+            additionalMessage = 'Argument(s) %s is/are illegal.' % ", ".join('"%s"' % key for key in arguments.keys() if key != 'verb')
+            yield oaiError('badArgument',
+                    additionalMessage=additionalMessage,
+                    arguments=arguments,
+                    **httpkwargs)
+            return
 
-    def process(self, webRequest):
         descriptionRepositoryIdentifier = '' if not self._repositoryIdentifier else DESCRIPTION_REPOSITORY_IDENTIFIER % { 'repositoryIdentifier': escapeXml(self._repositoryIdentifier)}
 
         values = {
             'repositoryName': escapeXml(self._repositoryName),
-            'baseURL': escapeXml(self.getRequestUrl(webRequest)),
+            'baseURL': escapeXml(requestUrl(**httpkwargs)),
             'adminEmails': ''.join([ADMIN_EMAIL % escapeXml(email) for email in [self._adminEmail]]),
             'deletedRecord': 'persistent',
-            'descriptionRepositoryIdentifier': descriptionRepositoryIdentifier
         }
         values.update(hardcoded_values)
-        webRequest.write(IDENTIFY % values)
+        yield oaiHeader()
+        yield oaiRequestArgs(arguments, **httpkwargs)
+        yield '<Identify>'
+        yield IDENTIFY % values
+        yield descriptionRepositoryIdentifier
+        yield TOOLKIT_DESCRIPTION
+        yield self.all.description()
+        yield '</Identify>'
+        yield oaiFooter()
 
 
 hardcoded_values = {
@@ -107,9 +122,9 @@ IDENTIFY = """<repositoryName>%(repositoryName)s</repositoryName>
     %(adminEmails)s
 <earliestDatestamp>%(earliestDatestamp)s</earliestDatestamp>
 <deletedRecord>%(deletedRecord)s</deletedRecord>
-<granularity>%(granularity)s</granularity>
-%(descriptionRepositoryIdentifier)s
-<description>
+<granularity>%(granularity)s</granularity>"""
+
+TOOLKIT_DESCRIPTION = """<description>
     <toolkit xmlns="http://oai.dlib.vt.edu/OAI/metadata/toolkit"
              xsi:schemaLocation="http://oai.dlib.vt.edu/OAI/metadata/toolkit http://oai.dlib.vt.edu/OAI/metadata/toolkit.xsd">
         <title>Meresco</title>

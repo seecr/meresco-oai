@@ -9,6 +9,8 @@
 #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
 #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010 Maastricht University Library
+#        http://www.maastrichtuniversity.nl/web/Library/home.htm
 #
 #    This file is part of Meresco Oai.
 #
@@ -45,8 +47,10 @@ import unittest
 from convertoaiv1tov2test import ConvertOaiV1ToV2Test
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
+from oaibrandingtest import OaiBrandingTest
 from oaigetrecordtest import OaiGetRecordTest
 from oaiharvestertest import OaiHarvesterTest
+from oaiidentifytest import OaiIdentifyTest
 from oaijazzimplementationstest import OaiJazzImplementationsTest
 from oaijazztest import OaiJazzTest
 from oailistmetadataformatstest import OaiListMetadataFormatsTest
