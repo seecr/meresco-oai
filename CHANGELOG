@@ -1,8 +1,40 @@
 CHANGELOG Meresco-Oai
 =====================
 
-version: 3.3-Edurep-2 -> 3.3-Edurep-4
-date:    2010-10-29
+version: 3.3 -> 3.4
+date:    2010-12-06
+
+Using faster PersistentSortedIntegerList instead of SortedFileList in OaiJazz
+-----------------------------------------------------------------------------
+PersistentSortedIntegerList is faster than SortedFileList, especially for
+deletes (which could halt the system for seconds). Because the format of
+persisted lists differ from the previous version, a version check + conversion
+script was added as well.
+(2010-12-03, 3.3-Edurep)
+
+OaiHarvester fix w.r.t. splitting HTTP header and body
+------------------------------------------------------
+Bug fixed that caused OaiHarvester to choke on responses that contain \r\n\r\n
+in body.
+(2010-11-17, 3.3-Edurep)
+
+OaiHarvester resumptionToken handling improvement
+-------------------------------------------------
+The OaiHarvester read the resumptionToken too literally from file, which
+inhibited manual editing - newlines are now stripped. Url-encoding is used when
+using the resumptionToken to allow for unusual characters in an Oai-request.
+(2010-11-15, 3.3-Edurep)
+
+Fix OaiList concurrency bug
+---------------------------
+OaiList concurrent ListRecords and ListIdentifiers calls no longer interfere.
+(2010-11-12, 3.3-Edurep)
+
+OaiHarvester defaults to logging to stderr.
+-------------------------------------------
+The OaiHarvester will always log to stderr. To make it log to stdout use the
+parameter verbose in the constructor.
+(2010-11-03, 3.3-Edurep)
 
 OaiHarvester scheduling support added
 -------------------------------------
@@ -26,11 +58,6 @@ Message to observers of OaiHarvester are now called using do so that more
 observers can listen to the sent message.
 (2010-10-19, 3.3-Edurep)
 
-==============================================================================
-
-version: 3.3 -> 3.3-Edurep-2
-date:    2010-10-19
-
 Use kwargs in OaiHarvester
 --------------------------
 OaiHarvester will now use keywordarguments to send calls to its observers.
@@ -43,6 +70,14 @@ created for you (including parent directories). The Oai Harvester now has the
 same behaviour as similar meresco components which keep state in a configured
 directory.
 (2010-10-18, 3.3-Edurep)
+
+OaiIdentify extended with branding
+----------------------------------
+OaiIdentify can now be extended with an optional branding component. This
+components gives an collectionIcon with an url, link and title in the
+description of oai Identify. This component can be placed under OaiPmh in the
+server DNA.
+(2010-10-12, 3.3-MWE)
 
 ==============================================================================
 
