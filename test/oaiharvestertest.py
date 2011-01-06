@@ -134,6 +134,20 @@ class OaiHarvesterTest(CQ2TestCase):
         noAddressAssociatedWithHost = "-5: No address associated with hostname\n" == self._err.getvalue()
         self.assertTrue(nameOrServiceNotKnown or noAddressAssociatedWithHost, self._err.getvalue())
 
+    def testIOErrorInSocketConnect(self):
+        import meresco.oai.oaiharvester
+        old_socket = meresco.oai.oaiharvester.socket
+        try:
+            mockSock = CallTrace("socket")
+            mockSock.exceptions['connect'] = IOError("IOError: 113")
+            meresco.oai.oaiharvester.socket = lambda: mockSock
+            harvester, observer, reactor = self.getHarvester("UEYR^$*FD(#>NDJ.khfd9.(*njnd.nl", 88, "/oai", 'dc')
+            callback = reactor.calledMethods[0].args[1]
+            callback() # connect
+            self.assertEquals("IOError: 113\n", self._err.getvalue())
+        finally:
+            meresco.oai.oaiharvester.socket = old_socket
+
     def testInvalidHostConnectionRefused(self):
         harvester, observer, reactor = self.getHarvester("127.0.0.255", 9876, "/oai", 'dc')
         callback = reactor.calledMethods[0].args[1]

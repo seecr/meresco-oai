@@ -161,6 +161,9 @@ class OaiHarvester(Observable):
                 if errno != EINPROGRESS:
                     yield self._retryAfterError("%s: %s" % (errno, msg))
                     continue
+            except IOError, e:
+                yield self._retryAfterError(str(e))
+                continue
             self._reactor.addWriter(sok, self._loop.next)
             yield
             self._reactor.removeWriter(sok)
