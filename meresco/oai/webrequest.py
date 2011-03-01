@@ -2,11 +2,12 @@
 #
 #    Meresco Components are components to build searchengines, repositories
 #    and archives, based on Meresco Core.
-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
 #    Copyright (C) 2007-2009 SURF Foundation. http://www.surf.nl
 #    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
 #       http://www.kennisnetictopschool.nl
 #    Copyright (C) 2007 SURFnet. http://www.surfnet.nl
+#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Components.
 #
@@ -26,7 +27,7 @@
 #
 ## end license ##
 from meresco.core import Observable
-from weightless import HttpServer
+from weightless.http import HttpServer
 from cgi import parse_qs
 from urlparse import urlsplit
 from StringIO import StringIO

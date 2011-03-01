@@ -7,7 +7,8 @@
 #       http://www.kennisnetictopschool.nl
 #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -38,7 +39,6 @@ from lxml.etree import parse
 from StringIO import StringIO
 from meresco.components.http.utils import CRLF
 from meresco.components.http import ObservableHttpServer
-from weightless import Reactor
 
 from mockoaijazz import MockOaiJazz
 

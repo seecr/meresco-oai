@@ -7,9 +7,10 @@
 #       http://www.kennisnetictopschool.nl
 #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
 #    Copyright (C) 2010 Maastricht University Library
 #        http://www.maastrichtuniversity.nl/web/Library/home.htm
+#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -41,7 +42,7 @@ from urllib import urlencode
 
 from meresco.components.xml_generic import  __file__ as xml_genericpath
 from meresco.components.http.utils import CRLF
-from weightless import compose
+from weightless.core import compose
 
 
 class OaiTestCase(CQ2TestCase):

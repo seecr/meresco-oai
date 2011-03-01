@@ -2,8 +2,8 @@
 #
 #    Meresco Oai are components to build Oai repositories, based on Meresco
 #    Core and Meresco Components.
-#    Copyright (C) 2010 Stichting Kennisnet Ict op school.
-#       http://www.kennisnetictopschool.nl
+#    Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -34,7 +34,8 @@ from meresco.components import StorageComponent
 from meresco.oai import OaiPmh, OaiJazz, OaiSuspend, OaiHarvester
 
 from cq2utils import CQ2TestCase, CallTrace
-from weightless import Suspend, Reactor
+from weightless.io import Reactor
+from weightless.http import Suspend
 
 from lxml.etree import tostring
 

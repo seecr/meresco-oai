@@ -2,9 +2,10 @@
 #
 #    Meresco Oai are components to build Oai repositories, based on Meresco
 #    Core and Meresco Components.
-#    Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 #    Copyright (C) 2010 Maastricht University Library
 #        http://www.maastrichtuniversity.nl/web/Library/home.htm
+#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -26,7 +27,7 @@
 
 from cq2utils import CQ2TestCase
 from meresco.oai import OaiBranding
-from weightless import compose
+from weightless.core import compose
 
 class OaiBrandingTest(CQ2TestCase):
 

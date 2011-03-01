@@ -2,8 +2,8 @@
 #
 #    Meresco Oai are components to build Oai repositories, based on Meresco
 #    Core and Meresco Components.
-#    Copyright (C) 2010 Stichting Kennisnet Ict op school.
-#       http://www.kennisnetictopschool.nl
+#    Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -34,7 +34,7 @@ from urllib import urlencode
 
 from meresco.core import Observable
 from meresco.components.http.utils import CRLF
-from weightless import compose
+from weightless.core import compose
 
 from sys import stderr, stdout
 from time import time

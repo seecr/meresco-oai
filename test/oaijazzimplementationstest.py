@@ -7,8 +7,8 @@
 #       http://www.kennisnetictopschool.nl
 #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
-#    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
+#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -38,7 +38,7 @@ from StringIO import StringIO
 from lxml.etree import parse
 from meresco.oai.oailist import OaiList
 from meresco.oai import OaiJazz, OaiAddRecord
-from weightless import compose
+from weightless.core import compose
 
 parseLxml = lambda s: parse(StringIO(s)).getroot()
 
