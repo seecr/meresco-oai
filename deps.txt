@@ -1,4 +1,4 @@
-python-meresco-components (>=3.4.6)
+python-meresco-components (>=3.4.8)
 python-meresco-components (<<3.5)
 python-storage (>=5.1.7)
 python-storage (<<5.2)
