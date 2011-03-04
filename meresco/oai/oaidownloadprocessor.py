@@ -34,7 +34,7 @@ from urllib import urlencode
 
 from meresco.core import Observable
 from meresco.components.http.utils import CRLF
-from weightless import compose
+from weightless.core import compose
 
 from sys import stderr, stdout
 from time import time
