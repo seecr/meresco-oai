@@ -48,8 +48,9 @@ from convertoaiv1tov2test import ConvertOaiV1ToV2Test
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaibrandingtest import OaiBrandingTest
+from oaidownloadprocessortest import OaiDownloadProcessorTest
 from oaigetrecordtest import OaiGetRecordTest
-from oaiharvestertest import OaiHarvesterTest
+from periodicdownloadtest import PeriodicDownloadTest 
 from oaiidentifytest import OaiIdentifyTest
 from oaijazzimplementationstest import OaiJazzImplementationsTest
 from oaijazztest import OaiJazzTest
@@ -65,6 +66,7 @@ from oaisuspendtest import OaiSuspendTest
 from oaitooltest import OaiToolTest
 from resumptiontokentest import ResumptionTokenTest
 from updateadaptertest import UpdateAdapterTest
+from streaminglxmltest import StreamingLxmlTest
 
 if __name__ == '__main__':
     unittest.main()
