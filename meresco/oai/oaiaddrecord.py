@@ -7,8 +7,8 @@
 #       http://www.kennisnetictopschool.nl
 #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
-#    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
+#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -39,7 +39,7 @@ namespaces = {
 class OaiAddRecord(Transparant):
     def add(self, identifier, partname, lxmlNode):
         record = lxmlNode if iselement(lxmlNode) else lxmlNode.getroot()
-        setSpecs = record.xpath('/oai:header/oai:setSpec/text()', namespaces=namespaces)
+        setSpecs = record.xpath('//oai:header/oai:setSpec/text()', namespaces=namespaces)
         sets = set((str(s), str(s)) for s in setSpecs)
         
         namespace = record.nsmap.get(record.prefix or None, '') 
