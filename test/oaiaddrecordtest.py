@@ -7,8 +7,8 @@
 #       http://www.kennisnetictopschool.nl
 #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
-#    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
+#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
+#    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 #
 #    This file is part of Meresco Oai.
 #
@@ -55,6 +55,20 @@ class OaiAddRecordTest(CQ2TestCase):
 
     def testAddSetInfo(self):
         header = parseLxml('<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>1</setSpec></header>')
+        
+        self.subject.add('123', 'oai_dc', header)
+        
+        self.assertEquals(1,len(self.observer.calledMethods))
+        self.assertEquals('addOaiRecord', self.observer.calledMethods[0].name)
+        self.assertEquals('123', self.observer.calledMethods[0].kwargs['identifier'])
+        self.assertEquals(set([('1','1')]), self.observer.calledMethods[0].kwargs['sets'])
+        self.assertEquals([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[0].kwargs['metadataFormats'])
+
+    def testAddSetInfoWithHeaderNotAsRootTag(self):
+        xml = parseLxml('<someroot xmlns="root"><header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>1</setSpec></header></someroot>')
+        header = xml.xpath('/root:someroot/oai:header', namespaces = {
+            'root':'root',
+            'oai': 'http://www.openarchives.org/OAI/2.0/'})[0]
         
         self.subject.add('123', 'oai_dc', header)
         
