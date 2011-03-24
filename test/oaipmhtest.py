@@ -74,7 +74,8 @@ class _OaiPmhTest(OaiTestCase):
         self.observer.ignoredAttributes.append('provenance')
         def yieldRecord(identifier, partName):
             self.assertEquals('ident', identifier)
-            yield '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>'
+            yield '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"'
+            yield '/>'
         self.observer.yieldRecord = yieldRecord
 
         header, result = self.handleRequest({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': [self.prefix + 'ident']})
@@ -84,6 +85,7 @@ class _OaiPmhTest(OaiTestCase):
         self.assertEquals('ident', self.observer.calledMethods[2].args[0]) #isAvailable
         self.assertEquals('ident', self.observer.calledMethods[4].args[0]) #getDatestamp
         self.assertEquals('ident', self.observer.calledMethods[5].args[0]) #getSets
+        print 'RESULT', result
 
     def assertBadArgument(self, arguments, additionalMessage = '', errorCode = "badArgument"):
         header, result = self.handleRequest(arguments)
