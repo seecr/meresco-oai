@@ -35,8 +35,6 @@ from oairecordverb import OaiRecordVerb
 from itertools import chain, islice
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
 from oaierror import oaiError
-from xml.sax.saxutils import escape as xmlEscape
-from meresco.core.generatorutils import decorate
 
 
 class OaiList(Observable):
@@ -90,12 +88,12 @@ Error and Exception Conditions
         self._batchSize = batchSize
 
     def listRecords(self, arguments, **httpkwargs):
-        yield self.doProcess(arguments, **httpkwargs)
+        yield self._doProcess(arguments, **httpkwargs)
 
     def listIdentifiers(self, arguments, **httpkwargs):
-        yield self.doProcess(arguments, **httpkwargs)
+        yield self._doProcess(arguments, **httpkwargs)
 
-    def doProcess(self, arguments, **httpkwargs):
+    def _doProcess(self, arguments, **httpkwargs):
         verb = arguments.get('verb', [None])[0]
         if not verb in self._supportedVerbs:
             return
@@ -108,7 +106,7 @@ Error and Exception Conditions
 
         while True:
             try:
-                results = self.preProcess(validatedArguments, **httpkwargs)
+                results = self._preProcess(validatedArguments, **httpkwargs)
                 break
             except OaiException, e:
                 if e.statusCode == "noRecordsMatch" and validatedArguments.get("x-wait", 'False') == 'True':
@@ -120,7 +118,7 @@ Error and Exception Conditions
         yield oaiHeader()
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
-        yield self.process(verb, results, validatedArguments, **httpkwargs)
+        yield self._process(verb, results, validatedArguments, **httpkwargs)
         yield '</%s>' % verb
 
         yield oaiFooter()
@@ -141,7 +139,7 @@ Error and Exception Conditions
             checkNoMoreArguments(arguments, 'Argument(s) ' + ', '.join('"%s"' % t for t in arguments.keys()) + ' is/are illegal.')
         return validatedArguments
 
-    def preProcess(self, validatedArguments, **httpkwargs):
+    def _preProcess(self, validatedArguments, **httpkwargs):
         if validatedArguments.get('resumptionToken', None):
             token = resumptionTokenFromString(validatedArguments['resumptionToken'])
             if not token:
@@ -163,13 +161,13 @@ Error and Exception Conditions
                 _until = _until and ISO8601(_until) 
                 if _from and _until:
                     if _from.isShort() != _until.isShort():
-                        raise OaiBadArgumentException('from and/or until arguments must match in length')
+                        raise OaiBadArgumentException('From and/or until arguments must match in length.')
                     if str(_from) > str(_until):
-                        raise OaiBadArgumentException('from argument must be smaller than until argument')
+                        raise OaiBadArgumentException('From argument must be smaller than until argument.')
                 _from = _from and _from.floor()
                 _until = _until and _until.ceil()
             except ISO8601Exception, e:
-                raise OaiBadArgumentException('from and/or until arguments are faulty')
+                raise OaiBadArgumentException('From and/or until arguments are faulty.')
 
         if not _metadataPrefix in set(self.any.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
@@ -190,16 +188,17 @@ Error and Exception Conditions
         except StopIteration:
             raise OaiException('noRecordsMatch')
 
-    def process(self, verb, results, validatedArguments, **httpkwargs):
-        for id in islice(results, 0, self._batchSize):
-            yield self.oaiRecord(validatedArguments, id, verb == "ListRecords")
+    def _process(self, verb, results, validatedArguments, **httpkwargs):
+        message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
+        for recordId in islice(results, 0, self._batchSize):
+            yield self.all.unknown(message, recordId=recordId, metadataPrefix=validatedArguments['metadataPrefix'])
 
         try:
             if not 'x-wait' in validatedArguments:
                 results.next()
             yield '<resumptionToken>%s</resumptionToken>' % ResumptionToken(
                 validatedArguments['metadataPrefix'],
-                self.any.getUnique(id),
+                self.any.getUnique(recordId),
                 validatedArguments['from'],
                 validatedArguments['until'],
                 validatedArguments['set'])
@@ -209,36 +208,4 @@ Error and Exception Conditions
 
         if 'resumptionToken' in validatedArguments:
             yield '<resumptionToken/>'
-
-    def oaiRecord(self, validatedArguments, recordId, writeBody=True):
-        isDeletedStr = self.any.isDeleted(recordId) and ' status="deleted"' or ''
-        datestamp = self.any.getDatestamp(recordId)
-        setSpecs = self._getSetSpecs(recordId)
-        if writeBody:
-            yield '<record>'
-
-        yield """<header%s>
-            <identifier>%s</identifier>
-            <datestamp>%s</datestamp>
-            %s
-        </header>""" % (isDeletedStr, xmlEscape(recordId.encode('utf-8')), datestamp, setSpecs)
-
-        if writeBody and not isDeletedStr:
-            yield '<metadata>'
-            yield self.all.yieldRecord(recordId, validatedArguments['metadataPrefix'])
-            yield '</metadata>'
-
-        if writeBody:
-            provenance = self.all.provenance(recordId)
-            for line in decorate('<about>', provenance, '</about>'):
-                yield line
-
-        if writeBody:
-            yield '</record>'
-
-    def _getSetSpecs(self, recordId):
-        sets = self.any.getSets(recordId)
-        if sets:
-            return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in sets)
-        return ''
 

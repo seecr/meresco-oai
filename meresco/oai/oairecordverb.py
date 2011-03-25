@@ -50,7 +50,7 @@ class OaiRecordVerb(OaiVerb):
 
         if writeBody and not isDeletedStr:
             webRequest.write('<metadata>')
-            results = self.any.yieldRecord(recordId, self._metadataPrefix)
+            results = self.all.yieldRecord(recordId, self._metadataPrefix)
             for line in results:
                 webRequest.write(line)
             webRequest.write('</metadata>')

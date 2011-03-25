@@ -37,6 +37,7 @@ from oailistmetadataformats import OaiListMetadataFormats
 from oailistsets import OaiListSets
 from oaierror import OaiError
 from oaiidentifierrename import OaiIdentifierRename
+from oairecord import OaiRecord
 from webrequest import WebRequest
 
 class OaiPmh(object):
@@ -55,7 +56,9 @@ class OaiPmh(object):
                         (outside,)
                     ),
                     (OaiList(batchSize=batchSize),
-                        (outside,)
+                        (OaiRecord(),
+                            (outside,)
+                        )
                     ),
                     (OaiGetRecord(),
                         (outside,)
@@ -72,7 +75,7 @@ class OaiPmh(object):
 
     def handleRequest(self, arguments, **kwargs):
         verb = arguments.get('verb', [None])[0]
-        message = verb and verb[0].lower() + verb[1:] or ''
+        message = verb[0].lower() + verb[1:] if verb else ''
         webrequest = None
         if verb in self._oldFashionedVerbs:
             webrequest = WebRequest(**kwargs)

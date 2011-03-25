@@ -96,12 +96,10 @@ def _select(neededNess, argsDef):
             result.append(arg)
     return result
 
-OAIHEADER = """<?xml version="1.0" encoding="UTF-8"?>
-<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/
-         http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
-"""
+OAIHEADER = '<?xml version="1.0" encoding="UTF-8"?>\n' +\
+    '<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" ' +\
+    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +\
+    'xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">'
 
 RESPONSE_DATE = """<responseDate>%s</responseDate>"""
 

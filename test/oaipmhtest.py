@@ -85,7 +85,6 @@ class _OaiPmhTest(OaiTestCase):
         self.assertEquals('ident', self.observer.calledMethods[2].args[0]) #isAvailable
         self.assertEquals('ident', self.observer.calledMethods[4].args[0]) #getDatestamp
         self.assertEquals('ident', self.observer.calledMethods[5].args[0]) #getSets
-        print 'RESULT', result
 
     def assertBadArgument(self, arguments, additionalMessage = '', errorCode = "badArgument"):
         header, result = self.handleRequest(arguments)
@@ -111,6 +110,9 @@ class _OaiPmhTest(OaiTestCase):
 
     def testIllegalIdentifyArguments(self):
         self.assertBadArgument({'verb': ['Identify'], 'metadataPrefix': ['oai_dc']}, 'Argument(s) "metadataPrefix" is/are illegal.')
+
+    def testIllegalVerbListRecords(self):
+        self.assertBadArgument({'verb': ['listRecords'], 'metadataPrefix': ['oai_dc']}, 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', errorCode='badVerb')
 
     def testNoArgumentsListRecords(self):
         self.assertBadArgument({'verb': ['ListRecords']}, 'Missing argument(s) "resumptionToken" or "metadataPrefix"')
