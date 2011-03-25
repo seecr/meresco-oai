@@ -28,9 +28,10 @@
 ## end license ##
 
 from meresco.core.observable import Observable
-from oairecordverb import OaiRecordVerb
+from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+from oaierror import oaiError
 
-class OaiGetRecord(OaiRecordVerb, Observable):
+class OaiGetRecord(Observable):
     """4.1 GetRecord
 Summary and Usage Notes
 
@@ -47,29 +48,53 @@ Error and Exception Conditions
     * cannotDisseminateFormat - The value of the metadataPrefix argument is not supported by the item identified by the value of the identifier argument.
     * idDoesNotExist - The value of the identifier argument is unknown or illegal in this repository.
 """
-    def __init__(self):
-        OaiRecordVerb.__init__(self, ['GetRecord'], {
-            'identifier': 'required',
-            'metadataPrefix': 'required'})
-        Observable.__init__(self)
+    def getRecord(self, arguments, **httpkwargs):
+        verb = arguments.get('verb', [None])[0]
+        if not verb == 'GetRecord':
+            return
 
-    def getRecord(self, webrequest, **kwargs):
-        self.startProcessing(webrequest)
-        yield webrequest.generateResponse()
+        try:
+            validatedArguments = self._validateArguments(arguments)
+            recordId = validatedArguments['identifier']
+            metadataPrefix = validatedArguments['metadataPrefix']
+            self._validate(recordId, metadataPrefix)
+        except OaiException, e:
+            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+            return
 
-    def preProcess(self, webRequest):
-        isDeleted = self.any.isDeleted(self._identifier)
-        if not self._metadataPrefix in  set(self.any.getAllPrefixes()):
-            return self.writeError(webRequest, 'cannotDisseminateFormat')
+        yield oaiHeader()
+        yield oaiRequestArgs(arguments, **httpkwargs)
+        yield '<%s>' % verb
+        yield self.all.oaiRecord(recordId=recordId, metadataPrefix=metadataPrefix)
+        yield '</%s>' % verb
+        yield oaiFooter()
 
-        hasId, hasPartName = self.any.isAvailable(self._identifier, self._metadataPrefix)
+    def _validate(self, recordId, metadataPrefix):
+        if not metadataPrefix in set(self.any.getAllPrefixes()):
+            raise OaiException('cannotDisseminateFormat')
+
+        isDeleted = self.any.isDeleted(recordId)
+        hasId, hasPartName = self.any.isAvailable(recordId, metadataPrefix)
 
         if not hasId:
-            return self.writeError(webRequest, 'idDoesNotExist')
+            raise OaiException('idDoesNotExist')
 
         if not isDeleted and not hasPartName:
-            return self.writeError(webRequest, 'cannotDisseminateFormat')
+            raise OaiException('cannotDisseminateFormat')
 
-    def process(self, webRequest):
-        self.writeRecord(webRequest, self._identifier)
+    def _validateArguments(self, arguments):
+        arguments = dict(arguments)
+        validatedArguments = {}
+        checkNoRepeatedArguments(arguments)
+        arguments.pop('verb')
+        missing = []
+        if not checkArgument(arguments, 'identifier', validatedArguments):
+            missing.append('"identifier"')
+        if not checkArgument(arguments, 'metadataPrefix', validatedArguments):
+            missing.append('"metadataPrefix"')
+        if missing:
+            raise OaiBadArgumentException('Missing argument(s) ' + \
+                " and ".join(missing) + ".")
+        checkNoMoreArguments(arguments)
+        return validatedArguments
 

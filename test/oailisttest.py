@@ -42,7 +42,6 @@ from meresco.oai.oailist import OaiList
 from meresco.oai.oairecord import OaiRecord
 from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionToken
 
-from oaitestcase import OaiTestCase
 from meresco.oai.oaiutils import OaiException
 from meresco.oai.oaijazz import WrapIterable
 

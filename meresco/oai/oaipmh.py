@@ -46,7 +46,6 @@ class OaiPmh(object):
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
         self._oldFashionedVerbs = [
-                'GetRecord',
                 'ListSets',
                 'ListMetadataFormats']
         self._internalObserverTree = be(
@@ -61,7 +60,9 @@ class OaiPmh(object):
                         )
                     ),
                     (OaiGetRecord(),
-                        (outside,)
+                        (OaiRecord(),
+                            (outside,)
+                        )
                     ),
                     (OaiListMetadataFormats(),
                         (outside,)

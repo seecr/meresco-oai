@@ -48,7 +48,6 @@ from convertoaiv1tov2test import ConvertOaiV1ToV2Test
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaibrandingtest import OaiBrandingTest
-from oaigetrecordtest import OaiGetRecordTest
 from oaiharvestertest import OaiHarvesterTest
 from oaiidentifytest import OaiIdentifyTest
 from oaijazztest import OaiJazzTest
@@ -56,7 +55,6 @@ from oailistmetadataformatstest import OaiListMetadataFormatsTest
 from oailistsetstest import OaiListSetsTest
 from oailisttest import OaiListTest
 from oaipmhjazztest import OaiPmhJazzTest
-from oaipmhtest import OaiPmhTest2
 from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
 from oaiprovenancetest import OaiProvenanceTest
 from oairecordtest import OaiRecordTest

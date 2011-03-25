@@ -123,3 +123,14 @@ def getSchema():
             print e.error_log.last_error
             raise
     return schema
+
+def assertValidOai(lxmlTree):
+    schema = getSchema()
+    aXmlString = tostring(lxmlTree, pretty_print=True)
+    tree = parse(StringIO(aXmlString))
+    schema.validate(tree)
+    if schema.error_log:
+        for nr, line in enumerate(aXmlString.split('\n')):
+            print nr+1, line
+        raise AssertionError(schema.error_log.last_error)
+

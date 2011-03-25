@@ -31,7 +31,6 @@ from meresco.core.observable import Observable
 
 from resumptiontoken import resumptionTokenFromString, ResumptionToken
 from oaitool import ISO8601, ISO8601Exception
-from oairecordverb import OaiRecordVerb
 from itertools import chain, islice
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
 from oaierror import oaiError
@@ -130,13 +129,14 @@ Error and Exception Conditions
         arguments.pop('verb')
         checkArgument(arguments, 'x-wait', validatedArguments)
         if checkArgument(arguments, 'resumptionToken', validatedArguments):
-            checkNoMoreArguments(arguments, '"resumptionToken" argument may only be used exclusively.')
+            if len(arguments) > 0:
+                raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')
         else:
             if not checkArgument(arguments, 'metadataPrefix', validatedArguments):
                 raise OaiBadArgumentException('Missing argument(s) "resumptionToken" or "metadataPrefix".')
             for name in ['from', 'until', 'set']:
                 checkArgument(arguments, name, validatedArguments)
-            checkNoMoreArguments(arguments, 'Argument(s) ' + ', '.join('"%s"' % t for t in arguments.keys()) + ' is/are illegal.')
+            checkNoMoreArguments(arguments)
         return validatedArguments
 
     def _preProcess(self, validatedArguments, **httpkwargs):

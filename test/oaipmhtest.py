@@ -80,8 +80,8 @@ class _OaiPmhTest(OaiTestCase):
 
         header, result = self.handleRequest({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': [self.prefix + 'ident']})
         self.assertValidString(result)
-        self.assertEquals(['isDeleted', 'getAllPrefixes', 'isAvailable', 'isDeleted', 'getDatestamp', 'getSets', 'unknown'], [m.name for m in self.observer.calledMethods])
-        self.assertEquals('ident', self.observer.calledMethods[0].args[0]) #isDeleted
+        self.assertEquals(['getAllPrefixes', 'isDeleted', 'isAvailable', 'isDeleted', 'getDatestamp', 'getSets', 'unknown'], [m.name for m in self.observer.calledMethods])
+        self.assertEquals('ident', self.observer.calledMethods[1].args[0]) #isDeleted
         self.assertEquals('ident', self.observer.calledMethods[2].args[0]) #isAvailable
         self.assertEquals('ident', self.observer.calledMethods[4].args[0]) #getDatestamp
         self.assertEquals('ident', self.observer.calledMethods[5].args[0]) #getSets
@@ -202,6 +202,16 @@ class OaiPmhTest(_OaiPmhTest):
         _OaiPmhTest.setUp(self)
         self.prefix = ''
 
+    def testExceptionOnInvalidRepositoryIdentifier(self):
+        try:
+            OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId")
+            self.fail()
+        except ValueError, e:
+            self.assertEquals("Invalid repositoryIdentifier: repoId", str(e))
+
+        OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
+        OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")
+
 class OaiPmhWithIdentifierTest(_OaiPmhTest):
 
     def getSubject(self):
@@ -216,13 +226,3 @@ class OaiPmhWithIdentifierTest(_OaiPmhTest):
         _OaiPmhTest.setUp(self)
         self.prefix = 'oai:www.example.org:'
 
-class OaiPmhTest2(CQ2TestCase):
-    def testExceptionOnInvalidRepositoryIdentifier(self):
-        try:
-            OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId")
-            self.fail()
-        except ValueError, e:
-            self.assertEquals("Invalid repositoryIdentifier: repoId", str(e))
-
-        OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
-        OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")
