@@ -49,11 +49,9 @@ from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaibrandingtest import OaiBrandingTest
 from oaiharvestertest import OaiHarvesterTest
-from oaiidentifytest import OaiIdentifyTest
 from oaijazztest import OaiJazzTest
 from oailisttest import OaiListTest
-from oaipmhjazztest import OaiPmhJazzTest
-from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
+from oaipmhjazztest import OaiPmhJazzTest, OaiPmhJazzWithIdentifierTest
 from oaiprovenancetest import OaiProvenanceTest
 from oairecordtest import OaiRecordTest
 from oaisetselecttest import OaiSetSelectTest

@@ -30,75 +30,10 @@
 #
 ## end license ##
 
-from cq2utils.cq2testcase import CQ2TestCase
-
 from lxml.etree import parse, XMLSchema, XMLSchemaParseError, tostring
-from cq2utils.calltrace import CallTrace
-from meresco.core.observable import Observable
 from StringIO import StringIO
 from os.path import join, dirname, abspath
 from glob import glob
-from urllib import urlencode
-
-from meresco.components.xml_generic import  __file__ as xml_genericpath
-from meresco.components.http.utils import CRLF
-from weightless.core import compose
-
-
-class OaiTestCase(CQ2TestCase):
-
-    def setUp(self):
-        CQ2TestCase.setUp(self)
-        self.observable = Observable()
-        self.subject = self.getSubject()
-        self.subject.getTime = lambda : '2007-02-07T00:00:00Z'
-        self.observable.addObserver(self.subject)
-        self.httpkwargs = {
-            'path': '/path/to/oai',
-            'Headers':{'Host':'server'},
-            'port':9000,
-        }
-        self.request = CallTrace('Request')
-        self.request.path = self.httpkwargs['path']
-        self.request.getRequestHostname = lambda: 'server'
-        class Host:
-            def __init__(self):
-                self.port = '9000'
-        self.request.getHost = lambda: Host()
-        self.stream = StringIO()
-        self.request.write = self.stream.write
-        self.request.kwargs = self.httpkwargs
-
-
-    OAIPMH = """<?xml version="1.0" encoding="UTF-8"?>
-<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/
-         http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
-<responseDate>2007-02-07T00:00:00Z</responseDate>
-%s
-</OAI-PMH>"""
-
-    def handleRequest(self, args):
-        result = ''.join(compose(self.observable.all.handleRequest(
-            port=9000,
-            path='/path/to/oai',
-            Client=('localhost',12345),
-            RequestURI="http://server:9000/path/to/oai?%s" % urlencode(args, doseq=True),
-            Method="GET",
-            Headers={'Host':'server:9000'},
-            arguments=args)))
-        return result.split(CRLF * 2)
-
-    def assertValidString(self, aXmlString):
-        schema = getSchema()
-        tree = parse(StringIO(aXmlString))
-        schema.validate(tree)
-        if schema.error_log:
-            for nr, line in enumerate(aXmlString.split('\n')):
-                print nr+1, line
-            self.fail(schema.error_log.last_error)
-        self.assertEquals(['http://server:9000/path/to/oai'], tree.xpath('//oai:request/text()', namespaces={'oai':"http://www.openarchives.org/OAI/2.0/"}))
 
 schemaLocation = join(abspath(dirname(__file__)), 'schemas')
 
@@ -124,13 +59,13 @@ def getSchema():
             raise
     return schema
 
-def assertValidOai(lxmlTree):
+def assertValidOai(lxmlTree=None, aXmlString=None):
     schema = getSchema()
-    aXmlString = tostring(lxmlTree, pretty_print=True)
+    aXmlString = tostring(lxmlTree, pretty_print=True) if aXmlString == None else aXmlString
     tree = parse(StringIO(aXmlString))
     schema.validate(tree)
     if schema.error_log:
         for nr, line in enumerate(aXmlString.split('\n')):
             print nr+1, line
         raise AssertionError(schema.error_log.last_error)
-
+    return tree

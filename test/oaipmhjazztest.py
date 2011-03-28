@@ -26,7 +26,7 @@
 from cq2utils import CQ2TestCase, CallTrace
 from oaitestcase import assertValidOai
 
-from meresco.oai import OaiPmh, OaiJazz
+from meresco.oai import OaiPmh, OaiJazz, OaiBranding
 from meresco.core import Observable, be
 from meresco.components.http.utils import CRLF
 from meresco.components import StorageComponent
@@ -35,15 +35,18 @@ from urllib import urlencode
 from lxml.etree import parse, tostring
 from StringIO import StringIO
 from weightless.core import compose
+from socket import gethostname
 
 BATCHSIZE = 10
-class OaiPmhJazzTest(CQ2TestCase):
+HOSTNAME = gethostname()
+class _OaiPmhJazzTest(CQ2TestCase):
     def setUp(self):
         CQ2TestCase.setUp(self)
         jazz = OaiJazz(join(self.tempdir, 'jazz'))
         storage = StorageComponent(join(self.tempdir, 'storage'))
+        self.oaipmh = self.getOaiPmh()
         self.root = be((Observable(),
-            (OaiPmh(repositoryName='Repository', adminEmail='admin@cq2.nl', batchSize=BATCHSIZE),
+            (self.oaipmh,
                 (jazz,),
                 (storage,)
             )
@@ -90,7 +93,7 @@ class OaiPmhJazzTest(CQ2TestCase):
         header, body = self._request(verb=['ListRecords'], metadataPrefix=['prefix2'])
         records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
         self.assertEquals(10, len(records))
-        self.assertEquals(['record:id:11'], xpath(records[1], 'oai:header/oai:identifier/text()'))
+        self.assertEquals([self.prefix + 'record:id:11'], xpath(records[1], 'oai:header/oai:identifier/text()'))
         self.assertEquals(['record:id:11'], xpath(records[1], 'oai:metadata/oai_dc:dc/dc:subject/text()'), tostring(records[1]))
         self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[1], 'oai:header/oai:setSpec/text()')))
         deletedRecords = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record[oai:header/@status="deleted"]')
@@ -116,22 +119,22 @@ class OaiPmhJazzTest(CQ2TestCase):
         self.assertEquals('The value of the identifier argument is unknown or illegal in this repository.', error.text)
 
     def testGetRecord(self):
-        header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=['record:id:11'])
+        header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=[self.prefix + 'record:id:11'])
 
         self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
         records = xpath(body, '/oai:OAI-PMH/oai:GetRecord/oai:record')
         self.assertEquals(1, len(records))
-        self.assertEquals(['record:id:11'], xpath(records[0], 'oai:header/oai:identifier/text()'))
+        self.assertEquals([self.prefix + 'record:id:11'], xpath(records[0], 'oai:header/oai:identifier/text()'))
         self.assertEquals(['record:id:11'], xpath(records[0], 'oai:metadata/oai_dc:dc/dc:identifier/text()'), tostring(records[0]))
         self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[0], 'oai:header/oai:setSpec/text()')))
 
     def testGetRecordDeleted(self):
-        header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=['record:id:10'])
+        header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=[self.prefix + 'record:id:10'])
 
         self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
         records = xpath(body, '/oai:OAI-PMH/oai:GetRecord/oai:record')
         self.assertEquals(1, len(records))
-        self.assertEquals(['record:id:10'], xpath(records[0], 'oai:header/oai:identifier/text()'))
+        self.assertEquals([self.prefix + 'record:id:10'], xpath(records[0], 'oai:header/oai:identifier/text()'))
         self.assertEquals(0, len(xpath(records[0], 'oai:metadata')))
         self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[0], 'oai:header/oai:setSpec/text()')))
 
@@ -146,7 +149,7 @@ class OaiPmhJazzTest(CQ2TestCase):
         self.assertEquals(['http://www.openarchives.org/OAI/2.0/oai_dc/', 'http://example.org/prefix2/'], [xpath(f, 'oai:metadataNamespace/text()')[0] for f in formats])
 
     def testListMetadataFormatsForIdentifier(self):
-        header, body = self._request(verb=['ListMetadataFormats'], identifier=['record:id:01'])
+        header, body = self._request(verb=['ListMetadataFormats'], identifier=[self.prefix + 'record:id:01'])
 
         self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')), tostring(body, pretty_print=True))
         formats = xpath(body, '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat')
@@ -165,7 +168,7 @@ class OaiPmhJazzTest(CQ2TestCase):
         sets = xpath(body, '/oai:OAI-PMH/oai:ListSets/oai:set/oai:setSpec/text()')
         self.assertEquals(set(['setSpec5', 'setSpec10', 'setSpec15', 'hierarchical', 'hierarchical:set']), set(sets), tostring(body, pretty_print=True))
 
-    def testListMetadataFormatsForWrongIdentifier(self):
+    def testListSetsWithoutSets(self):
         self.root = be((Observable(),
             (OaiPmh(repositoryName='Repository', adminEmail='admin@cq2.nl', batchSize=BATCHSIZE),
                 (OaiJazz(join(self.tempdir, 'empty'),),)
@@ -176,9 +179,139 @@ class OaiPmhJazzTest(CQ2TestCase):
 
         self.assertEquals(['noSetHierarchy'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), tostring(body, pretty_print=True))
 
+    def testIdentify(self):
+        header, body = self._request(verb=['Identify'])
+
+        self.assertEquals("Content-Type: text/xml; charset=utf-8", header.split(CRLF)[-1]) 
+        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        self.assertEquals(['http://%s:9000/oai' % HOSTNAME], xpath(body, '/oai:OAI-PMH/oai:request/text()'))
+        identify = xpath(body, '/oai:OAI-PMH/oai:Identify')[0]
+        self.assertEquals(['The Repository Name'], xpath(identify, 'oai:repositoryName/text()'))
+        self.assertEquals(['admin@meresco.org'], xpath(identify, 'oai:adminEmail/text()'))
+        self.assertEquals(['YYYY-MM-DDThh:mm:ssZ'], xpath(identify, 'oai:granularity/text()'))
+        self.assertEquals(['1970-01-01T00:00:00Z'], xpath(identify, 'oai:earliestDatestamp/text()'))
+        self.assertEquals(['persistent'], xpath(identify, 'oai:deletedRecord/text()'))
+        
+        descriptions = xpath(body, '/oai:OAI-PMH/oai:Identify/oai:description')
+        if self.prefix:
+            self.assertEquals(2, len(descriptions))
+            self.assertEquals(['%s5324' % self.prefix], xpath(descriptions[0], 'identifier:oai-identifier/identifier:sampleIdentifier/text()'))
+        else:
+            self.assertEquals(1, len(descriptions))
+        self.assertEquals(['Meresco'], xpath(descriptions[-1], 'toolkit:toolkit/toolkit:title/text()'))
+
+
+    def testIdentifyWithDescription(self):
+        self.oaipmh.addObserver(OaiBranding('http://meresco.org/files/images/meresco-logo-small.png', 'http://www.meresco.org/', 'Meresco'))
+        header, body = self._request(verb=['Identify'])
+
+        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        descriptions = xpath(body, '/oai:OAI-PMH/oai:Identify/oai:description')
+        if self.prefix:
+            self.assertEquals(3, len(descriptions))
+            self.assertEquals(['%s5324' % self.prefix], xpath(descriptions[0], 'identifier:oai-identifier/identifier:sampleIdentifier/text()'))
+        else:
+            self.assertEquals(2, len(descriptions))
+        self.assertEquals(['Meresco'], xpath(descriptions[-2], 'toolkit:toolkit/toolkit:title/text()'))
+        self.assertEquals(['Meresco'], xpath(descriptions[-1], 'branding:branding/branding:collectionIcon/branding:title/text()'))
+
+    def testNoVerb(self):
+        self.assertOaiError({}, additionalMessage='No "verb" argument found.', errorCode='badArgument')
+    
+    def testNVerbs(self):
+        self.assertOaiError({'verb': ['ListRecords', 'Indentify']}, additionalMessage='Argument "verb" may not be repeated.', errorCode='badArgument')
+        
+    def testWrongVerb(self):
+        self.assertOaiError({'verb': ['Nonsense']}, additionalMessage='Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', errorCode='badVerb')
+
+    def testIllegalIdentifyArguments(self):
+        self.assertOaiError({'verb': ['Identify'], 'metadataPrefix': ['oai_dc']}, additionalMessage='Argument(s) "metadataPrefix" is/are illegal.', errorCode='badArgument')
+
+    def testIllegalVerbListRecords(self):
+        self.assertOaiError({'verb': ['listRecords'], 'metadataPrefix': ['oai_dc']}, additionalMessage='Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', errorCode='badVerb')
+
+    def testNoArgumentsListRecords(self):
+        self.assertOaiError({'verb': ['ListRecords']}, additionalMessage='Missing argument(s) "resumptionToken" or "metadataPrefix"', errorCode='badArgument')
+
+    def testTokenNotUsedExclusivelyListRecords(self):
+        self.assertOaiError({'verb': ['ListRecords'], 'resumptionToken': ['aToken'], 'from': ['aDate']}, additionalMessage='"resumptionToken" argument may only be used exclusively.', errorCode='badArgument')
+
+    def testNeitherTokenNorMetadataPrefixListRecords(self):
+        self.assertOaiError({'verb': ['ListRecords'], 'from': ['aDate']}, additionalMessage='Missing argument(s) "resumptionToken" or "metadataPrefix"', errorCode='badArgument')
+
+    def testNonsenseArgumentsListRecords(self):
+        self.assertOaiError({'verb': ['ListRecords'], 'metadataPrefix': ['aDate'], 'nonsense': ['more nonsense'], 'bla': ['b']}, additionalMessage='Argument(s) "bla", "nonsense" is/are illegal.', errorCode='badArgument')
+
+    def testDoubleArgumentsListRecords(self):
+        self.assertOaiError({'verb':['ListRecords'], 'metadataPrefix': ['oai_dc', '2']}, additionalMessage='Argument "metadataPrefix" may not be repeated.', errorCode='badArgument')
+
+    def testGetRecordNoArgumentsGetRecord(self):
+        self.assertOaiError({'verb': ['GetRecord']}, additionalMessage='Missing argument(s) "identifier" and "metadataPrefix".', errorCode='badArgument')
+
+    def testGetNoMetadataPrefixGetRecord(self):
+        self.assertOaiError({'verb': ['GetRecord'], 'identifier': ['oai:ident']}, additionalMessage='Missing argument(s) "metadataPrefix".', errorCode='badArgument')
+
+    def testGetNoIdentifierArgumentGetRecord(self):
+        self.assertOaiError({'verb': ['GetRecord'], 'metadataPrefix': ['oai_dc']}, additionalMessage='Missing argument(s) "identifier".', errorCode='badArgument')
+
+    def testNonsenseArgumentGetRecord(self):
+        self.assertOaiError({'verb': ['GetRecord'], 'metadataPrefix': ['aPrefix'], 'identifier': ['anIdentifier'], 'nonsense': ['bla']}, additionalMessage='Argument(s) "nonsense" is/are illegal.', errorCode='badArgument')
+
+    def testDoubleArgumentsGetRecord(self):
+        self.assertOaiError({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': ['oai:ident', '2']}, additionalMessage='Argument "identifier" may not be repeated.', errorCode='badArgument')
+
+    def testResumptionTokensNotSupportedListSets(self):
+        self.assertOaiError({'verb': ['ListSets'], 'resumptionToken': ['someResumptionToken']}, errorCode = "badResumptionToken")
+
+    def testNonsenseArgumentsListSets(self):
+        self.assertOaiError({'verb': ['ListSets'], 'nonsense': ['aDate'], 'nonsense': ['more nonsense'], 'bla': ['b']}, additionalMessage='Argument(s) "bla", "nonsense" is/are illegal.', errorCode='badArgument')
+
+    def testRottenTokenListRecords(self):
+        self.assertOaiError({'verb': ['ListRecords'], 'resumptionToken': ['someResumptionToken']}, errorCode = "badResumptionToken")
+
+    def testIllegalArgumentsListMetadataFormats(self):
+        self.assertOaiError({'verb': ['ListMetadataFormats'], 'somethingElse': ['illegal']}, errorCode='badArgument')
+
+    def assertOaiError(self, arguments, errorCode, additionalMessage = ''):
+        header, body = self._request(**arguments)
+
+        self.assertEquals([errorCode], xpath(body, '/oai:OAI-PMH/oai:error/@code'), tostring(body, pretty_print=True))
+        errorText = xpath(body, '/oai:OAI-PMH/oai:error/text()')[0]
+        self.assertTrue(additionalMessage in errorText, 'Expected "%s" in "%s"' % (additionalMessage, errorText))
+
+class OaiPmhJazzTest(_OaiPmhJazzTest):
+    def setUp(self):
+        _OaiPmhJazzTest.setUp(self)
+        self.prefix=''
+
+    def getOaiPmh(self):
+        return OaiPmh(repositoryName='The Repository Name', adminEmail='admin@meresco.org', batchSize=BATCHSIZE)
+
+    def testExceptionOnInvalidRepositoryIdentifier(self):
+        try:
+            OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId")
+            self.fail()
+        except ValueError, e:
+            self.assertEquals("Invalid repositoryIdentifier: repoId", str(e))
+
+        OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
+        OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")
+        
+
+class OaiPmhJazzWithIdentifierTest(_OaiPmhJazzTest):
+    def setUp(self):
+        _OaiPmhJazzTest.setUp(self)
+        self.prefix='oai:www.example.org:'
+
+    def getOaiPmh(self):
+        return OaiPmh(repositoryName='The Repository Name', adminEmail='admin@meresco.org', batchSize=BATCHSIZE, repositoryIdentifier='www.example.org')
+
 def xpath(node, path):
     return node.xpath(path, namespaces={'oai': 'http://www.openarchives.org/OAI/2.0/',
         'oai_dc': 'http://www.openarchives.org/OAI/2.0/oai_dc/',
         'dc': 'http://purl.org/dc/elements/1.1/',
+        'toolkit': 'http://oai.dlib.vt.edu/OAI/metadata/toolkit',
+        'branding': 'http://www.openarchives.org/OAI/2.0/branding/',
+        'identifier': 'http://www.openarchives.org/OAI/2.0/oai-identifier',
         })
 
