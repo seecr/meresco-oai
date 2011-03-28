@@ -144,6 +144,9 @@ class _OaiPmhTest(OaiTestCase):
     def testDoubleArgumentsGetRecord(self):
         self.assertBadArgument({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': ['oai:ident', '2']}, 'Argument "identifier" may not be repeated.')
 
+    def testListSetsWithoutSets(self):
+        self.assertBadArgument({'verb': ['ListSets']}, errorCode = "noSetHierarchy")
+
     def testResumptionTokensNotSupportedListSets(self):
         self.assertBadArgument({'verb': ['ListSets'], 'resumptionToken': ['someResumptionToken']}, errorCode = "badResumptionToken")
 
@@ -195,6 +198,7 @@ class OaiPmhTest(_OaiPmhTest):
         oaipmh = OaiPmh(repositoryName='The Repository Name', adminEmail='admin@email.extension')
         self.observer = CallTrace('Observers')
         self.observer.returnValues["description"] = ""
+        self.observer.returnValues["getAllSets"] = (f for f in [[]])
         oaipmh.addObserver(self.observer)
         return oaipmh
 
@@ -219,6 +223,7 @@ class OaiPmhWithIdentifierTest(_OaiPmhTest):
         repositoryIdentifier='www.example.org')
         self.observer = CallTrace('Observers')
         self.observer.returnValues["description"] = ""
+        self.observer.returnValues["getAllSets"] = (f for f in [[]])
         oaipmh.addObserver(self.observer)
         return oaipmh
 

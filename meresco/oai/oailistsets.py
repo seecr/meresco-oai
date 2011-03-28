@@ -27,10 +27,11 @@
 #
 ## end license ##
 
-from oairecordverb import OaiRecordVerb
+from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+from oaierror import oaiError
 from meresco.core.observable import Observable
 
-class OaiListSets(OaiRecordVerb, Observable):
+class OaiListSets(Observable):
     """4.6 ListSets
 Summary and Usage Notes
 
@@ -46,25 +47,43 @@ Error and Exception Conditions
     * noSetHierarchy - The repository does not support sets."""
 
     def __init__(self):
-        OaiRecordVerb.__init__(self, ['ListSets'], {'resumptionToken': 'exclusive'})
         Observable.__init__(self)
 
-    def listSets(self, webrequest, **kwargs):
-        self.startProcessing(webrequest)
-        yield webrequest.generateResponse()
+    def listSets(self, arguments, **httpkwargs):
+        verb = arguments.get('verb', [None])[0]
+        if not verb == 'ListSets':
+            return
 
-    def preProcess(self, webRequest):
-        if self._resumptionToken:
-            return self.writeError(webRequest, 'badResumptionToken')
+        try:
+            validatedArguments = self._validateArguments(arguments)
+            if 'resumptionToken' in validatedArguments:
+                raise OaiException('badResumptionToken')
 
-        self._queryResult = self.any.getAllSets()
-        if len(self._queryResult) == 0:
-            return self.writeError(webRequest, 'noSetHierarchy')
+            sets = self.any.getAllSets()
+            if len(sets) == 0:
+                raise OaiException('noSetHierarchy')
+        except OaiException, e:
+            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+            return
 
-    def process(self, webRequest):
+        yield oaiHeader()
+        yield oaiRequestArgs(arguments, **httpkwargs)
+        yield '<%s>' % verb
+        for setSpec in sets:
+            yield '<set>'
+            yield '<setSpec>%s</setSpec>' % setSpec
+            yield '<setName>set %s</setName>' % setSpec
+            yield '</set>'
+        yield '</%s>' % verb
+        yield oaiFooter()
 
-        webRequest.write(''.join('<set><setSpec>%s</setSpec><setName>set %s</setName></set>' % (setSpec, setSpec) for setSpec in self._queryResult))
-
-        if self._resumptionToken:
-            webRequest.write('<resumptionToken/>')
-
+    def _validateArguments(self, arguments):
+        arguments = dict(arguments)
+        validatedArguments = {}
+        checkNoRepeatedArguments(arguments)
+        arguments.pop('verb')
+        if checkArgument(arguments, 'resumptionToken', validatedArguments):
+            if len(arguments) > 0:
+                raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')
+        checkNoMoreArguments(arguments)
+        return validatedArguments

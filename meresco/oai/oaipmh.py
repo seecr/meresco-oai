@@ -46,7 +46,6 @@ class OaiPmh(object):
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
         self._oldFashionedVerbs = [
-                'ListSets',
                 ]
         self._internalObserverTree = be(
             (Observable(),

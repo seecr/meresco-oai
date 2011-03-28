@@ -158,6 +158,24 @@ class OaiPmhJazzTest(CQ2TestCase):
 
         self.assertEquals(['idDoesNotExist'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), tostring(body, pretty_print=True))
 
+    def testListAllSets(self):
+        header, body = self._request(verb=['ListSets'])
+
+        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        sets = xpath(body, '/oai:OAI-PMH/oai:ListSets/oai:set/oai:setSpec/text()')
+        self.assertEquals(set(['setSpec5', 'setSpec10', 'setSpec15', 'hierarchical', 'hierarchical:set']), set(sets), tostring(body, pretty_print=True))
+
+    def testListMetadataFormatsForWrongIdentifier(self):
+        self.root = be((Observable(),
+            (OaiPmh(repositoryName='Repository', adminEmail='admin@cq2.nl', batchSize=BATCHSIZE),
+                (OaiJazz(join(self.tempdir, 'empty'),),)
+            )
+        ))
+
+        header, body = self._request(verb=['ListSets'])
+
+        self.assertEquals(['noSetHierarchy'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), tostring(body, pretty_print=True))
+
 def xpath(node, path):
     return node.xpath(path, namespaces={'oai': 'http://www.openarchives.org/OAI/2.0/',
         'oai_dc': 'http://www.openarchives.org/OAI/2.0/oai_dc/',
