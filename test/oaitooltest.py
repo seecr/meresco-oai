@@ -28,28 +28,16 @@
 ## end license ##
 
 from meresco.oai.oaitool import ISO8601Exception, ISO8601
-from meresco.oai.oaiverb import OaiVerb
+from meresco.oai.oaiutils import oaiRequestArgs
 from cq2utils.cq2testcase import CQ2TestCase
 from cq2utils.calltrace import CallTrace
 
 class OaiToolTest(CQ2TestCase):
     
     def testWriteRequestArgs(self):
-        getHost = CallTrace("getHost")
-        getHost.port = 8000
-        request = CallTrace("Request")
-        request.returnValues['getHost'] = getHost
-        request.returnValues['getRequestHostname'] = 'localhost'
-        request.path = '/oai'
-        request.kwargs = {'Headers':{'Host':'localhost'}, 'port':8000, 'path':'/oai'}
-    
-        verb = OaiVerb(None, None)
-        request.args = {'identifier': ['with a "']}
-        verb.writeRequestArgs(request)
+        result = ''.join(oaiRequestArgs({'identifier': ['with a "']}, Headers={'Host':'localhost'}, port=8000, path='/oai'))
         
-        writeCall = request.calledMethods[-1]
-        self.assertEquals('write', writeCall.name)
-        self.assertEquals('<request identifier="with a &quot;">http://localhost:8000/oai</request>', writeCall.args[0])
+        self.assertEquals('<request identifier="with a &quot;">http://localhost:8000/oai</request>', result)
         
     def testISO8601(self):
         """http://www.w3.org/TR/NOTE-datetime
