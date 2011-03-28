@@ -31,7 +31,7 @@ from time import sleep
 from meresco.core import be, Observable
 from meresco.components.http import ObservableHttpServer
 from meresco.components import StorageComponent
-from meresco.oai import OaiPmh, OaiJazz, OaiSuspend, OaiHarvester
+from meresco.oai import OaiPmh, OaiJazz, OaiSuspend, PeriodicDownload, OaiDownloadProcessor
 
 from cq2utils import CQ2TestCase, CallTrace
 from weightless.io import Reactor
@@ -170,8 +170,10 @@ class OaiSuspendTest(CQ2TestCase):
         reactor = Reactor()
         server = be(
             (Observable(),
-                (OaiHarvester(reactor, 'localhost', portNumber, '/', 'prefix', self.tempdir),
-                    (observer,),
+                (PeriodicDownload(reactor, 'localhost', portNumber),
+                    (OaiDownloadProcessor('/', 'prefix', self.tempdir),
+                        (observer,),
+                    )
                 )
             )
         )

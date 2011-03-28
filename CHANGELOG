@@ -2,6 +2,7 @@ CHANGELOG Meresco-Oai
 =====================
 
 version: 3.4.3 -> 3.4.4
+version: 3.5.1 -> 3.5.2
 date:    2011-03-28
 
 Removal of WebRequest object.
@@ -16,12 +17,23 @@ larger than 4kb.
 ==============================================================================
 
 version: 3.4.2 -> 3.4.3
+version: 3.5 -> 3.5.1
 date:    2011-03-09
 
 Fixed xpath for oai:header in OaiAddRecord
 ------------------------------------------
 OaiAddRecord searches for an oai:header node even when it is not the root.
 (2011-03-09, 3.4.2)
+
+==============================================================================
+
+version: 3.4 -> 3.5
+date:    2011-03-04
+
+Extracted PeriodicDownload from OaiHarvester
+--------------------------------------------
+Extracted PeriodicDownload from OaiHarvester
+(2011-03-04, 3.4-MWE)
 
 ==============================================================================
 
