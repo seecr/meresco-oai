@@ -57,7 +57,7 @@ Error and Exception Conditions
             validatedArguments = self._validateArguments(arguments)
             recordId = validatedArguments['identifier']
             metadataPrefix = validatedArguments['metadataPrefix']
-            self._validate(recordId, metadataPrefix)
+            self._validateValues(recordId, metadataPrefix)
         except OaiException, e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
@@ -69,7 +69,7 @@ Error and Exception Conditions
         yield '</%s>' % verb
         yield oaiFooter()
 
-    def _validate(self, recordId, metadataPrefix):
+    def _validateValues(self, recordId, metadataPrefix):
         if not metadataPrefix in set(self.any.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
 
