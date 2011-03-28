@@ -24,7 +24,7 @@
 ## end license ##
 
 from cq2utils import CQ2TestCase, CallTrace
-from oaitestcase import assertValidOai
+from oaischema import assertValidOai
 
 from meresco.oai import OaiPmh, OaiJazz, OaiBranding
 from meresco.core import Observable, be
@@ -39,7 +39,7 @@ from socket import gethostname
 
 BATCHSIZE = 10
 HOSTNAME = gethostname()
-class _OaiPmhJazzTest(CQ2TestCase):
+class _OaiPmhTest(CQ2TestCase):
     def setUp(self):
         CQ2TestCase.setUp(self)
         jazz = OaiJazz(join(self.tempdir, 'jazz'))
@@ -279,9 +279,9 @@ class _OaiPmhJazzTest(CQ2TestCase):
         errorText = xpath(body, '/oai:OAI-PMH/oai:error/text()')[0]
         self.assertTrue(additionalMessage in errorText, 'Expected "%s" in "%s"' % (additionalMessage, errorText))
 
-class OaiPmhJazzTest(_OaiPmhJazzTest):
+class OaiPmhTest(_OaiPmhTest):
     def setUp(self):
-        _OaiPmhJazzTest.setUp(self)
+        _OaiPmhTest.setUp(self)
         self.prefix=''
 
     def getOaiPmh(self):
@@ -298,9 +298,9 @@ class OaiPmhJazzTest(_OaiPmhJazzTest):
         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")
         
 
-class OaiPmhJazzWithIdentifierTest(_OaiPmhJazzTest):
+class OaiPmhWithIdentifierTest(_OaiPmhTest):
     def setUp(self):
-        _OaiPmhJazzTest.setUp(self)
+        _OaiPmhTest.setUp(self)
         self.prefix='oai:www.example.org:'
 
     def getOaiPmh(self):
