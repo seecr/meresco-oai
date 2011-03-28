@@ -1,0 +1,2059 @@
+Changeset created on Mon Mar 28 12:08:50 CEST 2011 by Seek You Too
+
+Description: Removal of WebRequest object.
+
+    The last bits of the WebRequest object are removed. This was a remainder
+    from the time Meresco used Twisted as it's http framework. 
+
+    Also fixed a problem in GetRecord which cause incomplete responses for 
+    records larger than 4kb.
+
+Baseline version: meresco/meresco-oai/tags/version_3.4.3
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/meresco/oai/oaierror.py version_3.4.4/meresco/oai/oaierror.py
+--- version_3.4.3/meresco/oai/oaierror.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/meresco/oai/oaierror.py	2011-03-28 12:07:57.000000000 +0200
+@@ -58,11 +58,11 @@
+ 
+     yield oaiHeader()
+ 
+-    if statusCode not in ["badArgument", "badResumptionToken", "badVerb"]:
++    if statusCode in ["badArgument", "badResumptionToken", "badVerb"]:
+         """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the responce will not validate either"""
+-        yield oaiRequestArgs(arguments, **httpkwargs)
+-    else:
+         yield oaiRequestArgs({}, **httpkwargs)
++    else:
++        yield oaiRequestArgs(arguments, **httpkwargs)
+ 
+     yield """<error code="%(statusCode)s">%(message)s</error>""" % locals()
+ 
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/meresco/oai/oaigetrecord.py version_3.4.4/meresco/oai/oaigetrecord.py
+--- version_3.4.3/meresco/oai/oaigetrecord.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/meresco/oai/oaigetrecord.py	2011-03-28 12:07:57.000000000 +0200
+@@ -28,9 +28,10 @@
+ ## end license ##
+ 
+ from meresco.core.observable import Observable
+-from oairecordverb import OaiRecordVerb
++from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
++from oaierror import oaiError
+ 
+-class OaiGetRecord(OaiRecordVerb, Observable):
++class OaiGetRecord(Observable):
+     """4.1 GetRecord
+ Summary and Usage Notes
+ 
+@@ -47,29 +48,53 @@
+     * cannotDisseminateFormat - The value of the metadataPrefix argument is not supported by the item identified by the value of the identifier argument.
+     * idDoesNotExist - The value of the identifier argument is unknown or illegal in this repository.
+ """
+-    def __init__(self):
+-        OaiRecordVerb.__init__(self, ['GetRecord'], {
+-            'identifier': 'required',
+-            'metadataPrefix': 'required'})
+-        Observable.__init__(self)
+-
+-    def getRecord(self, webrequest, **kwargs):
+-        self.startProcessing(webrequest)
+-        yield webrequest.generateResponse()
+-
+-    def preProcess(self, webRequest):
+-        isDeleted = self.any.isDeleted(self._identifier)
+-        if not self._metadataPrefix in  set(self.any.getAllPrefixes()):
+-            return self.writeError(webRequest, 'cannotDisseminateFormat')
++    def getRecord(self, arguments, **httpkwargs):
++        verb = arguments.get('verb', [None])[0]
++        if not verb == 'GetRecord':
++            return
++
++        try:
++            validatedArguments = self._validateArguments(arguments)
++            recordId = validatedArguments['identifier']
++            metadataPrefix = validatedArguments['metadataPrefix']
++            self._validateValues(recordId, metadataPrefix)
++        except OaiException, e:
++            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
++            return
++
++        yield oaiHeader()
++        yield oaiRequestArgs(arguments, **httpkwargs)
++        yield '<%s>' % verb
++        yield self.all.oaiRecord(recordId=recordId, metadataPrefix=metadataPrefix)
++        yield '</%s>' % verb
++        yield oaiFooter()
++
++    def _validateValues(self, recordId, metadataPrefix):
++        if not metadataPrefix in set(self.any.getAllPrefixes()):
++            raise OaiException('cannotDisseminateFormat')
+ 
+-        hasId, hasPartName = self.any.isAvailable(self._identifier, self._metadataPrefix)
++        isDeleted = self.any.isDeleted(recordId)
++        hasId, hasPartName = self.any.isAvailable(recordId, metadataPrefix)
+ 
+         if not hasId:
+-            return self.writeError(webRequest, 'idDoesNotExist')
++            raise OaiException('idDoesNotExist')
+ 
+         if not isDeleted and not hasPartName:
+-            return self.writeError(webRequest, 'cannotDisseminateFormat')
++            raise OaiException('cannotDisseminateFormat')
+ 
+-    def process(self, webRequest):
+-        self.writeRecord(webRequest, self._identifier)
++    def _validateArguments(self, arguments):
++        arguments = dict(arguments)
++        validatedArguments = {}
++        checkNoRepeatedArguments(arguments)
++        arguments.pop('verb')
++        missing = []
++        if not checkArgument(arguments, 'identifier', validatedArguments):
++            missing.append('"identifier"')
++        if not checkArgument(arguments, 'metadataPrefix', validatedArguments):
++            missing.append('"metadataPrefix"')
++        if missing:
++            raise OaiBadArgumentException('Missing argument(s) ' + \
++                " and ".join(missing) + ".")
++        checkNoMoreArguments(arguments)
++        return validatedArguments
+ 
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/meresco/oai/oailistmetadataformats.py version_3.4.4/meresco/oai/oailistmetadataformats.py
+--- version_3.4.3/meresco/oai/oailistmetadataformats.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/meresco/oai/oailistmetadataformats.py	2011-03-28 12:07:57.000000000 +0200
+@@ -27,10 +27,12 @@
+ #
+ ## end license ##
+ 
+-from oaiverb import OaiVerb
+-from meresco.core.observable import Observable
++from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
++from oaierror import oaiError
++from meresco.core import Observable
++from xml.sax.saxutils import escape as xmlEscape
+ 
+-class OaiListMetadataFormats(OaiVerb, Observable):
++class OaiListMetadataFormats(Observable):
+     """4.4 ListMetadataFormats
+ Summary and Usage Notes
+ 
+@@ -47,27 +49,45 @@
+     """
+ 
+     def __init__(self):
+-        OaiVerb.__init__(self, ['ListMetadataFormats'], {'identifier': 'optional'})
+         Observable.__init__(self)
+ 
+-    def listMetadataFormats(self, webrequest, **kwargs):
+-        self.startProcessing(webrequest)
+-        yield webrequest.generateResponse()
+-
+-    def preProcess(self, webRequest):
+-        metadataFormats = self.any.getAllMetadataFormats()
+-        if self._identifier:
+-            if not self.any.getUnique(self._identifier):
+-                return self.writeError(webRequest, 'idDoesNotExist')
+-            prefixes = set(self.any.getPrefixes(self._identifier))
+-            metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in prefixes]
+-        self.displayedMetadataFormats = sorted(metadataFormats)
+-
+-    def process(self, webRequest):
+-        for metadataPrefix, schema, metadataNamespace in self.displayedMetadataFormats:
+-            webRequest.write("""<metadataFormat>
+-                <metadataPrefix>%s</metadataPrefix>
+-                <schema>%s</schema>
+-                <metadataNamespace>%s</metadataNamespace>
+-            </metadataFormat>""" % (metadataPrefix, schema, metadataNamespace))
++    def listMetadataFormats(self, arguments, **httpkwargs):
++        verb = arguments.get('verb', [None])[0]
++        if not verb == 'ListMetadataFormats':
++            return
++
++        try:
++            validatedArguments = self._validateArguments(arguments)
++            metadataFormats = self.any.getAllMetadataFormats()
++            if 'identifier' in validatedArguments:
++                identifier = validatedArguments['identifier']
++                if not self.any.getUnique(identifier):
++                    raise OaiException('idDoesNotExist')
++                prefixes = set(self.any.getPrefixes(identifier))
++                metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in prefixes]
++            displayedMetadataFormats = sorted(metadataFormats)
++        except OaiException, e:
++            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
++            return
++
++        yield oaiHeader()
++        yield oaiRequestArgs(arguments, **httpkwargs)
++        yield '<%s>' % verb
++        for metadataPrefix, schema, metadataNamespace in displayedMetadataFormats:
++            yield '<metadataFormat>'
++            yield '<metadataPrefix>%s</metadataPrefix>' % xmlEscape(metadataPrefix)
++            yield '<schema>%s</schema>' % xmlEscape(schema)
++            yield '<metadataNamespace>%s</metadataNamespace>' % xmlEscape(metadataNamespace)
++            yield '</metadataFormat>'
++        yield '</%s>' % verb
++        yield oaiFooter()
++
++    def _validateArguments(self, arguments):
++        arguments = dict(arguments)
++        validatedArguments = {}
++        checkNoRepeatedArguments(arguments)
++        arguments.pop('verb')
++        checkArgument(arguments, 'identifier', validatedArguments)
++        checkNoMoreArguments(arguments)
++        return validatedArguments
+ 
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/meresco/oai/oailist.py version_3.4.4/meresco/oai/oailist.py
+--- version_3.4.3/meresco/oai/oailist.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/meresco/oai/oailist.py	2011-03-28 12:07:57.000000000 +0200
+@@ -31,12 +31,9 @@
+ 
+ from resumptiontoken import resumptionTokenFromString, ResumptionToken
+ from oaitool import ISO8601, ISO8601Exception
+-from oairecordverb import OaiRecordVerb
+ from itertools import chain, islice
+ from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+ from oaierror import oaiError
+-from xml.sax.saxutils import escape as xmlEscape
+-from meresco.core.generatorutils import decorate
+ 
+ 
+ class OaiList(Observable):
+@@ -90,12 +87,12 @@
+         self._batchSize = batchSize
+ 
+     def listRecords(self, arguments, **httpkwargs):
+-        yield self.doProcess(arguments, **httpkwargs)
++        yield self._doProcess(arguments, **httpkwargs)
+ 
+     def listIdentifiers(self, arguments, **httpkwargs):
+-        yield self.doProcess(arguments, **httpkwargs)
++        yield self._doProcess(arguments, **httpkwargs)
+ 
+-    def doProcess(self, arguments, **httpkwargs):
++    def _doProcess(self, arguments, **httpkwargs):
+         verb = arguments.get('verb', [None])[0]
+         if not verb in self._supportedVerbs:
+             return
+@@ -108,7 +105,7 @@
+ 
+         while True:
+             try:
+-                results = self.preProcess(validatedArguments, **httpkwargs)
++                results = self._preProcess(validatedArguments, **httpkwargs)
+                 break
+             except OaiException, e:
+                 if e.statusCode == "noRecordsMatch" and validatedArguments.get("x-wait", 'False') == 'True':
+@@ -120,7 +117,7 @@
+         yield oaiHeader()
+         yield oaiRequestArgs(arguments, **httpkwargs)
+         yield '<%s>' % verb
+-        yield self.process(verb, results, validatedArguments, **httpkwargs)
++        yield self._process(verb, results, validatedArguments, **httpkwargs)
+         yield '</%s>' % verb
+ 
+         yield oaiFooter()
+@@ -132,16 +129,17 @@
+         arguments.pop('verb')
+         checkArgument(arguments, 'x-wait', validatedArguments)
+         if checkArgument(arguments, 'resumptionToken', validatedArguments):
+-            checkNoMoreArguments(arguments, '"resumptionToken" argument may only be used exclusively.')
++            if len(arguments) > 0:
++                raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')
+         else:
+             if not checkArgument(arguments, 'metadataPrefix', validatedArguments):
+                 raise OaiBadArgumentException('Missing argument(s) "resumptionToken" or "metadataPrefix".')
+             for name in ['from', 'until', 'set']:
+                 checkArgument(arguments, name, validatedArguments)
+-            checkNoMoreArguments(arguments, 'Argument(s) ' + ', '.join('"%s"' % t for t in arguments.keys()) + ' is/are illegal.')
++            checkNoMoreArguments(arguments)
+         return validatedArguments
+ 
+-    def preProcess(self, validatedArguments, **httpkwargs):
++    def _preProcess(self, validatedArguments, **httpkwargs):
+         if validatedArguments.get('resumptionToken', None):
+             token = resumptionTokenFromString(validatedArguments['resumptionToken'])
+             if not token:
+@@ -163,13 +161,13 @@
+                 _until = _until and ISO8601(_until) 
+                 if _from and _until:
+                     if _from.isShort() != _until.isShort():
+-                        raise OaiBadArgumentException('from and/or until arguments must match in length')
++                        raise OaiBadArgumentException('From and/or until arguments must match in length.')
+                     if str(_from) > str(_until):
+-                        raise OaiBadArgumentException('from argument must be smaller than until argument')
++                        raise OaiBadArgumentException('From argument must be smaller than until argument.')
+                 _from = _from and _from.floor()
+                 _until = _until and _until.ceil()
+             except ISO8601Exception, e:
+-                raise OaiBadArgumentException('from and/or until arguments are faulty')
++                raise OaiBadArgumentException('From and/or until arguments are faulty.')
+ 
+         if not _metadataPrefix in set(self.any.getAllPrefixes()):
+             raise OaiException('cannotDisseminateFormat')
+@@ -190,16 +188,17 @@
+         except StopIteration:
+             raise OaiException('noRecordsMatch')
+ 
+-    def process(self, verb, results, validatedArguments, **httpkwargs):
+-        for id in islice(results, 0, self._batchSize):
+-            yield self.oaiRecord(validatedArguments, id, verb == "ListRecords")
++    def _process(self, verb, results, validatedArguments, **httpkwargs):
++        message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
++        for recordId in islice(results, 0, self._batchSize):
++            yield self.all.unknown(message, recordId=recordId, metadataPrefix=validatedArguments['metadataPrefix'])
+ 
+         try:
+             if not 'x-wait' in validatedArguments:
+                 results.next()
+             yield '<resumptionToken>%s</resumptionToken>' % ResumptionToken(
+                 validatedArguments['metadataPrefix'],
+-                self.any.getUnique(id),
++                self.any.getUnique(recordId),
+                 validatedArguments['from'],
+                 validatedArguments['until'],
+                 validatedArguments['set'])
+@@ -210,35 +209,3 @@
+         if 'resumptionToken' in validatedArguments:
+             yield '<resumptionToken/>'
+ 
+-    def oaiRecord(self, validatedArguments, recordId, writeBody=True):
+-        isDeletedStr = self.any.isDeleted(recordId) and ' status="deleted"' or ''
+-        datestamp = self.any.getDatestamp(recordId)
+-        setSpecs = self._getSetSpecs(recordId)
+-        if writeBody:
+-            yield '<record>'
+-
+-        yield """<header%s>
+-            <identifier>%s</identifier>
+-            <datestamp>%s</datestamp>
+-            %s
+-        </header>""" % (isDeletedStr, xmlEscape(recordId.encode('utf-8')), datestamp, setSpecs)
+-
+-        if writeBody and not isDeletedStr:
+-            yield '<metadata>'
+-            yield self.all.yieldRecord(recordId, validatedArguments['metadataPrefix'])
+-            yield '</metadata>'
+-
+-        if writeBody:
+-            provenance = self.all.provenance(recordId)
+-            for line in decorate('<about>', provenance, '</about>'):
+-                yield line
+-
+-        if writeBody:
+-            yield '</record>'
+-
+-    def _getSetSpecs(self, recordId):
+-        sets = self.any.getSets(recordId)
+-        if sets:
+-            return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in sets)
+-        return ''
+-
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/meresco/oai/oailistsets.py version_3.4.4/meresco/oai/oailistsets.py
+--- version_3.4.3/meresco/oai/oailistsets.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/meresco/oai/oailistsets.py	2011-03-28 12:07:57.000000000 +0200
+@@ -27,10 +27,11 @@
+ #
+ ## end license ##
+ 
+-from oairecordverb import OaiRecordVerb
++from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
++from oaierror import oaiError
+ from meresco.core.observable import Observable
+ 
+-class OaiListSets(OaiRecordVerb, Observable):
++class OaiListSets(Observable):
+     """4.6 ListSets
+ Summary and Usage Notes
+ 
+@@ -46,25 +47,43 @@
+     * noSetHierarchy - The repository does not support sets."""
+ 
+     def __init__(self):
+-        OaiRecordVerb.__init__(self, ['ListSets'], {'resumptionToken': 'exclusive'})
+         Observable.__init__(self)
+ 
+-    def listSets(self, webrequest, **kwargs):
+-        self.startProcessing(webrequest)
+-        yield webrequest.generateResponse()
+-
+-    def preProcess(self, webRequest):
+-        if self._resumptionToken:
+-            return self.writeError(webRequest, 'badResumptionToken')
+-
+-        self._queryResult = self.any.getAllSets()
+-        if len(self._queryResult) == 0:
+-            return self.writeError(webRequest, 'noSetHierarchy')
+-
+-    def process(self, webRequest):
+-
+-        webRequest.write(''.join('<set><setSpec>%s</setSpec><setName>set %s</setName></set>' % (setSpec, setSpec) for setSpec in self._queryResult))
+-
+-        if self._resumptionToken:
+-            webRequest.write('<resumptionToken/>')
+-
++    def listSets(self, arguments, **httpkwargs):
++        verb = arguments.get('verb', [None])[0]
++        if not verb == 'ListSets':
++            return
++
++        try:
++            validatedArguments = self._validateArguments(arguments)
++            if 'resumptionToken' in validatedArguments:
++                raise OaiException('badResumptionToken')
++
++            sets = self.any.getAllSets()
++            if len(sets) == 0:
++                raise OaiException('noSetHierarchy')
++        except OaiException, e:
++            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
++            return
++
++        yield oaiHeader()
++        yield oaiRequestArgs(arguments, **httpkwargs)
++        yield '<%s>' % verb
++        for setSpec in sets:
++            yield '<set>'
++            yield '<setSpec>%s</setSpec>' % setSpec
++            yield '<setName>set %s</setName>' % setSpec
++            yield '</set>'
++        yield '</%s>' % verb
++        yield oaiFooter()
++
++    def _validateArguments(self, arguments):
++        arguments = dict(arguments)
++        validatedArguments = {}
++        checkNoRepeatedArguments(arguments)
++        arguments.pop('verb')
++        if checkArgument(arguments, 'resumptionToken', validatedArguments):
++            if len(arguments) > 0:
++                raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')
++        checkNoMoreArguments(arguments)
++        return validatedArguments
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/meresco/oai/oaipmh.py version_3.4.4/meresco/oai/oaipmh.py
+--- version_3.4.3/meresco/oai/oaipmh.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/meresco/oai/oaipmh.py	2011-03-28 12:07:57.000000000 +0200
+@@ -37,17 +37,13 @@
+ from oailistsets import OaiListSets
+ from oaierror import OaiError
+ from oaiidentifierrename import OaiIdentifierRename
+-from webrequest import WebRequest
++from oairecord import OaiRecord
+ 
+ class OaiPmh(object):
+     def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=OaiList.DEFAULT_BATCH_SIZE):
+         outside = Transparant() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
+         self.addObserver = outside.addObserver
+         self.addStrand = outside.addStrand
+-        self._oldFashionedVerbs = [
+-                'GetRecord',
+-                'ListSets',
+-                'ListMetadataFormats']
+         self._internalObserverTree = be(
+             (Observable(),
+                 (OaiError(),
+@@ -55,10 +51,14 @@
+                         (outside,)
+                     ),
+                     (OaiList(batchSize=batchSize),
+-                        (outside,)
++                        (OaiRecord(),
++                            (outside,)
++                        )
+                     ),
+                     (OaiGetRecord(),
+-                        (outside,)
++                        (OaiRecord(),
++                            (outside,)
++                        )
+                     ),
+                     (OaiListMetadataFormats(),
+                         (outside,)
+@@ -72,9 +72,6 @@
+ 
+     def handleRequest(self, arguments, **kwargs):
+         verb = arguments.get('verb', [None])[0]
+-        message = verb and verb[0].lower() + verb[1:] or ''
+-        webrequest = None
+-        if verb in self._oldFashionedVerbs:
+-            webrequest = WebRequest(**kwargs)
+-        yield self._internalObserverTree.all.unknown(message, arguments=arguments, webrequest=webrequest, **kwargs)
++        message = verb[0].lower() + verb[1:] if verb else ''
++        yield self._internalObserverTree.all.unknown(message, arguments=arguments, **kwargs)
+ 
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/meresco/oai/oairecord.py version_3.4.4/meresco/oai/oairecord.py
+--- version_3.4.3/meresco/oai/oairecord.py	1970-01-01 01:00:00.000000000 +0100
++++ version_3.4.4/meresco/oai/oairecord.py	2011-03-28 12:07:57.000000000 +0200
+@@ -0,0 +1,65 @@
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2011 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++
++
++from meresco.core import Transparant
++from xml.sax.saxutils import escape as xmlEscape
++from meresco.core.generatorutils import decorate
++
++class OaiRecord(Transparant):
++    def _oaiRecordHeader(self, recordId, isDeleted):
++        isDeletedStr = ' status="deleted"' if isDeleted else ''
++        datestamp = self.any.getDatestamp(recordId)
++        yield '<header%s>' % isDeletedStr
++        yield '<identifier>%s</identifier>' % xmlEscape(recordId.encode('utf-8'))
++        yield '<datestamp>%s</datestamp>' % datestamp
++        yield self._getSetSpecs(recordId)
++        yield '</header>'
++
++    def oaiRecordHeader(self, recordId, **kwargs):
++        yield self._oaiRecordHeader(recordId, self.any.isDeleted(recordId))
++
++    def oaiRecord(self, recordId, metadataPrefix):
++        yield '<record>'
++        isDeleted = self.any.isDeleted(recordId)
++        yield self._oaiRecordHeader(recordId, isDeleted)
++
++        if not isDeleted:
++            yield '<metadata>'
++            yield self.all.yieldRecord(recordId, metadataPrefix)
++            yield '</metadata>'
++
++        provenance = self.all.provenance(recordId)
++        for line in decorate('<about>', provenance, '</about>'):
++            yield line
++
++        yield '</record>'
++
++    def _getSetSpecs(self, recordId):
++        sets = self.any.getSets(recordId)
++        if sets:
++            return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in sets)
++        return ''
++
+Only in version_3.4.3/meresco/oai: oairecordverb.py
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/meresco/oai/oaiutils.py version_3.4.4/meresco/oai/oaiutils.py
+--- version_3.4.3/meresco/oai/oaiutils.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/meresco/oai/oaiutils.py	2011-03-28 12:07:57.000000000 +0200
+@@ -77,9 +77,11 @@
+         if len(v) > 1:
+             raise OaiBadArgumentException('Argument "%s" may not be repeated.' % k)
+ 
+-def checkNoMoreArguments(arguments, message):
++def checkNoMoreArguments(arguments):
+     if len(arguments) > 0:
+-        raise OaiBadArgumentException(message)
++        raise OaiBadArgumentException('Argument(s) ' +\
++                ', '.join('"%s"' % t for t in arguments.keys()) +\
++                ' is/are illegal.')
+ 
+ def checkArgument(arguments, name, validatedArguments):
+     try:
+@@ -96,12 +98,10 @@
+             result.append(arg)
+     return result
+ 
+-OAIHEADER = """<?xml version="1.0" encoding="UTF-8"?>
+-<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
+-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/
+-         http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
+-"""
++OAIHEADER = '<?xml version="1.0" encoding="UTF-8"?>\n' +\
++    '<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" ' +\
++    'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +\
++    'xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">'
+ 
+ RESPONSE_DATE = """<responseDate>%s</responseDate>"""
+ 
+Only in version_3.4.3/meresco/oai: oaiverb.py
+Only in version_3.4.3/meresco/oai: webrequest.py
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/test/_alltests.py version_3.4.4/test/_alltests.py
+--- version_3.4.3/test/_alltests.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/test/_alltests.py	2011-03-28 12:07:57.000000000 +0200
+@@ -48,18 +48,12 @@
+ from fields2oairecordtest import Fields2OaiRecordTest
+ from oaiaddrecordtest import OaiAddRecordTest
+ from oaibrandingtest import OaiBrandingTest
+-from oaigetrecordtest import OaiGetRecordTest
+ from oaiharvestertest import OaiHarvesterTest
+-from oaiidentifytest import OaiIdentifyTest
+-from oaijazzimplementationstest import OaiJazzImplementationsTest
+ from oaijazztest import OaiJazzTest
+-from oailistmetadataformatstest import OaiListMetadataFormatsTest
+-from oailistsetstest import OaiListSetsTest
+ from oailisttest import OaiListTest
+-from oaipmhjazztest import OaiPmhJazzTest
+-from oaipmhtest import OaiPmhTest2
+ from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
+ from oaiprovenancetest import OaiProvenanceTest
++from oairecordtest import OaiRecordTest
+ from oaisetselecttest import OaiSetSelectTest
+ from oaisuspendtest import OaiSuspendTest
+ from oaitooltest import OaiToolTest
+Only in version_3.4.3/test: oaigetrecordtest.py
+Only in version_3.4.3/test: oaiidentifytest.py
+Only in version_3.4.3/test: oaijazzimplementationstest.py
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/test/oaijazztest.py version_3.4.4/test/oaijazztest.py
+--- version_3.4.3/test/oaijazztest.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/test/oaijazztest.py	2011-03-28 12:07:57.000000000 +0200
+@@ -35,11 +35,15 @@
+ from shutil import rmtree
+ from time import time, mktime, strptime, sleep
+ 
+-from meresco.oai import OaiJazz
++from meresco.oai import OaiJazz, OaiAddRecord
+ from meresco.oai.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATOR
++from meresco.oai.oailist import OaiList
+ from StringIO import StringIO
+ from lxml.etree import parse
+ from meresco.core import Observable, be, Transparant
++from weightless.core import compose
++
++parseLxml = lambda s: parse(StringIO(s)).getroot()
+ 
+ 
+ class OaiJazzTest(CQ2TestCase):
+@@ -52,6 +56,8 @@
+             self.stampNumber += 1
+             return result
+         self.jazz._stamp = stamp
++        self.oaiAddRecord = OaiAddRecord()
++        self.oaiAddRecord.addObserver(self.jazz)
+ 
+     def testOriginalStamp(self):
+         jazz = OaiJazz(self.tempdir)
+@@ -255,3 +261,227 @@
+             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
+         except AssertionError, e:
+             self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-oai/bin)" % self.tempdir, str(e))
++
++    def addDocuments(self, size):
++        for id in range(1,size+1):
++            self._addRecord(id)
++
++    def _addRecord(self, anId):
++        self.jazz.addOaiRecord('%05d' % anId, metadataFormats=[('oai_dc', 'dc.xsd', 'oai_dc.example.org')])
++
++    def testAddDocument(self):
++        self.addDocuments(1)
++        result = self.jazz.oaiSelect(prefix='oai_dc')
++        self.assertEquals(['00001'], list(result))
++
++    def testListRecords(self):
++        #BooleanQuery.setMaxClauseCount(10) # Cause an early TooManyClauses exception.
++        self.addDocuments(50)
++        result = self.jazz.oaiSelect(prefix='oai_dc')
++        self.assertEquals('00001', result.next())
++        result = self.jazz.oaiSelect(prefix='oai_dc', continueAfter=str(self.jazz.getUnique('00001')))
++        self.assertEquals('00002', result.next())
++
++    def testAddOaiRecordWithNoMetadataFormats(self):
++        try:
++            self.jazz.addOaiRecord('identifier', sets=[('setSpec', 'setName')], metadataFormats=[])
++            self.fail()
++        except Exception, e:
++            self.assertTrue('metadataFormat' in str(e))
++
++    def testGetFromMultipleSets(self):
++        self.jazz.addOaiRecord('id1', sets=[('set1', 'set1name')], metadataFormats=[('prefix','schema', 'namespace')])
++        self.jazz.addOaiRecord('id2', sets=[('set2', 'set2name')], metadataFormats=[('prefix','schema', 'namespace')])
++        self.jazz.addOaiRecord('id3', sets=[('set3', 'set1name')], metadataFormats=[('prefix','schema', 'namespace')])
++        self.assertEquals(['id1','id2'], list(self.jazz.oaiSelect(sets=['set1','set2'], prefix='prefix')))
++
++    def testListRecordsNoResults(self):
++        result = self.jazz.oaiSelect(prefix='xxx')
++        self.assertEquals([], list(result))
++    
++    def testAddSetInfo(self):
++        header = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>%s</setSpec></header>'
++        self.oaiAddRecord.add('123', 'oai_dc', parseLxml(header % 1))
++        self.oaiAddRecord.add('124', 'oai_dc', parseLxml(header % 2))
++        results = self.jazz.oaiSelect(sets=['1'], prefix='oai_dc')
++        self.assertEquals(1, len(list(results)))
++        results = self.jazz.oaiSelect(sets=['2'], prefix='oai_dc')
++        self.assertEquals(1, len(list(results)))
++        results = self.jazz.oaiSelect(prefix='oai_dc')
++        self.assertEquals(2, len(list(results)))
++
++    def testGetAndAllSets(self):
++        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix1', 'schema', 'namespace')], sets=[('setSpec1', 'setName1')])
++        self.assertEquals(set(['setSpec1']), set(self.jazz.getSets('id:1')))
++        self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix1', 'schema', 'namespace')], sets=[('setSpec1', 'setName1'), ('setSpec2:setSpec3', 'setName23')])
++        self.assertEquals(set(['setSpec1']), set(self.jazz.getSets('id:1')))
++        self.assertEquals(set(['setSpec1', 'setSpec2', 'setSpec2:setSpec3']), set(self.jazz.getSets('id:2')))
++        self.assertEquals(set([]), set(self.jazz.getSets('doesNotExist')))
++        self.assertEquals(set(['setSpec1', 'setSpec2', 'setSpec2:setSpec3']), set(self.jazz.getAllSets()))
++
++    def testHierarchicalSets(self):
++        self.jazz.addOaiRecord('record123', metadataFormats=[('oai_dc', 'schema', 'namespace')], sets=[('set1:set2:set3', 'setName123')])
++        self.jazz.addOaiRecord('record124', metadataFormats=[('oai_dc', 'schema', 'namespace')], sets=[('set1:set2:set4', 'setName124')])
++        
++        self.assertEquals(['record123', 'record124'], list(self.jazz.oaiSelect(prefix='oai_dc', sets=['set1'])))
++        self.assertEquals(['record123', 'record124'], list(self.jazz.oaiSelect(prefix='oai_dc', sets=['set1:set2'])))
++        self.assertEquals(['record123'], list(self.jazz.oaiSelect(prefix='oai_dc', sets=['set1:set2:set3'])))
++
++    def testAddOaiRecordPrefixOnly(self):
++        self.jazz.addOaiRecord(identifier='oai://1234?34', sets=[], metadataFormats=[('prefix', 'schema', 'namespace')])
++        
++        recordIds = self.jazz.oaiSelect(prefix='prefix')
++        self.assertEquals(['oai://1234?34'], list(recordIds))
++
++    def testAddOaiRecord(self):
++        self.jazz.addOaiRecord('identifier', sets=[('setSpec', 'setName')], metadataFormats=[('prefix','schema', 'namespace')])
++        self.assertEquals(['identifier'], list(self.jazz.oaiSelect(prefix='prefix')))
++        self.assertEquals(['identifier'], list(self.jazz.oaiSelect(sets=['setSpec'],prefix='prefix')))
++        self.assertEquals([], list(self.jazz.oaiSelect(sets=['unknown'],prefix='prefix')))
++    
++    def testAddOaiRecordWithNoSets(self):
++        self.jazz.addOaiRecord('id1', sets=[], metadataFormats=[('prefix','schema', 'namespace')])
++        self.jazz.addOaiRecord('id2', sets=[], metadataFormats=[('prefix','schema', 'namespace')])
++        self.assertEquals(['id1', 'id2'], list(self.jazz.oaiSelect(prefix='prefix')))
++
++    def testUpdateOaiRecord(self):
++        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
++        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
++        result = self.jazz.oaiSelect(prefix='prefix')
++        self.assertEquals(['id:1'],list(result))
++
++    def testUpdateOaiRecordSet(self):
++        self.jazz.addOaiRecord('id:1', sets=[('setSpec1', 'setName1')], metadataFormats=[('prefix', 'schema', 'namespace')])
++        
++        result = self.jazz.oaiSelect(prefix='prefix', sets=['setSpec1'])
++        self.assertEquals(1, len(list(result)))
++
++        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
++        
++        result = self.jazz.oaiSelect(prefix='prefix')
++        self.assertEquals(['id:1'],list(result))
++        
++        result = self.jazz.oaiSelect(prefix='prefix', sets=['setSpec1'])
++        self.assertEquals(['id:1'], list(result))
++
++    def testAddPartWithUniqueNumbersAndSorting(self):
++        self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<oai_dc/>'))
++        self.oaiAddRecord.add('124', 'lom', parseLxml('<lom/>'))
++        self.oaiAddRecord.add('121', 'lom', parseLxml('<lom/>'))
++        self.oaiAddRecord.add('122', 'lom', parseLxml('<lom/>'))
++        results = self.jazz.oaiSelect(prefix='oai_dc')
++        self.assertEquals(1, len(list(results)))
++        results = self.jazz.oaiSelect(prefix='lom')
++        self.assertEquals(['124', '121','122'], list(results))
++    
++    def testAddOaiRecordWithUniqueNumbersAndSorting(self):
++        self.jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
++        self.jazz.addOaiRecord('124', metadataFormats=[('lom', 'schema', 'namespace')])
++        self.jazz.addOaiRecord('121', metadataFormats=[('lom', 'schema', 'namespace')])
++        self.jazz.addOaiRecord('122', metadataFormats=[('lom', 'schema', 'namespace')])
++        results = self.jazz.oaiSelect(prefix='oai_dc')
++        self.assertEquals(['123'], list(results))
++        results =self.jazz.oaiSelect(prefix='lom')
++        self.assertEquals(['124', '121','122'], list(results))
++
++    def testGetDatestampNotExisting(self):
++        self.assertEquals(None, self.jazz.getDatestamp('doesNotExist'))
++
++    def testDelete(self):
++        self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
++        self.assertFalse(self.jazz.isDeleted('42'))
++        self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
++        self.jazz.delete('42')
++        self.assertTrue(self.jazz.isDeleted('42'))
++        self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
++
++    def testDeleteKeepsSetsAndPrefixes(self):
++        self.jazz.addOaiRecord('42', sets=[('setSpec1', 'setName1'),('setSpec2', 'setName2')], metadataFormats=[('prefix1','schema', 'namespace'), ('prefix2','schema', 'namespace')])
++        self.jazz.delete('42')
++        self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix1')))
++        self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix2')))
++        self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix1', sets=['setSpec1'])))
++        self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix1', sets=['setSpec2'])))
++        self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix2', sets=['setSpec2'])))
++        self.assertTrue(self.jazz.isDeleted('42'))
++    
++    def testDeleteAndReadd(self):
++        self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
++        self.jazz.delete('42')
++        self.assertTrue(self.jazz.isDeleted('42'))
++        self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
++        self.assertFalse(self.jazz.isDeleted('42'))
++
++        self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
++        
++    def testListRecordsWithFromAndUntil(self):
++        def setTime(year, month, day):
++            self.jazz._stamp = lambda: int(mktime((year, month, day, 0, 1, 0, 0, 0 ,0))*1000000.0)
++        setTime(2007, 9, 21)
++        self.jazz.addOaiRecord('4', metadataFormats=[('prefix','schema', 'namespace')])
++        setTime(2007, 9, 22)
++        self.jazz.addOaiRecord('3', metadataFormats=[('prefix','schema', 'namespace')])
++        setTime(2007, 9, 23)
++        self.jazz.addOaiRecord('2', metadataFormats=[('prefix','schema', 'namespace')])
++        setTime(2007, 9, 24)
++        self.jazz.addOaiRecord('1', metadataFormats=[('prefix','schema', 'namespace')])
++        
++        result = self.jazz.oaiSelect(prefix='prefix', oaiFrom="2007-09-22T00:00:00Z")
++        self.assertEquals(3, len(list(result)))
++        result = self.jazz.oaiSelect(prefix='prefix', oaiFrom="2007-09-22T00:00:00Z", oaiUntil="2007-09-23T23:59:59Z")
++        self.assertEquals(2, len(list(result)))
++
++    def testOaiSelectWithContinuAt(self):
++        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
++        self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix', 'schema', 'namespace')])
++        
++        continueAfter = str(self.jazz.getUnique('id:1'))
++        self.assertEquals(['id:2'], list(self.jazz.oaiSelect(prefix='prefix', continueAfter=continueAfter)))
++
++        #add again will change the unique value
++        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
++        self.assertEquals(['id:2', 'id:1'], list(self.jazz.oaiSelect(prefix='prefix', continueAfter=continueAfter)))
++        
++    def testGetAllMetadataFormats(self):
++        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
++        self.assertEquals([('prefix', 'schema', 'namespace')], list(self.jazz.getAllMetadataFormats()))
++        self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix2', 'schema2', 'namespace2')])
++        self.assertEquals(set([('prefix', 'schema', 'namespace'), ('prefix2', 'schema2', 'namespace2')]), set(self.jazz.getAllMetadataFormats()))
++
++    def testGetAndAllPrefixes(self):
++        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix1', 'schema', 'namespace')])
++        self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix1', 'schema', 'namespace'), ('prefix2', 'schema', 'namespace')])
++        self.assertEquals(set(['prefix1', 'prefix2']), set(self.jazz.getAllPrefixes()))
++        self.assertEquals(set(['prefix1']), set(self.jazz.getPrefixes('id:1')))
++        self.assertEquals(set(['prefix1', 'prefix2']) , set(self.jazz.getPrefixes('id:2')))
++        self.assertEquals(set([]), set(self.jazz.getPrefixes('doesNotExist')))
++
++    def testPreserveRicherPrefixInfo(self):
++        self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
++             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))
++        self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc/>'))
++        metadataFormats = set(self.jazz.getAllMetadataFormats())
++        self.assertEquals(set([('oai_dc', 'http://oai_dc/dc.xsd', 'http://oai_dc')]), metadataFormats)
++
++    def testIncompletePrefixInfo(self):
++        self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc/>'))
++        metadataFormats = set(self.jazz.getAllMetadataFormats())
++        self.assertEquals(set([('dc2', '', '')]), metadataFormats)
++
++    def testMetadataPrefixesOnly(self):
++        self.oaiAddRecord.add('456', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
++             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))
++        prefixes = set(self.jazz.getAllPrefixes())
++        self.assertEquals(set(['oai_dc']), prefixes)
++        self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))
++        prefixes = set(self.jazz.getAllPrefixes())
++        self.assertEquals(set(['oai_dc', 'dc2']), prefixes)
++        
++    def testGetPrefixes(self):
++        self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<dc/>'))
++        self.oaiAddRecord.add('123', 'lom', parseLxml('<lom/>'))
++        parts = set(self.jazz.getPrefixes('123'))
++        self.assertEquals(set(['oai_dc', 'lom']), parts)
++        self.assertEquals(['123'], list(self.jazz.oaiSelect(prefix='lom')))
++        self.assertEquals(['123'], list(self.jazz.oaiSelect(prefix='oai_dc')))
++
+Only in version_3.4.3/test: oailistmetadataformatstest.py
+Only in version_3.4.3/test: oailistsetstest.py
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/test/oailisttest.py version_3.4.4/test/oailisttest.py
+--- version_3.4.3/test/oailisttest.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/test/oailisttest.py	2011-03-28 12:07:57.000000000 +0200
+@@ -31,7 +31,7 @@
+ from StringIO import StringIO
+ 
+ from amara.binderytools import bind_string
+-from cq2utils.calltrace import CallTrace
++from cq2utils import CQ2TestCase, CallTrace
+ from itertools import imap
+ 
+ from mockoaijazz import MockOaiJazz
+@@ -39,298 +39,197 @@
+ from meresco.components.http.utils import CRLF
+ from meresco.core import ObserverFunction
+ from meresco.oai.oailist import OaiList
++from meresco.oai.oairecord import OaiRecord
+ from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionToken
+ 
+-from oaitestcase import OaiTestCase
+ from meresco.oai.oaiutils import OaiException
++from meresco.oai.oaijazz import WrapIterable
+ 
+ from weightless.core import compose
++from xml.sax.saxutils import escape as escapeXml
+ 
+-class OaiListTest(OaiTestCase):
+-    def getSubject(self):
+-        oailist = OaiList()
+-        oailist.addObserver(ObserverFunction(lambda: ['oai_dc'], 'getAllPrefixes'))
+-        return oailist
+-
+-    def testListRecordsUsingMetadataPrefix(self):
+-        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+-
+-        mockoaijazz = MockOaiJazz(
+-            selectAnswer=['id_0&0', 'id_1&1'],
+-            selectTotal=2,
+-            isAvailableDefault=(True,True),
+-            isAvailableAnswer=[
+-                (None, 'oai_dc', (True,False)),
+-                (None, '__tombstone__', (True, False))])
+-        self.subject.addObserver(mockoaijazz)
+-        
+-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-        self.assertTrue("""<identifier>id_0&amp;0</identifier>""" in body, body)
+-        self.assertTrue("""<identifier>id_1&amp;1</identifier>""" in body, body)
+-        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="id_0&amp;0"/>""" in body, body)
+-        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="id_1&amp;1"/>""" in body, body)
+-        self.assertTrue(body.find('<resumptionToken') == -1)
+-        self.assertFalse(mockoaijazz.oaiSelectArguments[0])
+-
+-    def testListRecordsUsingXWait(self):
+-        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}
+-        calltrace = CallTrace("oaisuspend", ignoredAttributes=['oaiSelect', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'yieldRecord', 'provenance'])
++class OaiListTest(CQ2TestCase):
++    def setUp(self):
++        CQ2TestCase.setUp(self)
++        self.oaiList = OaiList(batchSize=2)
++        self.observer = CallTrace('observer')
++        self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
++        self.observer.returnValues['oaiSelect'] = (f for f in [])
++        def oaiRecord(recordId, metadataPrefix):
++            return '<mock:record xmlns:mock="uri:mock">%s/%s</mock:record>' % (escapeXml(recordId), escapeXml(metadataPrefix))
++        self.observer.methods['oaiRecord'] = oaiRecord
++        self.observer.methods['oaiRecordHeader'] = oaiRecord
++        self.oaiList.addObserver(self.observer)
++        self.httpkwargs = {
++            'path': '/path/to/oai',
++            'Headers':{'Host':'server'},
++            'port':9000,
++        }
++
++    def testListRecords(self):
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:0&0', 'id:1&1'])
++
++        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))).split(CRLF*2)
++        oai = parse(StringIO(body))
++
++        self.assertEquals(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
++        self.assertEquals(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken')))
++        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiRecord', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
++        selectMethod = self.observer.calledMethods[1]
++        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
++        recordMethods = self.observer.calledMethods[2:]
++        self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, recordMethods[0].kwargs)
++        self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, recordMethods[1].kwargs)
+ 
+-        self.subject.addObserver(calltrace)
+-        mockoaijazz = MockOaiJazz()
+-        mockoaijazz._selectAnswer = []
+-        self.subject.addObserver(mockoaijazz)
+-       
+-        result = self.observable.all.listRecords(self.request.args, **self.request.kwargs)
+-        suspend = result.next()
+-        mockoaijazz._selectAnswer=['RESULT']
+-        result = ''.join(compose(result))
+-        body = result.split(CRLF*2)[-1]
+-        self.assertTrue("""<some:recorddata xmlns:some="http://some.example.org" id="RESULT"/>""" in body, body)
+-        self.assertTrue('<resumptionToken' in body, body)
+-
+-    def testListRecordsWithoutProvenance(self):
+-        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+-
+-        self.subject.addObserver(MockOaiJazz(
+-            selectAnswer=['id_0&0', 'id_1&1'],
+-            isAvailableDefault=(True,True),
+-            isAvailableAnswer=[
+-                (None, 'oai_dc', (True,False)),
+-                (None, '__tombstone__', (True, False))]))
+-
+-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-        self.assertFalse('<about' in body)
+-
+-    def testListRecordsWithProvenance(self):
+-        class MockOaiProvenance(object):
+-            def provenance(inner, id):
+-                yield "PROVENANCE"
+-
+-        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+-
+-        self.subject.addObserver(MockOaiProvenance())
+-        self.subject.addObserver(MockOaiJazz(
+-            selectAnswer=['id_0&0', 'id_1&1'],
+-            isAvailableDefault=(True,True),
+-            isAvailableAnswer=[
+-                (None, 'oai_dc', (True,False)),
+-                (None, '__tombstone__', (True, False))]))
+-
+-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-        self.assertTrue('<about>PROVENANCE</about>' in body, body)
+-
+-    def testListRecordsUsingToken(self):
+-        self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '10', 'FROM', 'UNTIL', 'SET'))]}
+-
+-        observer = CallTrace('RecordAnswering')
+-        def oaiSelect(sets, prefix, continueAfter, oaiFrom, oaiUntil):
+-            self.assertEquals('SET', sets[0])
+-            self.assertEquals('oai_dc', prefix)
+-            self.assertEquals('10', continueAfter)
+-            self.assertEquals('FROM', oaiFrom)
+-            self.assertEquals('UNTIL', oaiUntil)
+-            return (f for f in [])
+-
+-        observer.oaiSelect = oaiSelect
+-        self.subject.addObserver(observer)
+-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-
+-    def testResumptionTokensAreProduced(self):
+-        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2000-12-31T00:00:00Z'], 'set': ['SET']}
+-        observer = CallTrace('RecordAnswering')
+-        def oaiSelect(sets, prefix, continueAfter, oaiFrom, oaiUntil):
+-            return imap(lambda i: 'id_%i' % i, xrange(999999))
+-        def writeRecord(*args, **kwargs):
+-            pass
+-        def provenance(*args, **kwargs):
+-            yield ""
+-        def yieldRecord(*args, **kwargs):
+-            yield ""
+-        observer.oaiSelect = oaiSelect
+-        observer.provenance = provenance
+-        observer.yieldRecord = yieldRecord
+-        observer.getUnique = lambda x: 'UNIQUE_FOR_TEST'
+-        self.subject.addObserver(observer)
+-        self.subject.writeRecord = writeRecord
+-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-        self.assertTrue(body.find("<resumptionToken>") > -1)
+-        xml = bind_string(body).OAI_PMH.ListRecords.resumptionToken
+-        resumptionToken = resumptionTokenFromString(str(xml))
+-        self.assertEquals('UNIQUE_FOR_TEST', resumptionToken._continueAfter)
+-        self.assertEquals('oai_dc', resumptionToken._metadataPrefix)
+-        self.assertEquals('2000-01-01T00:00:00Z', resumptionToken._from)
+-        self.assertEquals('2000-12-31T00:00:00Z', resumptionToken._until)
+-        self.assertEquals('SET', resumptionToken._set)
+-
+-    def testFinalResumptionToken(self):
+-        self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '200'))]}
+-
+-        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(OaiList.DEFAULT_BATCH_SIZE)), selectTotal=OaiList.DEFAULT_BATCH_SIZE))
+-        self.subject.writeRecord = lambda *args, **kwargs: None
+-
+-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-
+-        self.assertTrue(body.find("<resumptionToken") > -1)
+-        self.assertEquals('', str(bind_string(body).OAI_PMH.ListRecords.resumptionToken))
+-
+-    def testNoEmptyFinalResumptionTokenUsingXWait(self):
+-        self.request.args = {'verb':['ListRecords'], 'resumptionToken': [str(ResumptionToken('oai_dc', '200'))], 'x-wait': ['True']}
+-
+-        self.subject.addObserver(MockOaiJazz(selectAnswer=map(lambda i: 'id_%i' % i, range(OaiList.DEFAULT_BATCH_SIZE)), selectTotal=OaiList.DEFAULT_BATCH_SIZE))
+-        self.subject.writeRecord = lambda *args, **kwargs: None
+-
+-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-
+-        self.assertTrue("<resumptionToken" in body, body)
+-        self.assertEquals('u|cUnique for test|moai_dc|s|f', str(bind_string(body).OAI_PMH.ListRecords.resumptionToken))
+-
+-    def testDeletedTombstones(self):
+-        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+-
+-        self.subject.addObserver(MockOaiJazz(
+-            selectAnswer=['id_0', 'id_1'],
+-            deleted=['id_1'],
+-            isAvailableDefault=(True,False),
+-            selectTotal = 2))
+-
+-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-        self.assertTrue("""<header>
+-            <identifier>id_0</identifier>""" in body, body)
+-        self.assertTrue("""<header status="deleted">
+-            <identifier>id_1</identifier>""" in body, body)
+-
+-        self.assertTrue(self.stream.getvalue().find('<resumptionToken') == -1)
++    def testListIdentifiers(self):
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:0&0', 'id:1&1'])
+ 
+-    def testFromAndUntil(self):
+-        observer = MockOaiJazz(
+-            selectAnswer=['id_0', 'id_1'],
+-            isAvailableDefault=(True, False),
+-            isAvailableAnswer=[("id_1", "__tombstone__", (True, True))])
++        header, body = ''.join(compose(self.oaiList.listIdentifiers(arguments={'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))).split(CRLF*2)
++        oai = parse(StringIO(body))
+ 
+-        self.subject.addObserver(observer)
++        self.assertEquals(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListIdentifiers/mock:record')))
++        self.assertEquals(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken')))
++        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiRecordHeader', 'oaiRecordHeader'], [m.name for m in self.observer.calledMethods])
++        selectMethod = self.observer.calledMethods[1]
++        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
++        headerMethods = self.observer.calledMethods[2:]
++        self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, headerMethods[0].kwargs)
++        self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, headerMethods[1].kwargs)
++
++    def testListRecordsProducesResumptionToken(self):
++        self.observer.returnValues['getUnique'] = 'unique_for_id'
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:0&0', 'id:1&1', 'id:2&2'])
++
++        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2012-01-01T00:00:00Z'], 'set': ['set0']}, **self.httpkwargs))).split(CRLF*2)
++        oai = parse(StringIO(body))
++
++        self.assertEquals(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
++        resumptionToken = xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')
++        self.assertEquals(['u2012-01-01T00:00:00Z|cunique_for_id|moai_dc|sset0|f2000-01-01T00:00:00Z'], resumptionToken)
++        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiRecord', 'oaiRecord', 'getUnique'], [m.name for m in self.observer.calledMethods])
++        selectMethod = self.observer.calledMethods[1]
++        self.assertEquals({'continueAfter':'0', 'oaiUntil':'2012-01-01T00:00:00Z', 'prefix':'oai_dc', 'oaiFrom':'2000-01-01T00:00:00Z', 'sets':['set0']}, selectMethod.kwargs)
++        recordMethods = self.observer.calledMethods[2:]
++        self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, recordMethods[0].kwargs)
++        self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, recordMethods[1].kwargs)
++
++    def testListRecordsWithResumptionToken(self):
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:2&2'])
++
++        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken':['u2012-01-01T00:00:00Z|cunique_for_id|moai_dc|sset0|f2000-01-01T00:00:00Z']}, **self.httpkwargs))).split(CRLF*2)
++        oai = parse(StringIO(body))
++
++        self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
++        self.assertEquals(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken')))
++        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
++        selectMethod = self.observer.calledMethods[1]
++        self.assertEquals({'continueAfter':'unique_for_id', 'oaiUntil':'2012-01-01T00:00:00Z', 'prefix':'oai_dc', 'oaiFrom':'2000-01-01T00:00:00Z', 'sets':['set0']}, selectMethod.kwargs)
++        recordMethods = self.observer.calledMethods[2:]
++        self.assertEquals({'recordId':'id:2&2', 'metadataPrefix':'oai_dc'}, recordMethods[0].kwargs)
++
++    def testListRecordsEmptyFinalResumptionToken(self):
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:2&2', 'id:3&3'])
++
++        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken':['u2012-01-01T00:00:00Z|cunique_for_id|moai_dc|sset0|f2000-01-01T00:00:00Z']}, **self.httpkwargs))).split(CRLF*2)
++        oai = parse(StringIO(body))
++
++        self.assertEquals(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
++        resumptionTokens = xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken')
++        self.assertEquals(1, len(resumptionTokens))
++        self.assertEquals(None, resumptionTokens[0].text)
++        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiRecord', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
++        selectMethod = self.observer.calledMethods[1]
++        self.assertEquals({'continueAfter':'unique_for_id', 'oaiUntil':'2012-01-01T00:00:00Z', 'prefix':'oai_dc', 'oaiFrom':'2000-01-01T00:00:00Z', 'sets':['set0']}, selectMethod.kwargs)
++        recordMethods = self.observer.calledMethods[2:]
++        self.assertEquals({'recordId':'id:2&2', 'metadataPrefix':'oai_dc'}, recordMethods[0].kwargs)
++        self.assertEquals({'recordId':'id:3&3', 'metadataPrefix':'oai_dc'}, recordMethods[1].kwargs)
+ 
+-        def doIt(oaiFrom, oaiUntil):
+-            self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+-            if oaiFrom:
+-                self.request.args['from'] = [oaiFrom]
+-            if oaiUntil:
+-                self.request.args['until'] = [oaiUntil]
+-            result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-            self.body = result.split(CRLF*2)[-1]
+-            return [observer.oaiSelectArguments[3], observer.oaiSelectArguments[4]]
+-
+-        def right(oaiFrom, oaiUntil, expectedFrom = None, expectedUntil = None):
+-            expectedFrom = expectedFrom or oaiFrom
+-            expectedUntil = expectedUntil or oaiUntil
+-            resultingOaiFrom, resultingOaiUntil = doIt(oaiFrom, oaiUntil)
+-            self.assertEquals(expectedFrom, resultingOaiFrom)
+-            self.assertEquals(expectedUntil, resultingOaiUntil)
+-            self.assertTrue(not "<error" in self.body, self.body)
+-
+-        def wrong(oaiFrom, oaiUntil):
+-            doIt(oaiFrom, oaiUntil)
+-            self.assertTrue("""<error code="badArgument">""" in self.body)
+-
+-        #start reading here
+-        right(None, None)
+-        right('2000-01-01T00:00:00Z', '2000-01-01T00:00:00Z')
+-        right('2000-01-01', '2000-01-01', '2000-01-01T00:00:00Z', '2000-01-01T23:59:59Z')
+-        right(None, '2000-01-01T00:00:00Z')
+-        right('2000-01-01T00:00:00Z', None)
+-        wrong('thisIsNotEvenADateStamp', 'thisIsNotEvenADateStamp')
+-        wrong('2000-01-01T00:00:00Z', '2000-01-01')
+-        wrong('2000-01-01T00:00:00Z', '1999-01-01T00:00:00Z')
++    def testNoRecordsMatch(self):
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in [])
++        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix':['oai_dc']}, **self.httpkwargs))).split(CRLF*2)
++        oai = parse(StringIO(body))
+ 
+-    def testListIdentifiers(self):
+-        self.request.args = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
++        self.assertEquals(['noRecordsMatch'], xpath(oai, "/oai:OAI-PMH/oai:error/@code"))
+ 
+-        self.subject.addObserver(MockOaiJazz(
+-            selectAnswer=['id_0'],
+-            isAvailableDefault=(True,False),
+-            isAvailableAnswer=[(None, 'oai_dc', (True,True))],
+-            selectTotal=1))
+-        result = ''.join(compose(self.observable.all.listIdentifiers(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-
+-        self.assertTrue("""<request metadataPrefix="oai_dc"
+- verb="ListIdentifiers">http://server:9000/path/to/oai</request>
+- <ListIdentifiers>
+-    <header>
+-      <identifier>id_0</identifier>
+-      <datestamp>DATESTAMP_FOR_TEST</datestamp>
+-    </header>
+- </ListIdentifiers>""", body)
+-
+-    def testListIdentifiersWithProvenance(self):
+-        class MockOaiProvenance(object):
+-            def provenance(inner, id):
+-                yield "PROVENANCE"
+-        self.request.args = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
+-
+-        self.subject.addObserver(MockOaiJazz(
+-            selectAnswer=['id_0'],
+-            isAvailableDefault=(True,False),
+-            isAvailableAnswer=[(None, 'oai_dc', (True,True))],
+-            selectTotal=1))
+-        self.subject.addObserver(MockOaiProvenance())
+-        result = ''.join(compose(self.observable.all.listIdentifiers(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-        self.assertFalse('<about>PROVENANCE</about>' in body, body)
++    def testListRecordsUsingXWait(self):
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in [])
+ 
+-    def testNoRecordsMatch(self):
+-        self.request.args = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
++        result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
++        suspend = result.next()
++        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'suspend'], [m.name for m in self.observer.calledMethods])
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1&1'])
++        del self.observer.calledMethods[:]
++
++        header, body = ''.join(compose(result)).split(CRLF*2)
++        oai = parse(StringIO(body))
++
++        self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
++        self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
++        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiRecord', 'getUnique'], [m.name for m in self.observer.calledMethods])
++        selectMethod = self.observer.calledMethods[1]
++        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
++        recordMethods = self.observer.calledMethods[2:]
++        self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, recordMethods[0].kwargs)
+ 
+-        self.subject.addObserver(MockOaiJazz(selectTotal = 0))
+-        result = ''.join(compose(self.observable.all.listIdentifiers(self.request.args, **self.request.kwargs)))
+-        body = result.split(CRLF*2)[-1]
+-        self.assertTrue(body.find("noRecordsMatch") > -1)
+-
+-    def testSetsInHeader(self):
+-        self.request.args = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+-
+-        self.subject.addObserver(MockOaiJazz(
+-            selectAnswer=['id_0&0', 'id_1&1'],
+-            setsAnswer=['one:two:three', 'one:two:four'],
+-            isAvailableDefault=(True,False),
+-            isAvailableAnswer=[
+-                (None, 'oai_dc', (True, True)),
+-                (None, '__sets__', (True, True))]))
+-        result = ''.join(compose(self.observable.all.listRecords(self.request.args, **self.request.kwargs)))
+-        
+-        self.assertTrue("<setSpec>one:two:three</setSpec>" in result)
+-        self.assertTrue("<setSpec>one:two:four</setSpec>" in result)
++    def testFromAndUntil(self):
++        def selectArguments(oaiFrom, oaiUntil):
++            self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:3&3'])
++            del self.observer.calledMethods[:]
++            arguments = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
++            if oaiFrom:
++                arguments['from'] = [oaiFrom]
++            if oaiUntil:
++                arguments['until'] = [oaiUntil]
++            header, body = ''.join(compose(self.oaiList.listRecords(arguments=arguments, **self.httpkwargs))).split(CRLF*2)
++            oai = parse(StringIO(body))
++            self.assertEquals(0, len(xpath(oai, '//oai:error')), body)
++            self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
++            selectKwargs = self.observer.calledMethods[1].kwargs
++            return selectKwargs['oaiFrom'], selectKwargs['oaiUntil']
++
++        self.assertEquals((None, None), selectArguments(None, None))
++        self.assertEquals(('2000-01-01T00:00:00Z', '2000-01-01T00:00:00Z'), selectArguments('2000-01-01T00:00:00Z', '2000-01-01T00:00:00Z'))
++        self.assertEquals(('2000-01-01T00:00:00Z', '2000-01-01T23:59:59Z'), selectArguments('2000-01-01', '2000-01-01'))
++        self.assertEquals((None, '2000-01-01T00:00:00Z'), selectArguments(None, '2000-01-01T00:00:00Z'))
++        self.assertEquals(('2000-01-01T00:00:00Z', None), selectArguments('2000-01-01T00:00:00Z', None))
++
++    def testFromAndUntilErrors(self):
++        def getError(oaiFrom, oaiUntil):
++            self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:3&3'])
++            del self.observer.calledMethods[:]
++            arguments = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
++            if oaiFrom:
++                arguments['from'] = [oaiFrom]
++            if oaiUntil:
++                arguments['until'] = [oaiUntil]
++            header, body = ''.join(compose(self.oaiList.listRecords(arguments=arguments, **self.httpkwargs))).split(CRLF*2)
++            oai = parse(StringIO(body))
++            self.assertEquals(1, len(xpath(oai, '//oai:error')), body)
++            error = xpath(oai, '//oai:error')[0]
++            return error.attrib['code']
++
++        self.assertEquals('badArgument', getError('thisIsNotEvenADateStamp', 'thisIsNotEvenADateStamp'))
++        self.assertEquals('badArgument', getError('2000-01-01T00:00:00Z', '2000-01-01'))
++        self.assertEquals('badArgument', getError('2000-01-01T00:00:00Z', '1999-01-01T00:00:00Z'))
+ 
+     def testConcurrentListRequestsDontInterfere(self):
+-        httpArguments = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}
+-        kwargs = self.request.kwargs
+-        calltrace = CallTrace("oaisuspend", ignoredAttributes=['oaiSelect', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'yieldRecord', 'provenance'])
+-
+-        self.subject.addObserver(calltrace)
+-        mockoaijazz = MockOaiJazz()
+-        mockoaijazz._selectAnswer = []
+-        self.subject.addObserver(mockoaijazz)
+-       
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in [])
++
+         # ListRecords request
+-        resultListRecords = self.observable.all.listRecords(httpArguments, **kwargs)
++        resultListRecords = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
+         suspend = resultListRecords.next()
+-    
++
+         # ListIdentifiers request
+-        httpArguments = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
+-        resultListIdentifiers = self.observable.all.listIdentifiers(httpArguments, **kwargs)
++        resultListIdentifiers = compose(self.oaiList.listRecords(arguments={'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))
+         resultListIdentifiers.next()
+ 
+         # resume ListRecords
+-        mockoaijazz._selectAnswer=['RESULT']
+-        result = ''.join(compose(resultListRecords))
+-        body = result.split(CRLF*2)[-1]
++        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1&1'])
++        header, body = ''.join(compose(resultListRecords)).split(CRLF*2)
+         self.assertFalse('</ListIdentifiers>' in body, body)
+         self.assertTrue('</ListRecords>' in body, body)
+ 
++def xpath(node, path):
++    return node.xpath(path, namespaces={'oai': 'http://www.openarchives.org/OAI/2.0/',
++        'mock': 'uri:mock',})
++        
+Only in version_3.4.3/test: oaipmhjazztest.py
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/test/oaipmhtest.py version_3.4.4/test/oaipmhtest.py
+--- version_3.4.3/test/oaipmhtest.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/test/oaipmhtest.py	2011-03-28 12:07:57.000000000 +0200
+@@ -2,13 +2,8 @@
+ #
+ #    Meresco Oai are components to build Oai repositories, based on Meresco
+ #    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++#    Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+ #
+ #    This file is part of Meresco Oai.
+ #
+@@ -28,191 +23,270 @@
+ #
+ ## end license ##
+ 
+-
+ from cq2utils import CQ2TestCase, CallTrace
+-from meresco.core import Observable, be, Transparant
+-
+-from meresco.oai import OaiPmh, OaiBranding
+-from oaitestcase import OaiTestCase
++from oaischema import assertValidOai
+ 
+-from lxml.etree import parse
+-from StringIO import StringIO
++from meresco.oai import OaiPmh, OaiJazz, OaiBranding
++from meresco.core import Observable, be
+ from meresco.components.http.utils import CRLF
+-from meresco.components.http import ObservableHttpServer
++from meresco.components import StorageComponent
++from os.path import join
++from urllib import urlencode
++from lxml.etree import parse, tostring
++from StringIO import StringIO
++from weightless.core import compose
++from socket import gethostname
+ 
+-from mockoaijazz import MockOaiJazz
++BATCHSIZE = 10
++HOSTNAME = gethostname()
++class _OaiPmhTest(CQ2TestCase):
++    def setUp(self):
++        CQ2TestCase.setUp(self)
++        jazz = OaiJazz(join(self.tempdir, 'jazz'))
++        storage = StorageComponent(join(self.tempdir, 'storage'))
++        self.oaipmh = self.getOaiPmh()
++        self.root = be((Observable(),
++            (self.oaipmh,
++                (jazz,),
++                (storage,)
++            )
++        ))
++        for i in xrange(20):
++            recordId = 'record:id:%02d' % i
++            metadataFormats = [('oai_dc', 'http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://www.openarchives.org/OAI/2.0/oai_dc/')]
++            storage.add(identifier=recordId, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)
++            if i >= 10:
++                metadataFormats.append(('prefix2', 'http://example.org/prefix2/?format=xsd&prefix=2','http://example.org/prefix2/'))
++                storage.add(identifier=recordId, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)
++            sets = []
++            if i >= 5:
++                sets.append(('setSpec%s' % ((i//5)*5), 'setName'))
++            if 5 <= i < 10:
++                sets.append(('hierarchical:set', 'hierarchical set'))
++            if 10 <= i < 15:
++                sets.append(('hierarchical', 'hierarchical toplevel only'))
++            jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
++            if i % 5 == 0:
++                jazz.delete(recordId)
++
++    def _request(self, from_=None, **arguments):
++        if from_:
++            arguments['from'] = from_
++        header, body = ''.join(compose(self.root.all.handleRequest(
++                RequestURI='http://example.org/oai?' + urlencode(arguments, doseq=True),
++                Headers={},
++                Client=('127.0.0.1', 1324),
++                Method="GET",
++                port=9000,
++                arguments=arguments,
++                path='/oai',
++            ))).split(CRLF * 2)
++        parsedBody = parse(StringIO(body))
++        assertValidOai(parsedBody)
++        return header, parsedBody
++
++    def testBugListRecordsReturnsDoubleValueOnNoRecordsMatch(self):
++        header, body = self._request(verb=['ListRecords'], metadataPrefix=['oai_dc'], from_=['9999-01-01'])
++        self.assertEquals(['noRecordsMatch'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), tostring(body, pretty_print=True))
+ 
+-def xpath(node, path):
+-    return '\n'.join(node.xpath(path, namespaces={'oai':"http://www.openarchives.org/OAI/2.0/",
+-                                                  'tkit':"http://oai.dlib.vt.edu/OAI/metadata/toolkit",
+-                                                  'branding':"http://www.openarchives.org/OAI/2.0/branding/"}))
++    def testListRecords(self):
++        header, body = self._request(verb=['ListRecords'], metadataPrefix=['prefix2'])
++        records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
++        self.assertEquals(10, len(records))
++        self.assertEquals([self.prefix + 'record:id:11'], xpath(records[1], 'oai:header/oai:identifier/text()'))
++        self.assertEquals(['record:id:11'], xpath(records[1], 'oai:metadata/oai_dc:dc/dc:subject/text()'), tostring(records[1]))
++        self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[1], 'oai:header/oai:setSpec/text()')))
++        deletedRecords = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record[oai:header/@status="deleted"]')
++        self.assertEquals(2, len(deletedRecords))
++        self.assertEquals([0,0], [len(xpath(r, 'oai:metadata')) for r in deletedRecords])
++        self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(deletedRecords[0], 'oai:header/oai:setSpec/text()')))
++
++    def testListRecordsWithResumptionToken(self):
++        header, body = self._request(verb=['ListRecords'], metadataPrefix=['oai_dc'])
++        records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
++        self.assertEquals(10, len(records))
++        resumptionToken = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')[0]
++        header, body = self._request(verb=['ListRecords'], resumptionToken=[resumptionToken])
++        records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
++        self.assertEquals(10, len(records))
++        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
++
++    def testGetRecordNotAvailable(self):
++        header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=['doesNotExist'])
++
++        error = xpath(body, '/oai:OAI-PMH/oai:error')[0]
++        self.assertEquals('idDoesNotExist', error.attrib['code'])
++        self.assertEquals('The value of the identifier argument is unknown or illegal in this repository.', error.text)
++
++    def testGetRecord(self):
++        header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=[self.prefix + 'record:id:11'])
++
++        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
++        records = xpath(body, '/oai:OAI-PMH/oai:GetRecord/oai:record')
++        self.assertEquals(1, len(records))
++        self.assertEquals([self.prefix + 'record:id:11'], xpath(records[0], 'oai:header/oai:identifier/text()'))
++        self.assertEquals(['record:id:11'], xpath(records[0], 'oai:metadata/oai_dc:dc/dc:identifier/text()'), tostring(records[0]))
++        self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[0], 'oai:header/oai:setSpec/text()')))
++
++    def testGetRecordDeleted(self):
++        header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=[self.prefix + 'record:id:10'])
++
++        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
++        records = xpath(body, '/oai:OAI-PMH/oai:GetRecord/oai:record')
++        self.assertEquals(1, len(records))
++        self.assertEquals([self.prefix + 'record:id:10'], xpath(records[0], 'oai:header/oai:identifier/text()'))
++        self.assertEquals(0, len(xpath(records[0], 'oai:metadata')))
++        self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[0], 'oai:header/oai:setSpec/text()')))
++
++    def testListAllMetadataFormats(self):
++        header, body = self._request(verb=['ListMetadataFormats'])
++
++        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
++        formats = xpath(body, '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat')
++        self.assertEquals(2, len(formats), tostring(body, pretty_print=True))
++        self.assertEquals(['oai_dc', 'prefix2'], [xpath(f, 'oai:metadataPrefix/text()')[0] for f in formats])
++        self.assertEquals(['http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://example.org/prefix2/?format=xsd&prefix=2'], [xpath(f, 'oai:schema/text()')[0] for f in formats])
++        self.assertEquals(['http://www.openarchives.org/OAI/2.0/oai_dc/', 'http://example.org/prefix2/'], [xpath(f, 'oai:metadataNamespace/text()')[0] for f in formats])
++
++    def testListMetadataFormatsForIdentifier(self):
++        header, body = self._request(verb=['ListMetadataFormats'], identifier=[self.prefix + 'record:id:01'])
++
++        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')), tostring(body, pretty_print=True))
++        formats = xpath(body, '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat')
++        self.assertEquals(1, len(formats), tostring(body, pretty_print=True))
++        self.assertEquals(['oai_dc'], xpath(formats[0], 'oai:metadataPrefix/text()'))
++
++    def testListMetadataFormatsForWrongIdentifier(self):
++        header, body = self._request(verb=['ListMetadataFormats'], identifier=['does:not:exist'])
++
++        self.assertEquals(['idDoesNotExist'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), tostring(body, pretty_print=True))
++
++    def testListAllSets(self):
++        header, body = self._request(verb=['ListSets'])
++
++        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
++        sets = xpath(body, '/oai:OAI-PMH/oai:ListSets/oai:set/oai:setSpec/text()')
++        self.assertEquals(set(['setSpec5', 'setSpec10', 'setSpec15', 'hierarchical', 'hierarchical:set']), set(sets), tostring(body, pretty_print=True))
++
++    def testListSetsWithoutSets(self):
++        self.root = be((Observable(),
++            (OaiPmh(repositoryName='Repository', adminEmail='admin@cq2.nl', batchSize=BATCHSIZE),
++                (OaiJazz(join(self.tempdir, 'empty'),),)
++            )
++        ))
++
++        header, body = self._request(verb=['ListSets'])
+ 
+-class _OaiPmhTest(OaiTestCase):
++        self.assertEquals(['noSetHierarchy'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), tostring(body, pretty_print=True))
+ 
+     def testIdentify(self):
+-        branding = OaiBranding(url="http://www.example.org/icon.png", title="Collection title")
+-        self.subject.addObserver(branding)
+-        header, result = self.handleRequest({'verb':['Identify']})
+-        self.assertValidString(result)
+-        response = parse(StringIO(result))
+-        self.assertEquals('The Repository Name', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:repositoryName/text()'))
+-        self.assertEquals('http://server:9000/path/to/oai', xpath(response, '/oai:OAI-PMH/oai:request/text()'))
+-        self.assertEquals('admin@email.extension', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:adminEmail/text()'))
+-        self.assertEquals('YYYY-MM-DDThh:mm:ssZ', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:granularity/text()'))
+-        self.assertEquals('1970-01-01T00:00:00Z', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:earliestDatestamp/text()'))
+-        self.assertEquals('persistent', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:deletedRecord/text()'))
+-        
+-        self.assertEquals('Meresco', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:description/tkit:toolkit/tkit:title/text()'))
+-        self.assertEquals('http://www.meresco.org', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:description/tkit:toolkit/tkit:URL/text()'))
+-        self.assertEquals('Collection title', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:description/branding:branding/branding:collectionIcon/branding:title/text()'))
+-
+-
+-    def testGetRecordUsesObservers(self):
+-        self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
+-        self.observer.returnValues['isAvailable'] = (True, True)
+-        self.observer.returnValues['getDatestamp'] = '2008-11-14T15:43:00Z'
+-        self.observer.ignoredAttributes.append('provenance')
+-        def yieldRecord(identifier, partName):
+-            self.assertEquals('ident', identifier)
+-            yield '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>'
+-        self.observer.yieldRecord = yieldRecord
+-
+-        header, result = self.handleRequest({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': [self.prefix + 'ident']})
+-        self.assertValidString(result)
+-        self.assertEquals(['isDeleted', 'getAllPrefixes', 'isAvailable', 'isDeleted', 'getDatestamp', 'getSets', 'unknown'], [m.name for m in self.observer.calledMethods])
+-        self.assertEquals('ident', self.observer.calledMethods[0].args[0]) #isDeleted
+-        self.assertEquals('ident', self.observer.calledMethods[2].args[0]) #isAvailable
+-        self.assertEquals('ident', self.observer.calledMethods[4].args[0]) #getDatestamp
+-        self.assertEquals('ident', self.observer.calledMethods[5].args[0]) #getSets
+-
+-    def assertBadArgument(self, arguments, additionalMessage = '', errorCode = "badArgument"):
+-        header, result = self.handleRequest(arguments)
+-
+-        headers = header.split(CRLF)
+-        self.assertEquals("Content-Type: text/xml; charset=utf-8", headers[-1]) 
+-        self.assertTrue('<error code="%s">' % errorCode in result)
+-        self.assertTrue(additionalMessage in result, 'Expected "%s" in "%s"' %(additionalMessage, result))
++        header, body = self._request(verb=['Identify'])
+ 
+-        try:
+-            self.assertValidString(result)
+-        except Exception, e:
+-            self.fail("Not a valid string:\n" + result + "\n" + str(e))
++        self.assertEquals("Content-Type: text/xml; charset=utf-8", header.split(CRLF)[-1]) 
++        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
++        self.assertEquals(['http://%s:9000/oai' % HOSTNAME], xpath(body, '/oai:OAI-PMH/oai:request/text()'))
++        identify = xpath(body, '/oai:OAI-PMH/oai:Identify')[0]
++        self.assertEquals(['The Repository Name'], xpath(identify, 'oai:repositoryName/text()'))
++        self.assertEquals(['admin@meresco.org'], xpath(identify, 'oai:adminEmail/text()'))
++        self.assertEquals(['YYYY-MM-DDThh:mm:ssZ'], xpath(identify, 'oai:granularity/text()'))
++        self.assertEquals(['1970-01-01T00:00:00Z'], xpath(identify, 'oai:earliestDatestamp/text()'))
++        self.assertEquals(['persistent'], xpath(identify, 'oai:deletedRecord/text()'))
++        
++        descriptions = xpath(body, '/oai:OAI-PMH/oai:Identify/oai:description')
++        if self.prefix:
++            self.assertEquals(2, len(descriptions))
++            self.assertEquals(['%s5324' % self.prefix], xpath(descriptions[0], 'identifier:oai-identifier/identifier:sampleIdentifier/text()'))
++        else:
++            self.assertEquals(1, len(descriptions))
++        self.assertEquals(['Meresco'], xpath(descriptions[-1], 'toolkit:toolkit/toolkit:title/text()'))
++
++
++    def testIdentifyWithDescription(self):
++        self.oaipmh.addObserver(OaiBranding('http://meresco.org/files/images/meresco-logo-small.png', 'http://www.meresco.org/', 'Meresco'))
++        header, body = self._request(verb=['Identify'])
++
++        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
++        descriptions = xpath(body, '/oai:OAI-PMH/oai:Identify/oai:description')
++        if self.prefix:
++            self.assertEquals(3, len(descriptions))
++            self.assertEquals(['%s5324' % self.prefix], xpath(descriptions[0], 'identifier:oai-identifier/identifier:sampleIdentifier/text()'))
++        else:
++            self.assertEquals(2, len(descriptions))
++        self.assertEquals(['Meresco'], xpath(descriptions[-2], 'toolkit:toolkit/toolkit:title/text()'))
++        self.assertEquals(['Meresco'], xpath(descriptions[-1], 'branding:branding/branding:collectionIcon/branding:title/text()'))
+ 
+     def testNoVerb(self):
+-        self.assertBadArgument({}, 'No "verb" argument found.')
++        self.assertOaiError({}, additionalMessage='No "verb" argument found.', errorCode='badArgument')
+     
+     def testNVerbs(self):
+-        self.assertBadArgument({'verb': ['ListRecords', 'Indentify']}, 'Argument "verb" may not be repeated.')
++        self.assertOaiError({'verb': ['ListRecords', 'Indentify']}, additionalMessage='Argument "verb" may not be repeated.', errorCode='badArgument')
+         
+     def testWrongVerb(self):
+-        self.assertBadArgument({'verb': ['Nonsense']}, 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', errorCode='badVerb')
++        self.assertOaiError({'verb': ['Nonsense']}, additionalMessage='Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', errorCode='badVerb')
+ 
+     def testIllegalIdentifyArguments(self):
+-        self.assertBadArgument({'verb': ['Identify'], 'metadataPrefix': ['oai_dc']}, 'Argument(s) "metadataPrefix" is/are illegal.')
++        self.assertOaiError({'verb': ['Identify'], 'metadataPrefix': ['oai_dc']}, additionalMessage='Argument(s) "metadataPrefix" is/are illegal.', errorCode='badArgument')
++
++    def testIllegalVerbListRecords(self):
++        self.assertOaiError({'verb': ['listRecords'], 'metadataPrefix': ['oai_dc']}, additionalMessage='Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', errorCode='badVerb')
+ 
+     def testNoArgumentsListRecords(self):
+-        self.assertBadArgument({'verb': ['ListRecords']}, 'Missing argument(s) "resumptionToken" or "metadataPrefix"')
++        self.assertOaiError({'verb': ['ListRecords']}, additionalMessage='Missing argument(s) "resumptionToken" or "metadataPrefix"', errorCode='badArgument')
+ 
+     def testTokenNotUsedExclusivelyListRecords(self):
+-        self.assertBadArgument({'verb': ['ListRecords'], 'resumptionToken': ['aToken'], 'from': ['aDate']}, '"resumptionToken" argument may only be used exclusively.')
++        self.assertOaiError({'verb': ['ListRecords'], 'resumptionToken': ['aToken'], 'from': ['aDate']}, additionalMessage='"resumptionToken" argument may only be used exclusively.', errorCode='badArgument')
+ 
+     def testNeitherTokenNorMetadataPrefixListRecords(self):
+-        self.assertBadArgument({'verb': ['ListRecords'], 'from': ['aDate']}, 'Missing argument(s) "resumptionToken" or "metadataPrefix"')
++        self.assertOaiError({'verb': ['ListRecords'], 'from': ['aDate']}, additionalMessage='Missing argument(s) "resumptionToken" or "metadataPrefix"', errorCode='badArgument')
+ 
+     def testNonsenseArgumentsListRecords(self):
+-        self.assertBadArgument({'verb': ['ListRecords'], 'metadataPrefix': ['aDate'], 'nonsense': ['more nonsense'], 'bla': ['b']}, 'Argument(s) "bla", "nonsense" is/are illegal.')
++        self.assertOaiError({'verb': ['ListRecords'], 'metadataPrefix': ['aDate'], 'nonsense': ['more nonsense'], 'bla': ['b']}, additionalMessage='Argument(s) "bla", "nonsense" is/are illegal.', errorCode='badArgument')
+ 
+     def testDoubleArgumentsListRecords(self):
+-        self.assertBadArgument({'verb':['ListRecords'], 'metadataPrefix': ['oai_dc', '2']}, 'Argument "metadataPrefix" may not be repeated.')
++        self.assertOaiError({'verb':['ListRecords'], 'metadataPrefix': ['oai_dc', '2']}, additionalMessage='Argument "metadataPrefix" may not be repeated.', errorCode='badArgument')
+ 
+     def testGetRecordNoArgumentsGetRecord(self):
+-        self.assertBadArgument({'verb': ['GetRecord']}, 'Missing argument(s) "identifier" and "metadataPrefix".')
++        self.assertOaiError({'verb': ['GetRecord']}, additionalMessage='Missing argument(s) "identifier" and "metadataPrefix".', errorCode='badArgument')
+ 
+     def testGetNoMetadataPrefixGetRecord(self):
+-        self.assertBadArgument({'verb': ['GetRecord'], 'identifier': ['oai:ident']}, 'Missing argument(s) "metadataPrefix".')
++        self.assertOaiError({'verb': ['GetRecord'], 'identifier': ['oai:ident']}, additionalMessage='Missing argument(s) "metadataPrefix".', errorCode='badArgument')
+ 
+     def testGetNoIdentifierArgumentGetRecord(self):
+-        self.assertBadArgument({'verb': ['GetRecord'], 'metadataPrefix': ['oai_dc']}, 'Missing argument(s) "identifier".')
++        self.assertOaiError({'verb': ['GetRecord'], 'metadataPrefix': ['oai_dc']}, additionalMessage='Missing argument(s) "identifier".', errorCode='badArgument')
+ 
+     def testNonsenseArgumentGetRecord(self):
+-        self.assertBadArgument({'verb': ['GetRecord'], 'metadataPrefix': ['aPrefix'], 'identifier': ['anIdentifier'], 'nonsense': ['bla']}, 'Argument(s) "nonsense" is/are illegal.')
++        self.assertOaiError({'verb': ['GetRecord'], 'metadataPrefix': ['aPrefix'], 'identifier': ['anIdentifier'], 'nonsense': ['bla']}, additionalMessage='Argument(s) "nonsense" is/are illegal.', errorCode='badArgument')
+ 
+     def testDoubleArgumentsGetRecord(self):
+-        self.assertBadArgument({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': ['oai:ident', '2']}, 'Argument "identifier" may not be repeated.')
++        self.assertOaiError({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': ['oai:ident', '2']}, additionalMessage='Argument "identifier" may not be repeated.', errorCode='badArgument')
+ 
+     def testResumptionTokensNotSupportedListSets(self):
+-        self.assertBadArgument({'verb': ['ListSets'], 'resumptionToken': ['someResumptionToken']}, errorCode = "badResumptionToken")
++        self.assertOaiError({'verb': ['ListSets'], 'resumptionToken': ['someResumptionToken']}, errorCode = "badResumptionToken")
+ 
+     def testNonsenseArgumentsListSets(self):
+-        self.assertBadArgument({'verb': ['ListSets'], 'nonsense': ['aDate'], 'nonsense': ['more nonsense'], 'bla': ['b']}, 'Argument(s) "bla", "nonsense" is/are illegal.')
++        self.assertOaiError({'verb': ['ListSets'], 'nonsense': ['aDate'], 'nonsense': ['more nonsense'], 'bla': ['b']}, additionalMessage='Argument(s) "bla", "nonsense" is/are illegal.', errorCode='badArgument')
+ 
+     def testRottenTokenListRecords(self):
+-        self.assertBadArgument({'verb': ['ListRecords'], 'resumptionToken': ['someResumptionToken']}, errorCode = "badResumptionToken")
++        self.assertOaiError({'verb': ['ListRecords'], 'resumptionToken': ['someResumptionToken']}, errorCode = "badResumptionToken")
+ 
+     def testIllegalArgumentsListMetadataFormats(self):
+-        self.assertBadArgument({'verb': ['ListMetadataFormats'], 'somethingElse': ['illegal']})
++        self.assertOaiError({'verb': ['ListMetadataFormats'], 'somethingElse': ['illegal']}, errorCode='badArgument')
+ 
+-    def testOaiPmhInATree(self):
+-        observert = CallTrace('Observer')
+-        observable = be((Observable(),
+-            (OaiPmh(repositoryName='The Repository Name',
+-                adminEmail='admin@email.extension'),
+-                (observert,)
+-            )
+-        ))
+-        self.assertTrue(observable, 'The above code failed.')
++    def assertOaiError(self, arguments, errorCode, additionalMessage = ''):
++        header, body = self._request(**arguments)
+ 
+-    def testListRecords(self):
+-        self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
+-        self.observer.returnValues['oaiSelect'] = iter(['ident0', 'ident1'])
+-        self.observer.returnValues['isDeleted'] = False
+-        self.observer.returnValues['getDatestamp'] = '2008-11-14T15:43:00Z'
+-        self.observer.returnValues['getSets'] = iter(['set0'])
+-        
+-        self.observer.ignoredAttributes.append('provenance')
+-        def yieldRecord(identifier, partname):
+-            self.assertEquals('ident', identifier[:5])
+-            yield '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dc="http://purl.org/dc/elements/1.1/" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd"/>'
+-        self.observer.yieldRecord = yieldRecord
+-
+-        header, result = self.handleRequest({'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']})
+-        
+-        self.assertValidString(result)
+-        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'isDeleted', 'getDatestamp', 'getSets', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'unknown'], [m.name for m in self.observer.calledMethods])
+-        self.assertEquals('ident0', self.observer.calledMethods[2].args[0]) #isDeleted
+-        self.assertEquals('ident0', self.observer.calledMethods[3].args[0]) #getDatestamp
+-        self.assertEquals('ident0', self.observer.calledMethods[4].args[0]) #getSets
+-        self.assertEquals('ident1', self.observer.calledMethods[6].args[0]) #isDeleted
+-        self.assertEquals('ident1', self.observer.calledMethods[7].args[0]) #getDatestamp
+-        self.assertEquals('ident1', self.observer.calledMethods[8].args[0]) #getSets
++        self.assertEquals([errorCode], xpath(body, '/oai:OAI-PMH/oai:error/@code'), tostring(body, pretty_print=True))
++        errorText = xpath(body, '/oai:OAI-PMH/oai:error/text()')[0]
++        self.assertTrue(additionalMessage in errorText, 'Expected "%s" in "%s"' % (additionalMessage, errorText))
+ 
+ class OaiPmhTest(_OaiPmhTest):
+-    def getSubject(self):
+-        oaipmh = OaiPmh(repositoryName='The Repository Name', adminEmail='admin@email.extension')
+-        self.observer = CallTrace('Observers')
+-        self.observer.returnValues["description"] = ""
+-        oaipmh.addObserver(self.observer)
+-        return oaipmh
+-
+     def setUp(self):
+         _OaiPmhTest.setUp(self)
+-        self.prefix = ''
++        self.prefix=''
+ 
+-class OaiPmhWithIdentifierTest(_OaiPmhTest):
+-
+-    def getSubject(self):
+-        oaipmh = OaiPmh(repositoryName='The Repository Name', adminEmail='admin@email.extension',
+-        repositoryIdentifier='www.example.org')
+-        self.observer = CallTrace('Observers')
+-        self.observer.returnValues["description"] = ""
+-        oaipmh.addObserver(self.observer)
+-        return oaipmh
+-
+-    def setUp(self):
+-        _OaiPmhTest.setUp(self)
+-        self.prefix = 'oai:www.example.org:'
++    def getOaiPmh(self):
++        return OaiPmh(repositoryName='The Repository Name', adminEmail='admin@meresco.org', batchSize=BATCHSIZE)
+ 
+-class OaiPmhTest2(CQ2TestCase):
+     def testExceptionOnInvalidRepositoryIdentifier(self):
+         try:
+             OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId")
+@@ -222,3 +296,22 @@
+ 
+         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
+         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")
++        
++
++class OaiPmhWithIdentifierTest(_OaiPmhTest):
++    def setUp(self):
++        _OaiPmhTest.setUp(self)
++        self.prefix='oai:www.example.org:'
++
++    def getOaiPmh(self):
++        return OaiPmh(repositoryName='The Repository Name', adminEmail='admin@meresco.org', batchSize=BATCHSIZE, repositoryIdentifier='www.example.org')
++
++def xpath(node, path):
++    return node.xpath(path, namespaces={'oai': 'http://www.openarchives.org/OAI/2.0/',
++        'oai_dc': 'http://www.openarchives.org/OAI/2.0/oai_dc/',
++        'dc': 'http://purl.org/dc/elements/1.1/',
++        'toolkit': 'http://oai.dlib.vt.edu/OAI/metadata/toolkit',
++        'branding': 'http://www.openarchives.org/OAI/2.0/branding/',
++        'identifier': 'http://www.openarchives.org/OAI/2.0/oai-identifier',
++        })
++
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/test/oairecordtest.py version_3.4.4/test/oairecordtest.py
+--- version_3.4.3/test/oairecordtest.py	1970-01-01 01:00:00.000000000 +0100
++++ version_3.4.4/test/oairecordtest.py	2011-03-28 12:07:57.000000000 +0200
+@@ -0,0 +1,143 @@
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
++#       http://www.kennisnetictopschool.nl
++#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
++#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++from lxml.etree import parse, tostring
++from StringIO import StringIO
++
++from cq2utils import CQ2TestCase, CallTrace
++
++from meresco.oai.oairecord import OaiRecord
++
++from weightless.core import compose
++
++class OaiRecordTest(CQ2TestCase):
++    def setUp(self):
++        CQ2TestCase.setUp(self)
++        self.oaiRecord = OaiRecord()
++        self.observer = CallTrace('Observer')
++        self.oaiRecord.addObserver(self.observer)
++        self.observer.returnValues['isDeleted'] = False
++        self.observer.returnValues['getDatestamp'] = '2011-03-25T10:45:00Z'
++        self.observer.returnValues['getSets'] = ['set0', 'set1']
++        self.observer.returnValues['yieldRecord'] = (f for f in ['<da','ta/>'])
++        self.observer.returnValues['provenance'] = (f for f in [])
++        
++    def testRecord(self):
++        result = ''.join(compose(self.oaiRecord.oaiRecord(recordId='id', metadataPrefix='oai_dc')))
++
++        self.assertEqualsWS("""<record>
++<header>
++    <identifier>id</identifier>
++    <datestamp>2011-03-25T10:45:00Z</datestamp>
++    <setSpec>set0</setSpec>
++    <setSpec>set1</setSpec>
++</header>
++<metadata>
++    <data/>
++</metadata>
++</record>""", result)
++        self.assertEquals(["isDeleted('id')", "getDatestamp('id')", "getSets('id')", "yieldRecord('id', 'oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
++
++    def testRecordIsDeleted(self):
++        self.observer.returnValues['isDeleted'] = True
++        result = ''.join(compose(self.oaiRecord.oaiRecord(recordId='id', metadataPrefix='oai_dc')))
++
++        self.assertEqualsWS("""<record>
++<header status="deleted">
++    <identifier>id</identifier>
++    <datestamp>2011-03-25T10:45:00Z</datestamp>
++    <setSpec>set0</setSpec>
++    <setSpec>set1</setSpec>
++</header>
++</record>""", result)
++        self.assertEquals(["isDeleted('id')", "getDatestamp('id')", "getSets('id')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
++
++    def testRecordsWithoutSets(self):
++        self.observer.returnValues['getSets'] = (f for f in [])
++        result = ''.join(compose(self.oaiRecord.oaiRecord(recordId='id', metadataPrefix='oai_dc')))
++
++        self.assertEqualsWS("""<record>
++<header>
++    <identifier>id</identifier>
++    <datestamp>2011-03-25T10:45:00Z</datestamp>
++</header>
++<metadata>
++    <data/>
++</metadata>
++</record>""", result)
++        self.assertEquals(["isDeleted('id')", "getDatestamp('id')", "getSets('id')", "yieldRecord('id', 'oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
++
++    def testRecordWithProvenance(self):
++        self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
++        result = ''.join(compose(self.oaiRecord.oaiRecord(recordId='id', metadataPrefix='oai_dc')))
++
++        self.assertEqualsWS("""<record>
++<header>
++    <identifier>id</identifier>
++    <datestamp>2011-03-25T10:45:00Z</datestamp>
++    <setSpec>set0</setSpec>
++    <setSpec>set1</setSpec>
++</header>
++<metadata>
++    <data/>
++</metadata>
++<about>PROVENANCE</about>
++</record>""", result)
++        self.assertEquals(["isDeleted('id')", "getDatestamp('id')", "getSets('id')", "yieldRecord('id', 'oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
++
++    def testDeletedRecordWithProvenance(self):
++        self.observer.returnValues['isDeleted'] = True
++        self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
++        result = ''.join(compose(self.oaiRecord.oaiRecord(recordId='id&0', metadataPrefix='oai_dc')))
++
++        self.assertEqualsWS("""<record>
++<header status="deleted">
++    <identifier>id&amp;0</identifier>
++    <datestamp>2011-03-25T10:45:00Z</datestamp>
++    <setSpec>set0</setSpec>
++    <setSpec>set1</setSpec>
++</header>
++<about>PROVENANCE</about>
++</record>""", result)
++        self.assertEquals(["isDeleted('id&0')", "getDatestamp('id&0')", "getSets('id&0')", "provenance('id&0')"], [str(m) for m in self.observer.calledMethods])
++
++
++    def testRecordForListIdentifiers(self):
++        result = ''.join(compose(self.oaiRecord.oaiRecordHeader(recordId='id', metadataPrefix='oai_dc')))
++
++        self.assertEqualsWS("""<header>
++    <identifier>id</identifier>
++    <datestamp>2011-03-25T10:45:00Z</datestamp>
++    <setSpec>set0</setSpec>
++    <setSpec>set1</setSpec>
++</header>""", result)
++        self.assertEquals(["isDeleted('id')", "getDatestamp('id')", "getSets('id')"], [str(m) for m in self.observer.calledMethods])
++
++
++
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/test/oaischema.py version_3.4.4/test/oaischema.py
+--- version_3.4.3/test/oaischema.py	1970-01-01 01:00:00.000000000 +0100
++++ version_3.4.4/test/oaischema.py	2011-03-28 12:07:57.000000000 +0200
+@@ -0,0 +1,71 @@
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
++#       http://www.kennisnetictopschool.nl
++#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
++#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2010 Maastricht University Library
++#        http://www.maastrichtuniversity.nl/web/Library/home.htm
++#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++
++from lxml.etree import parse, XMLSchema, XMLSchemaParseError, tostring
++from StringIO import StringIO
++from os.path import join, dirname, abspath
++from glob import glob
++
++schemaLocation = join(abspath(dirname(__file__)), 'schemas')
++
++rootSchema = '<?xml version="1.0" encoding="utf-8"?><schema targetNamespace="http://www.meresco.org/XML" \
++            xmlns="http://www.w3.org/2001/XMLSchema" \
++            elementFormDefault="qualified">\n' \
++ + '\n'.join('<import namespace="%s" schemaLocation="%s"/>' %
++    (parse(xsd).getroot().get('targetNamespace'), xsd)
++        for xsd in glob(join(schemaLocation,'*.xsd'))) \
+++ '</schema>'
++
++schemaXml = parse(StringIO(rootSchema))
++
++schema = None
++
++def getSchema():
++    global schema
++    if not schema:
++        try:
++            schema = XMLSchema(schemaXml)
++        except XMLSchemaParseError, e:
++            print e.error_log.last_error
++            raise
++    return schema
++
++def assertValidOai(lxmlTree=None, aXmlString=None):
++    schema = getSchema()
++    aXmlString = tostring(lxmlTree, pretty_print=True) if aXmlString == None else aXmlString
++    tree = parse(StringIO(aXmlString))
++    schema.validate(tree)
++    if schema.error_log:
++        for nr, line in enumerate(aXmlString.split('\n')):
++            print nr+1, line
++        raise AssertionError(schema.error_log.last_error)
++    return tree
+Only in version_3.4.3/test: oaitestcase.py
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.4.3/test/oaitooltest.py version_3.4.4/test/oaitooltest.py
+--- version_3.4.3/test/oaitooltest.py	2011-03-09 16:04:38.000000000 +0100
++++ version_3.4.4/test/oaitooltest.py	2011-03-28 12:07:57.000000000 +0200
+@@ -28,28 +28,16 @@
+ ## end license ##
+ 
+ from meresco.oai.oaitool import ISO8601Exception, ISO8601
+-from meresco.oai.oaiverb import OaiVerb
++from meresco.oai.oaiutils import oaiRequestArgs
+ from cq2utils.cq2testcase import CQ2TestCase
+ from cq2utils.calltrace import CallTrace
+ 
+ class OaiToolTest(CQ2TestCase):
+     
+     def testWriteRequestArgs(self):
+-        getHost = CallTrace("getHost")
+-        getHost.port = 8000
+-        request = CallTrace("Request")
+-        request.returnValues['getHost'] = getHost
+-        request.returnValues['getRequestHostname'] = 'localhost'
+-        request.path = '/oai'
+-        request.kwargs = {'Headers':{'Host':'localhost'}, 'port':8000, 'path':'/oai'}
+-    
+-        verb = OaiVerb(None, None)
+-        request.args = {'identifier': ['with a "']}
+-        verb.writeRequestArgs(request)
+-        
+-        writeCall = request.calledMethods[-1]
+-        self.assertEquals('write', writeCall.name)
+-        self.assertEquals('<request identifier="with a &quot;">http://localhost:8000/oai</request>', writeCall.args[0])
++        result = ''.join(oaiRequestArgs({'identifier': ['with a "']}, Headers={'Host':'localhost'}, port=8000, path='/oai'))
++        
++        self.assertEquals('<request identifier="with a &quot;">http://localhost:8000/oai</request>', result)
+         
+     def testISO8601(self):
+         """http://www.w3.org/TR/NOTE-datetime

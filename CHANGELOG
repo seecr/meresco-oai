@@ -1,6 +1,41 @@
 CHANGELOG Meresco-Oai
 =====================
 
+version: 3.4.3 -> 3.4.4
+date:    2011-03-28
+
+Removal of WebRequest object.
+-----------------------------
+The last bits of the WebRequest object are removed. This was a remainder from
+the time Meresco used Twisted as it's http framework.
+
+Also fixed a problem in GetRecord which cause incomplete responses for records
+larger than 4kb.
+(2011-03-28, 3.4.3)
+
+==============================================================================
+
+version: 3.4.2 -> 3.4.3
+date:    2011-03-09
+
+Fixed xpath for oai:header in OaiAddRecord
+------------------------------------------
+OaiAddRecord searches for an oai:header node even when it is not the root.
+(2011-03-09, 3.4.2)
+
+==============================================================================
+
+version: 3.4.1 -> 3.4.2
+date:    2011-03-01
+
+Weightless Upgrade
+------------------
+Weightless is upgraded to version 0.5, therefor some imports changed and
+callstackscope was removed.
+(2011-03-01, 3.4.1)
+
+==============================================================================
+
 version: 3.4 -> 3.4.1
 date:    2011-02-11
 
