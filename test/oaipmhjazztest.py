@@ -50,10 +50,10 @@ class OaiPmhJazzTest(CQ2TestCase):
         ))
         for i in xrange(20):
             recordId = 'record:id:%02d' % i
-            metadataFormats = [ ('oai_dc', 'dc-schema', 'dc-namespace')]
+            metadataFormats = [('oai_dc', 'http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://www.openarchives.org/OAI/2.0/oai_dc/')]
             storage.add(identifier=recordId, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)
             if i >= 10:
-                metadataFormats.append(('prefix2', 'schema2', 'namespace2'))
+                metadataFormats.append(('prefix2', 'http://example.org/prefix2/?format=xsd&prefix=2','http://example.org/prefix2/'))
                 storage.add(identifier=recordId, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)
             sets = []
             if i >= 5:
@@ -119,7 +119,6 @@ class OaiPmhJazzTest(CQ2TestCase):
         header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=['record:id:11'])
 
         self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
-
         records = xpath(body, '/oai:OAI-PMH/oai:GetRecord/oai:record')
         self.assertEquals(1, len(records))
         self.assertEquals(['record:id:11'], xpath(records[0], 'oai:header/oai:identifier/text()'))
@@ -130,15 +129,38 @@ class OaiPmhJazzTest(CQ2TestCase):
         header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=['record:id:10'])
 
         self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
-
         records = xpath(body, '/oai:OAI-PMH/oai:GetRecord/oai:record')
         self.assertEquals(1, len(records))
         self.assertEquals(['record:id:10'], xpath(records[0], 'oai:header/oai:identifier/text()'))
         self.assertEquals(0, len(xpath(records[0], 'oai:metadata')))
         self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[0], 'oai:header/oai:setSpec/text()')))
 
+    def testListAllMetadataFormats(self):
+        header, body = self._request(verb=['ListMetadataFormats'])
+
+        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        formats = xpath(body, '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat')
+        self.assertEquals(2, len(formats), tostring(body, pretty_print=True))
+        self.assertEquals(['oai_dc', 'prefix2'], [xpath(f, 'oai:metadataPrefix/text()')[0] for f in formats])
+        self.assertEquals(['http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://example.org/prefix2/?format=xsd&prefix=2'], [xpath(f, 'oai:schema/text()')[0] for f in formats])
+        self.assertEquals(['http://www.openarchives.org/OAI/2.0/oai_dc/', 'http://example.org/prefix2/'], [xpath(f, 'oai:metadataNamespace/text()')[0] for f in formats])
+
+    def testListMetadataFormatsForIdentifier(self):
+        header, body = self._request(verb=['ListMetadataFormats'], identifier=['record:id:01'])
+
+        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')), tostring(body, pretty_print=True))
+        formats = xpath(body, '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat')
+        self.assertEquals(1, len(formats), tostring(body, pretty_print=True))
+        self.assertEquals(['oai_dc'], xpath(formats[0], 'oai:metadataPrefix/text()'))
+
+    def testListMetadataFormatsForWrongIdentifier(self):
+        header, body = self._request(verb=['ListMetadataFormats'], identifier=['does:not:exist'])
+
+        self.assertEquals(['idDoesNotExist'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), tostring(body, pretty_print=True))
+
 def xpath(node, path):
     return node.xpath(path, namespaces={'oai': 'http://www.openarchives.org/OAI/2.0/',
         'oai_dc': 'http://www.openarchives.org/OAI/2.0/oai_dc/',
         'dc': 'http://purl.org/dc/elements/1.1/',
         })
+

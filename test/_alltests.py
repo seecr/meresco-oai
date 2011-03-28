@@ -51,7 +51,6 @@ from oaibrandingtest import OaiBrandingTest
 from oaiharvestertest import OaiHarvesterTest
 from oaiidentifytest import OaiIdentifyTest
 from oaijazztest import OaiJazzTest
-from oailistmetadataformatstest import OaiListMetadataFormatsTest
 from oailistsetstest import OaiListSetsTest
 from oailisttest import OaiListTest
 from oaipmhjazztest import OaiPmhJazzTest

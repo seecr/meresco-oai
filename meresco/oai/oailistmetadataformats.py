@@ -27,10 +27,12 @@
 #
 ## end license ##
 
-from oaiverb import OaiVerb
-from meresco.core.observable import Observable
+from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+from oaierror import oaiError
+from meresco.core import Observable
+from xml.sax.saxutils import escape as xmlEscape
 
-class OaiListMetadataFormats(OaiVerb, Observable):
+class OaiListMetadataFormats(Observable):
     """4.4 ListMetadataFormats
 Summary and Usage Notes
 
@@ -47,27 +49,45 @@ Error and Exception Conditions
     """
 
     def __init__(self):
-        OaiVerb.__init__(self, ['ListMetadataFormats'], {'identifier': 'optional'})
         Observable.__init__(self)
 
-    def listMetadataFormats(self, webrequest, **kwargs):
-        self.startProcessing(webrequest)
-        yield webrequest.generateResponse()
+    def listMetadataFormats(self, arguments, **httpkwargs):
+        verb = arguments.get('verb', [None])[0]
+        if not verb == 'ListMetadataFormats':
+            return
 
-    def preProcess(self, webRequest):
-        metadataFormats = self.any.getAllMetadataFormats()
-        if self._identifier:
-            if not self.any.getUnique(self._identifier):
-                return self.writeError(webRequest, 'idDoesNotExist')
-            prefixes = set(self.any.getPrefixes(self._identifier))
-            metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in prefixes]
-        self.displayedMetadataFormats = sorted(metadataFormats)
+        try:
+            validatedArguments = self._validateArguments(arguments)
+            metadataFormats = self.any.getAllMetadataFormats()
+            if 'identifier' in validatedArguments:
+                identifier = validatedArguments['identifier']
+                if not self.any.getUnique(identifier):
+                    raise OaiException('idDoesNotExist')
+                prefixes = set(self.any.getPrefixes(identifier))
+                metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in prefixes]
+            displayedMetadataFormats = sorted(metadataFormats)
+        except OaiException, e:
+            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+            return
 
-    def process(self, webRequest):
-        for metadataPrefix, schema, metadataNamespace in self.displayedMetadataFormats:
-            webRequest.write("""<metadataFormat>
-                <metadataPrefix>%s</metadataPrefix>
-                <schema>%s</schema>
-                <metadataNamespace>%s</metadataNamespace>
-            </metadataFormat>""" % (metadataPrefix, schema, metadataNamespace))
+        yield oaiHeader()
+        yield oaiRequestArgs(arguments, **httpkwargs)
+        yield '<%s>' % verb
+        for metadataPrefix, schema, metadataNamespace in displayedMetadataFormats:
+            yield '<metadataFormat>'
+            yield '<metadataPrefix>%s</metadataPrefix>' % xmlEscape(metadataPrefix)
+            yield '<schema>%s</schema>' % xmlEscape(schema)
+            yield '<metadataNamespace>%s</metadataNamespace>' % xmlEscape(metadataNamespace)
+            yield '</metadataFormat>'
+        yield '</%s>' % verb
+        yield oaiFooter()
+
+    def _validateArguments(self, arguments):
+        arguments = dict(arguments)
+        validatedArguments = {}
+        checkNoRepeatedArguments(arguments)
+        arguments.pop('verb')
+        checkArgument(arguments, 'identifier', validatedArguments)
+        checkNoMoreArguments(arguments)
+        return validatedArguments
 

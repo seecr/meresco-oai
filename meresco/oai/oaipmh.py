@@ -47,7 +47,7 @@ class OaiPmh(object):
         self.addStrand = outside.addStrand
         self._oldFashionedVerbs = [
                 'ListSets',
-                'ListMetadataFormats']
+                ]
         self._internalObserverTree = be(
             (Observable(),
                 (OaiError(),
