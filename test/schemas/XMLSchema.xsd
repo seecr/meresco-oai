@@ -1301,7 +1301,7 @@ use</xs:documentation>
    notations for use within XML Schema schemas</xs:documentation>
  </xs:annotation>
 
- <xs:notation name="XMLSchemaStructures" public="structures" system="http://www.w3.org/2000/08/XMLSchema.xsd"/>
+ <xs:notation name="XMLSchemaStructures" public="structures" system="XMLSchema.xsd"/>
  <xs:notation name="XML" public="REC-xml-19980210" system="http://www.w3.org/TR/1998/REC-xml-19980210"/>
 
  <xs:complexType name="anyType" mixed="true">

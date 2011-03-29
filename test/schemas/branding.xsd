@@ -14,7 +14,7 @@
   </annotation>
 
  <import namespace="http://www.openarchives.org/OAI/2.0/" 
-         schemaLocation="http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd"/>
+         schemaLocation="OAI-PMH.xsd"/>
 
   <element name="branding">
     <complexType>

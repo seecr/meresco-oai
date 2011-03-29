@@ -23,7 +23,7 @@
 #
 ## end license ##
 from os import system
-from os.path import dirname, join
+from os.path import dirname, join, abspath, isdir
 from shutil import copytree
 
 from cq2utils import CQ2TestCase
@@ -31,11 +31,15 @@ from meresco.components import PersistentSortedIntegerList
 from meresco.components.facetindex import IntegerList
 from meresco.oai import OaiJazz
 
+mypath = dirname(abspath(__file__))
+binDir = join(dirname(mypath), 'bin')
+if not isdir(binDir):
+    binDir = '/usr/bin'
+
 class ConvertOaiV1ToV2Test(CQ2TestCase):
     def testConversion(self):
-        thisdir = dirname(__file__)
         datadir = join(self.tempdir, 'oai_conversion_v1_to_v2')
-        copytree(join(thisdir, 'data', 'oai_conversion_v1_to_v2'), datadir)
+        copytree(join(mypath, 'data', 'oai_conversion_v1_to_v2'), datadir)
 
         anotherSet = IntegerList(10, use64bits=True)
         anotherSet.save(join(datadir, 'sets', 'anotherSet.list'), offset=0, append=False)
@@ -45,7 +49,7 @@ class ConvertOaiV1ToV2Test(CQ2TestCase):
         anotherPrefix = IntegerList(10, use64bits=True)
         anotherPrefix.save(join(datadir, 'prefixes', 'anotherPrefix.list'), offset=0, append=False)
 
-        system("%s %s" % (join(thisdir, '..', 'bin', 'convert_oai_v1_to_v2.py'), join(self.tempdir, 'oai_conversion_v1_to_v2')))
+        system("%s %s" % (join(binDir, 'convert_oai_v1_to_v2'), join(self.tempdir, 'oai_conversion_v1_to_v2')))
 
         expectedList = PersistentSortedIntegerList(join(self.tempdir, 'forAssertEquals'), use64bits=True)
         for i in xrange(10 ** 3):
