@@ -76,7 +76,7 @@ class OaiRecordTest(CQ2TestCase):
     <setSpec>set1</setSpec>
 </header>
 </record>""", result)
-        self.assertEquals(["isDeleted('id')", "getDatestamp('id')", "getSets('id')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+        self.assertEquals(["isDeleted('id')", "getDatestamp('id')", "getSets('id')"], [str(m) for m in self.observer.calledMethods])
 
     def testRecordsWithoutSets(self):
         self.observer.returnValues['getSets'] = (f for f in [])
@@ -123,9 +123,8 @@ class OaiRecordTest(CQ2TestCase):
     <setSpec>set0</setSpec>
     <setSpec>set1</setSpec>
 </header>
-<about>PROVENANCE</about>
 </record>""", result)
-        self.assertEquals(["isDeleted('id&0')", "getDatestamp('id&0')", "getSets('id&0')", "provenance('id&0')"], [str(m) for m in self.observer.calledMethods])
+        self.assertEquals(["isDeleted('id&0')", "getDatestamp('id&0')", "getSets('id&0')"], [str(m) for m in self.observer.calledMethods])
 
 
     def testRecordForListIdentifiers(self):

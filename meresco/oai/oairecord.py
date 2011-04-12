@@ -50,10 +50,10 @@ class OaiRecord(Transparant):
             yield '<metadata>'
             yield self.all.yieldRecord(recordId, metadataPrefix)
             yield '</metadata>'
-
-        provenance = self.all.provenance(recordId)
-        for line in decorate('<about>', provenance, '</about>'):
-            yield line
+            
+            provenance = self.all.provenance(recordId)
+            for line in decorate('<about>', provenance, '</about>'):
+                yield line
 
         yield '</record>'
 

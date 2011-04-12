@@ -1,6 +1,39 @@
 CHANGELOG Meresco-Oai
 =====================
 
+version: 3.4.5 -> 3.4.6
+version: 3.5.3 -> 3.5.4
+date:    2011-04-11
+
+No about-part is returned when a record is deleted
+--------------------------------------------------
+Previously, OaiRecord component returned an about part wether or not it was
+deleted.  This superfluous behaviour is now changed to comply with the
+specification.
+(2011-04-11, 3.4.5-Edurep)
+
+==============================================================================
+
+version: 3.4.4 -> 3.4.5
+version: 3.5.2 -> 3.5.3
+date:    2011-03-29
+
+Stripped .py from script file
+-----------------------------
+Stripped the .py extension from script file. Also improved the test so it works
+for an installed version.
+(2011-03-29, 3.5.2
+)
+
+Local imports in namespace
+--------------------------
+Changed all imports in schemas to local imports, so the test does not need an
+internet connection.
+(2011-03-29, 3.5.2
+)
+
+==============================================================================
+
 version: 3.4.3 -> 3.4.4
 version: 3.5.1 -> 3.5.2
 date:    2011-03-28
