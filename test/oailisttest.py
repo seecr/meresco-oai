@@ -152,6 +152,8 @@ class OaiListTest(CQ2TestCase):
         self.assertEquals(['noRecordsMatch'], xpath(oai, "/oai:OAI-PMH/oai:error/@code"))
 
     def testListRecordsUsingXWait(self):
+        self.oaiList = OaiList(batchSize=2, supportXWait=True)
+        self.oaiList.addObserver(self.observer)
         self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in [])
 
         result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
@@ -170,6 +172,23 @@ class OaiListTest(CQ2TestCase):
         self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[2:]
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, recordMethods[0].kwargs)
+
+    def testNotSupportedXWait(self):
+        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1', 'id:2'])
+        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))).split(CRLF*2)
+        oai = parse(StringIO(body))
+
+        self.assertEquals(['badArgument'], xpath(oai, "/oai:OAI-PMH/oai:error/@code"))
+
+    def testNotSupportedValueXWait(self):
+        self.oaiList = OaiList(batchSize=2, supportXWait=True)
+        self.oaiList.addObserver(self.observer)
+        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1', 'id:2'])
+        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['YesPlease']}, **self.httpkwargs))).split(CRLF*2)
+        oai = parse(StringIO(body))
+
+        self.assertEquals(['badArgument'], xpath(oai, "/oai:OAI-PMH/oai:error/@code"))
+        self.assertTrue("only supports 'True' as valid value" in xpath(oai, "/oai:OAI-PMH/oai:error/text()")[0])
 
     def testFromAndUntil(self):
         def selectArguments(oaiFrom, oaiUntil):
@@ -213,6 +232,8 @@ class OaiListTest(CQ2TestCase):
         self.assertEquals('badArgument', getError('2000-01-01T00:00:00Z', '1999-01-01T00:00:00Z'))
 
     def testConcurrentListRequestsDontInterfere(self):
+        self.oaiList = OaiList(batchSize=2, supportXWait=True)
+        self.oaiList.addObserver(self.observer)
         self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in [])
 
         # ListRecords request

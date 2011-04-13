@@ -55,7 +55,7 @@ from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
 from oaiprovenancetest import OaiProvenanceTest
 from oairecordtest import OaiRecordTest
 from oaisetselecttest import OaiSetSelectTest
-from oaisuspendtest import OaiSuspendTest
+from oaiintegrationtest import OaiIntegrationTest
 from oaitooltest import OaiToolTest
 from periodicdownloadtest import PeriodicDownloadTest 
 from resumptiontokentest import ResumptionTokenTest

@@ -81,10 +81,11 @@ Error and Exception Conditions
 
     DEFAULT_BATCH_SIZE = 200
 
-    def __init__(self, batchSize=DEFAULT_BATCH_SIZE):
+    def __init__(self, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False):
         self._supportedVerbs = ['ListIdentifiers', 'ListRecords']
         Observable.__init__(self)
         self._batchSize = batchSize
+        self._supportXWait = supportXWait
 
     def listRecords(self, arguments, **httpkwargs):
         yield self._doProcess(arguments, **httpkwargs)
@@ -127,7 +128,10 @@ Error and Exception Conditions
         validatedArguments = {}
         checkNoRepeatedArguments(arguments)
         arguments.pop('verb')
-        checkArgument(arguments, 'x-wait', validatedArguments)
+        if self._supportXWait:
+            checkArgument(arguments, 'x-wait', validatedArguments)
+            if validatedArguments.get('x-wait', None) not in ['True', None]:
+                raise OaiBadArgumentException("The argument 'x-wait' only supports 'True' as valid value.")
         if checkArgument(arguments, 'resumptionToken', validatedArguments):
             if len(arguments) > 0:
                 raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')

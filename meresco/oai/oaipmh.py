@@ -40,7 +40,7 @@ from oaiidentifierrename import OaiIdentifierRename
 from oairecord import OaiRecord
 
 class OaiPmh(object):
-    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=OaiList.DEFAULT_BATCH_SIZE):
+    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=OaiList.DEFAULT_BATCH_SIZE, supportXWait=False):
         outside = Transparant() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
@@ -50,7 +50,7 @@ class OaiPmh(object):
                     (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), 
                         (outside,)
                     ),
-                    (OaiList(batchSize=batchSize),
+                    (OaiList(batchSize=batchSize, supportXWait=supportXWait),
                         (OaiRecord(),
                             (outside,)
                         )

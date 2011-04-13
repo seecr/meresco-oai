@@ -42,6 +42,7 @@ from StringIO import StringIO
 from lxml.etree import parse
 from meresco.core import Observable, be, Transparant
 from weightless.core import compose
+from weightless.http import Suspend
 
 parseLxml = lambda s: parse(StringIO(s)).getroot()
 
@@ -484,4 +485,32 @@ class OaiJazzTest(CQ2TestCase):
         self.assertEquals(set(['oai_dc', 'lom']), parts)
         self.assertEquals(['123'], list(self.jazz.oaiSelect(prefix='lom')))
         self.assertEquals(['123'], list(self.jazz.oaiSelect(prefix='oai_dc')))
+
+    def testAddSuspendedListRecord(self):
+        suspend = self.jazz.suspend().next()
+        self.assertTrue([suspend], self.jazz._suspended)
+        self.assertEquals(Suspend, type(suspend))
+
+    def testAddOaiRecordResumes(self):
+        reactor = CallTrace("reactor")
+        suspend = self.jazz.suspend().next()
+        resumed = []
+        suspend(reactor, lambda: resumed.append(True))
+
+        self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
+
+        self.assertEquals([True], resumed)
+        self.assertEquals([], self.jazz._suspended)
+
+    def testDeleteResumes(self):
+        self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
+        reactor = CallTrace("reactor")
+        suspend = self.jazz.suspend().next()
+        resumed = []
+        suspend(reactor, lambda: resumed.append(True))
+
+        self.jazz.delete(identifier='identifier')
+
+        self.assertEquals([True], resumed)
+        self.assertEquals([], self.jazz._suspended)
 

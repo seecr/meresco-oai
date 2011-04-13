@@ -37,6 +37,7 @@ from time import time, strftime, localtime, mktime, strptime
 from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
 from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
 from sys import maxint
+from weightless.http import Suspend
 
 from bisect import bisect_left
 
@@ -62,6 +63,7 @@ class OaiJazz(object):
         self._tombStones = PersistentSortedIntegerList(join(self._directory, 'tombStones.list'), use64bits=True, mergeTrigger=MERGE_TRIGGER)
         self._identifier2setSpecs = BerkeleyDict(join(self._directory, 'identifier2setSpecs'))
         self._read()
+        self._suspended = []
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
         sets = [] if sets == None else sets
@@ -77,6 +79,7 @@ class OaiJazz(object):
         setSpecs.update(oldSets)
         self._add(stamp, identifier, setSpecs, prefixes)
         self._storeMetadataFormats(metadataFormats)
+        self._resume()
 
     def delete(self, identifier):
         oldPrefixes, oldSets = self._delete(identifier)
@@ -85,6 +88,7 @@ class OaiJazz(object):
         stamp = self._stamp()
         self._add(stamp, identifier, oldSets, oldPrefixes)
         self._tombStones.append(stamp)
+        self._resume()
 
     def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None):
         sets = [] if sets == None else sets
@@ -141,6 +145,12 @@ class OaiJazz(object):
         
     def getNrOfRecords(self, prefix='oai_dc'):
         return len(self._prefixes.get(prefix, []))
+
+    def suspend(self):
+        suspend = Suspend()
+        self._suspended.append(suspend) 
+        yield suspend
+        suspend.getResult()
 
     # private methods
 
@@ -257,6 +267,10 @@ class OaiJazz(object):
         assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI index at %s need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-oai/bin)" % self._directory
         with open(join(self._directory, "oai.version"), 'w') as f:
             f.write(self.version)
+
+    def _resume(self):
+        while len(self._suspended) > 0:
+            self._suspended.pop().resume()
 
 # helper methods
 

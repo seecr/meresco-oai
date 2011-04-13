@@ -31,61 +31,20 @@ from time import sleep
 from meresco.core import be, Observable
 from meresco.components.http import ObservableHttpServer
 from meresco.components import StorageComponent
-from meresco.oai import OaiPmh, OaiJazz, OaiSuspend, PeriodicDownload, OaiDownloadProcessor
+from meresco.oai import OaiPmh, OaiJazz, PeriodicDownload, OaiDownloadProcessor
 
 from cq2utils import CQ2TestCase, CallTrace
 from weightless.io import Reactor
-from weightless.http import Suspend
 
 from lxml.etree import tostring
 
-class OaiSuspendTest(CQ2TestCase):
-
-    def testAddSuspendedListRecord(self):
-        oaiSuspend = OaiSuspend()
-        suspend = oaiSuspend.suspend().next()
-        self.assertTrue([suspend], oaiSuspend._suspended)
-        self.assertEquals(Suspend, type(suspend))
-
-    def testAddOaiRecord(self):
-        oaiSuspend = OaiSuspend()
-        observer = CallTrace("oaijazz")
-        oaiSuspend.addObserver(observer)
-        reactor = CallTrace("reactor")
-        suspend = oaiSuspend.suspend().next()
-        resumed = []
-        suspend(reactor, lambda: resumed.append(True))
-
-        oaiSuspend.addOaiRecord(identifier="ignored", sets="sets", metadataFormats="metadataFormats")
-
-        self.assertEquals([True], resumed)
-        self.assertEquals([], oaiSuspend._suspended)
-        self.assertEquals("addOaiRecord", observer.calledMethods[0].name)
-
-    def testDelete(self):
-        oaiSuspend = OaiSuspend()
-        observer = CallTrace("oaijazz")
-        oaiSuspend.addObserver(observer)
-        reactor = CallTrace("reactor")
-        suspend = oaiSuspend.suspend().next()
-        resumed = []
-        suspend(reactor, lambda: resumed.append(True))
-
-        oaiSuspend.delete(identifier='identifier')
-
-        self.assertEquals([True], resumed)
-        self.assertEquals([], oaiSuspend._suspended)
-        self.assertEquals("delete", observer.calledMethods[0].name)
+class OaiIntegrationTest(CQ2TestCase):
 
     def testNearRealtimeOai(self):
         self.run = True
         portNumber = randint(50000, 60000)
         observer = CallTrace("observer", ignoredAttributes=["observer_init"])
-        oaiJazz = be(
-            (OaiSuspend(),
-                (OaiJazz(join(self.tempdir, 'oai')),),
-            )
-        )
+        oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
         storageComponent = StorageComponent(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, 3)
 
@@ -121,11 +80,7 @@ class OaiSuspendTest(CQ2TestCase):
 
     def testNearRealtimeOaiSavesState(self):
         observer = CallTrace("observer", ignoredAttributes=["observer_init"])
-        oaiJazz = be(
-            (OaiSuspend(),
-                (OaiJazz(join(self.tempdir, 'oai')),),
-            )
-        )
+        oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
         storageComponent = StorageComponent(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, 1)
         
@@ -142,9 +97,12 @@ class OaiSuspendTest(CQ2TestCase):
             harvestThread.start()
 
         def stop():
+            global oaiPmhThread, harvestThread
             self.run = False
             oaiPmhThread.join()
+            oaiPmhThread = None
             harvestThread.join()
+            harvestThread = None
 
         start()
         requests = 1
@@ -185,7 +143,7 @@ class OaiSuspendTest(CQ2TestCase):
         server = be(
             (Observable(),
                 (ObservableHttpServer(reactor, portNumber),
-                    (OaiPmh(repositoryName='repositoryName', adminEmail='adminEmail', batchSize=2),
+                    (OaiPmh(repositoryName='repositoryName', adminEmail='adminEmail', batchSize=2, supportXWait=True),
                         (oaiJazz,),
                         (storageComponent,)
                     )
