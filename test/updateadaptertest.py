@@ -27,11 +27,11 @@ from cq2utils import CQ2TestCase, CallTrace
 from lxml.etree import parse
 from StringIO import StringIO
 
-from meresco.oai import UpdateAdapterFromOaiHarvester
+from meresco.oai import UpdateAdapterFromOaiHarvester, UpdateAdapterFromOaiDownloadProcessor
 
 class UpdateAdapterTest(CQ2TestCase):
     def testDelete(self):
-        adapter = UpdateAdapterFromOaiHarvester()
+        adapter = UpdateAdapterFromOaiDownloadProcessor()
         observer = CallTrace('observer')
         adapter.addObserver(observer)
 
@@ -41,7 +41,7 @@ class UpdateAdapterTest(CQ2TestCase):
         self.assertEquals({'identifier':'oai:test:identifier'}, observer.calledMethods[0].kwargs)
 
     def testAdd(self):
-        adapter = UpdateAdapterFromOaiHarvester()
+        adapter = UpdateAdapterFromOaiDownloadProcessor()
         observer = CallTrace('observer')
         adapter.addObserver(observer)
 
@@ -55,7 +55,7 @@ class UpdateAdapterTest(CQ2TestCase):
             'lxmlNode': recordNode}, kwargs)
 
     def testRaiseErrorOnBadArguments(self):
-        adapter = UpdateAdapterFromOaiHarvester()
+        adapter = UpdateAdapterFromOaiDownloadProcessor()
         observer = CallTrace('observer')
         adapter.addObserver(observer)
 

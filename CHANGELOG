@@ -1,6 +1,18 @@
 CHANGELOG Meresco-Oai
 =====================
 
+version: 3.6 -> 3.6.1
+date:    2011-04-13
+
+Renamed UpdateAdapter
+---------------------
+Renamed UpdateAdapterFromOaiHarvester to UpdateAdapterFromOaiDownloadProcessor
+to match the name of the OaiDownloadProcessor (extracted from the former
+OaiHarvester)
+(2011-04-13, 3.6)
+
+==============================================================================
+
 version: 3.5.4 -> 3.6
 date:    2011-04-13
 
