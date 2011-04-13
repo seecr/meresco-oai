@@ -5,7 +5,7 @@ Description: Explicit configure support x-wait
     Added parameter to OaiPmh for explicitly stating is supports x-wait.
     Previous version could cause the server to be non-responsive.
 
-Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.4.6-Edurep/version_0
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.5.4-Edurep/version_0
 
 diff --unidirectional-new-file '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' --recursive --unified version_0/meresco/oai/__init__.py version_1/meresco/oai/__init__.py
 --- version_0/meresco/oai/__init__.py	2011-04-12 17:38:52.000000000 +0200

@@ -1,6 +1,17 @@
 CHANGELOG Meresco-Oai
 =====================
 
+version: 3.5.4 -> 3.6
+date:    2011-04-13
+
+Explicit configure support x-wait
+---------------------------------
+Added parameter to OaiPmh for explicitly stating is supports x-wait. Previous
+version could cause the server to be non-responsive.
+(2011-04-12, 3.5.4-Edurep)
+
+==============================================================================
+
 version: 3.4.5 -> 3.4.6
 version: 3.5.3 -> 3.5.4
 date:    2011-04-11
