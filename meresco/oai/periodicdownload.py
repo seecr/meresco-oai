@@ -38,19 +38,7 @@ from weightless.core import compose
 
 from sys import stderr, stdout
 from time import time
-from tempfile import mkstemp
-
-class AlwaysReadable(object):
-    def __init__(self):
-        self._fd, self._name = mkstemp('periodicdownload')
-
-    def fileno(self):
-        return self._fd
-
-    def cleanUp(self):
-        close(self._fd)
-        remove(self._name)
-
+from tempfile import TemporaryFile
 
 class PeriodicDownload(Observable):
     def __init__(self, reactor, host, port, period=1, verbose=False, prio=None, err=None):
@@ -95,14 +83,13 @@ class PeriodicDownload(Observable):
                     yield self._retryAfterError('Unexpected response: ' + statusLine)
                     continue
                 lxmlNode = parse(StringIO(body))
-                alwaysReadable = AlwaysReadable()
+                alwaysReadable = TemporaryFile(prefix='meresco-oai-', suffix='-download')
                 self._reactor.addReader(alwaysReadable, self._loop.next, prio=self._prio)
                 try:
                     result = self.any.handle(lxmlNode=lxmlNode)
                     yield result 
                 finally:
                     self._reactor.removeReader(alwaysReadable)
-                    alwaysReadable.cleanUp()
             except Exception:
                 self._logError(format_exc())
             self._reactor.addTimer(self._period, self._loop.next)
