@@ -109,7 +109,8 @@ Error and Exception Conditions
                 results = self._preProcess(validatedArguments, **httpkwargs)
                 break
             except OaiException, e:
-                if e.statusCode == "noRecordsMatch" and validatedArguments.get("x-wait", 'False') == 'True':
+                if validatedArguments.get("x-wait", 'False') == 'True' and \
+                        e.statusCode in ["noRecordsMatch", "cannotDisseminateFormat"]:
                     yield self.all.suspend()
                 else:
                     yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)

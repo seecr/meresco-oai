@@ -55,6 +55,7 @@ class OaiListTest(CQ2TestCase):
         self.observer = CallTrace('observer')
         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
         self.observer.returnValues['oaiSelect'] = (f for f in [])
+        self.observer.returnValues['suspend'] = 'SUSPEND'
         def oaiRecord(recordId, metadataPrefix):
             return '<mock:record xmlns:mock="uri:mock">%s/%s</mock:record>' % (escapeXml(recordId), escapeXml(metadataPrefix))
         self.observer.methods['oaiRecord'] = oaiRecord
@@ -172,6 +173,29 @@ class OaiListTest(CQ2TestCase):
         self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[2:]
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, recordMethods[0].kwargs)
+
+    def testListRecordsUsingXWaitWhenSetNotFound(self):
+        self.oaiList = OaiList(batchSize=2, supportXWait=True)
+        self.oaiList.addObserver(self.observer)
+
+        result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['other_prefix'], 'x-wait': ['True']}, **self.httpkwargs))
+        suspend = result.next()
+        self.assertEquals(['getAllPrefixes', 'suspend'], [m.name for m in self.observer.calledMethods])
+        self.observer.returnValues['getAllPrefixes'] = ['other_prefix']
+        suspend = result.next() 
+        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1&1'])
+        del self.observer.calledMethods[:]
+
+        header, body = ''.join(compose(result)).split(CRLF*2)
+        oai = parse(StringIO(body))
+
+        self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
+        self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
+        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiRecord', 'getUnique'], [m.name for m in self.observer.calledMethods])
+        selectMethod = self.observer.calledMethods[1]
+        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'other_prefix', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
+        recordMethods = self.observer.calledMethods[2:]
+        self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'other_prefix'}, recordMethods[0].kwargs)
 
     def testNotSupportedXWait(self):
         self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1', 'id:2'])
