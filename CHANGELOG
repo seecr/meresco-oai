@@ -1,6 +1,19 @@
 CHANGELOG Meresco-Oai
 =====================
 
+version: 3.6.1 -> 3.6.2
+date:    2011-04-28
+
+X-wait now always suspend if no records are found
+-------------------------------------------------
+If the cannotDisseminateFormat error is raised a ListRecord call with x-wait now
+also suspends the connection.
+
+Replaces AlwaysReadable in the PeriodicDownload with a TemporaryFile object
+(2011-04-28, 3.6.1-Edurep)
+
+==============================================================================
+
 version: 3.6 -> 3.6.1
 date:    2011-04-13
 
