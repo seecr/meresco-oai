@@ -38,6 +38,7 @@ class UpdateAdapterFromOaiDownloadProcessor(Observable):
             raise ValueError("Expected /{%(oai)s}record/{%(oai)s}header" % namespaces)
         header = header[0]
         identifier = xpath(header, 'oai:identifier/text()')[0]
+        __callstack_var_identifier = identifier
         if xpath(header, 'self::node()[@status="deleted"]'):
             return self.all.delete(identifier=identifier)
         else:
