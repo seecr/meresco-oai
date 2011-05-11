@@ -1,0 +1,184 @@
+Changeset created on Wed May 11 11:07:20 CEST 2011 by Seek You Too
+
+Description: Disappearing recordId bugfix.
+
+    RecordIds return by the OaiJazz.oaiSelect(..) method can be changed due
+    to updates/deletes. This resulted in 'None' records. 
+    These disappearing records are now filtered.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.2-Edurep/version_0
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/meresco/oai/oaijazz.py version_1/meresco/oai/oaijazz.py
+--- version_0/meresco/oai/oaijazz.py	2011-05-11 10:02:35.000000000 +0200
++++ version_1/meresco/oai/oaijazz.py	2011-05-11 11:06:40.000000000 +0200
+@@ -1,32 +1,32 @@
+ # -*- coding: utf-8 -*-
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+ from __future__ import with_statement
+@@ -104,8 +104,9 @@
+             stampIds = AndIterator(stampIds,
+                 reduce(OrIterator, allStampIdsFromSets))
+         #WrapIterable to fool Observable's any message
+-        return WrapIterable((RecordId(self._getIdentifier(stampId), stampId) for stampId in stampIds))
+-
++        idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
++        return WrapIterable((RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None))
++                
+     def getDatestamp(self, identifier):
+         stamp = self.getUnique(identifier)
+         if stamp == None:
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/oaijazztest.py version_1/test/oaijazztest.py
+--- version_0/test/oaijazztest.py	2011-05-11 10:02:35.000000000 +0200
++++ version_1/test/oaijazztest.py	2011-05-11 11:06:40.000000000 +0200
+@@ -1,33 +1,34 @@
+ # -*- coding: utf-8 -*-
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
++
+ from cq2utils import CQ2TestCase, CallTrace
+ 
+ from os import listdir, remove
+@@ -283,6 +284,32 @@
+         result = self.jazz.oaiSelect(prefix='oai_dc', continueAfter=str(self.jazz.getUnique('00001')))
+         self.assertEquals('00002', result.next())
+ 
++    def testChangedIdentifiersInOaiSelect(self):
++        for i in range(1,5):
++            self._addRecord(i)
++        result = []
++        select = self.jazz.oaiSelect(prefix='oai_dc')
++        for r in select:
++            result.append(r)
++        self.assertEquals(['00001', '00002', '00003', '00004'], result)
++        
++        result = []
++        select = self.jazz.oaiSelect(prefix='oai_dc')
++        result.append(select.next())
++        result.append(select.next())
++        self._addRecord(3)
++        for r in select:
++            result.append(r)
++
++        self.assertEquals(['00001', '00002', '00004'], result)
++
++
++        result = []
++        select = self.jazz.oaiSelect(prefix='oai_dc')
++        for r in select:
++            result.append(r)
++        self.assertEquals(['00001', '00002', '00004', '00003'], result)
++
+     def testAddOaiRecordWithNoMetadataFormats(self):
+         try:
+             self.jazz.addOaiRecord('identifier', sets=[('setSpec', 'setName')], metadataFormats=[])
+Binary files version_0/test/.oaijazztest.py.swp and version_1/test/.oaijazztest.py.swp differ
