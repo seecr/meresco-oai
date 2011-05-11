@@ -1,0 +1,41 @@
+Changeset created on Wed May 11 14:19:22 CEST 2011 by Seek You Too
+
+Description: Getting the last stampId
+
+    Added convenience method for reading the last stampId. This can be used to 
+    compare with a resumptionToken of a harvester.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.2-Edurep/version_1
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_1/meresco/oai/oaijazz.py version_2/meresco/oai/oaijazz.py
+--- version_1/meresco/oai/oaijazz.py	2011-05-11 14:07:04.000000000 +0200
++++ version_2/meresco/oai/oaijazz.py	2011-05-11 14:16:42.000000000 +0200
+@@ -147,6 +147,9 @@
+     def getNrOfRecords(self, prefix='oai_dc'):
+         return len(self._prefixes.get(prefix, []))
+ 
++    def getLastStampId(self, prefix='oai_dc'):
++        return self._prefixes.get(prefix, [None])[-1]
++
+     def suspend(self):
+         suspend = Suspend()
+         self._suspended.append(suspend) 
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_1/test/oaijazztest.py version_2/test/oaijazztest.py
+--- version_1/test/oaijazztest.py	2011-05-11 14:12:38.000000000 +0200
++++ version_2/test/oaijazztest.py	2011-05-11 14:16:42.000000000 +0200
+@@ -226,6 +226,15 @@
+         self.jazz.delete('id1')
+         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
+ 
++    def testGetLastStampId(self):
++        self.assertEquals(None, self.jazz.getLastStampId('aPrefix'))
++        newStamp = self.stampNumber
++        self.jazz.addOaiRecord('id1', metadataFormats=[('aPrefix', 'schema', 'namespace')])
++        self.assertEquals(newStamp, self.jazz.getLastStampId('aPrefix'))
++        newStamp = self.stampNumber
++        self.jazz.addOaiRecord('id2', metadataFormats=[('aPrefix', 'schema', 'namespace')])
++        self.assertEquals(newStamp, self.jazz.getLastStampId('aPrefix'))
++
+     def testIllegalSetRaisesException(self):
+         # XSD: http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd
+         # according to the xsd the setSpec should conform to:
