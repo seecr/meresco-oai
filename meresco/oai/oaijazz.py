@@ -147,6 +147,9 @@ class OaiJazz(object):
     def getNrOfRecords(self, prefix='oai_dc'):
         return len(self._prefixes.get(prefix, []))
 
+    def getLastStampId(self, prefix='oai_dc'):
+        return self._prefixes.get(prefix, [None])[-1]
+
     def suspend(self):
         suspend = Suspend()
         self._suspended.append(suspend) 

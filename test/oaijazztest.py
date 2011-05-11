@@ -226,6 +226,15 @@ class OaiJazzTest(CQ2TestCase):
         self.jazz.delete('id1')
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
 
+    def testGetLastStampId(self):
+        self.assertEquals(None, self.jazz.getLastStampId('aPrefix'))
+        newStamp = self.stampNumber
+        self.jazz.addOaiRecord('id1', metadataFormats=[('aPrefix', 'schema', 'namespace')])
+        self.assertEquals(newStamp, self.jazz.getLastStampId('aPrefix'))
+        newStamp = self.stampNumber
+        self.jazz.addOaiRecord('id2', metadataFormats=[('aPrefix', 'schema', 'namespace')])
+        self.assertEquals(newStamp, self.jazz.getLastStampId('aPrefix'))
+
     def testIllegalSetRaisesException(self):
         # XSD: http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd
         # according to the xsd the setSpec should conform to:
