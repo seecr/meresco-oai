@@ -1,0 +1,72 @@
+Changeset created on Fri May 13 11:34:33 CEST 2011 by Seek You Too
+
+Description: Use UTC as timestamp for records
+
+    Timestamp for records was in localtime but given as gmtime. Therefore some 
+    records could be in the future. Now all datestamps are given with the correct
+    datestamp in UTC.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.3-Edurep/version_0
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/meresco/oai/oaijazz.py version_1/meresco/oai/oaijazz.py
+--- version_0/meresco/oai/oaijazz.py	2011-05-13 09:46:38.000000000 +0200
++++ version_1/meresco/oai/oaijazz.py	2011-05-13 11:34:11.000000000 +0200
+@@ -33,7 +33,8 @@
+ from os.path import isdir, join, isfile
+ from os import makedirs, listdir, rename
+ from storage.storage import escapeName, unescapeName
+-from time import time, strftime, localtime, mktime, strptime
++from time import time, strftime, gmtime, strptime
++from calendar import timegm
+ from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
+ from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
+ from sys import maxint
+@@ -111,7 +112,7 @@
+         stamp = self.getUnique(identifier)
+         if stamp == None:
+             return None
+-        return strftime('%Y-%m-%dT%H:%M:%SZ', localtime(stamp/1000000.0))
++        return strftime('%Y-%m-%dT%H:%M:%SZ', gmtime(stamp/1000000.0))
+ 
+     def getUnique(self, identifier):
+         if hasattr(identifier, 'stamp'):
+@@ -216,7 +217,7 @@
+     @staticmethod
+     def _timeToNumber(time):
+         try:
+-            return int(mktime(strptime(time, '%Y-%m-%dT%H:%M:%SZ'))*1000000.0)
++            return int(timegm(strptime(time, '%Y-%m-%dT%H:%M:%SZ'))*1000000.0)
+         except (ValueError, OverflowError):
+             return maxint * 1000000
+ 
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/oaijazztest.py version_1/test/oaijazztest.py
+--- version_0/test/oaijazztest.py	2011-05-13 09:46:38.000000000 +0200
++++ version_1/test/oaijazztest.py	2011-05-13 11:34:11.000000000 +0200
+@@ -34,7 +34,8 @@
+ from os import listdir, remove
+ from os.path import isfile, join
+ from shutil import rmtree
+-from time import time, mktime, strptime, sleep
++from time import time, strptime, sleep
++from calendar import timegm
+ 
+ from meresco.oai import OaiJazz, OaiAddRecord
+ from meresco.oai.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATOR
+@@ -52,7 +53,7 @@
+     def setUp(self):
+         CQ2TestCase.setUp(self)
+         self.jazz = OaiJazz(self.tempdir)
+-        self.stampNumber = self.orginalStampNumber = int(mktime((2008, 07, 06, 05, 04, 03, 0, 0, 1)))*1000000
++        self.stampNumber = self.orginalStampNumber = int(timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1)))*1000000
+         def stamp():
+             result = self.stampNumber
+             self.stampNumber += 1
+@@ -453,7 +454,7 @@
+         
+     def testListRecordsWithFromAndUntil(self):
+         def setTime(year, month, day):
+-            self.jazz._stamp = lambda: int(mktime((year, month, day, 0, 1, 0, 0, 0 ,0))*1000000.0)
++            self.jazz._stamp = lambda: int(timegm((year, month, day, 0, 1, 0, 0, 0 ,0))*1000000.0)
+         setTime(2007, 9, 21)
+         self.jazz.addOaiRecord('4', metadataFormats=[('prefix','schema', 'namespace')])
+         setTime(2007, 9, 22)
