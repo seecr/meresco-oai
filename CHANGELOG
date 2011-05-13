@@ -1,6 +1,17 @@
 CHANGELOG Meresco-Oai
 =====================
 
+version: 3.6.2 -> 3.6.3
+date:    2011-05-13
+
+Use UTC as timestamp for records
+--------------------------------
+Timestamp for records was in localtime but given as gmtime. Therefore some
+records could be in the future. Now all datestamps are given with the correct
+datestamp in UTC.
+(2011-05-13, 3.6.3-Edurep)
+
+==============================================================================
 
 version: 3.6.2 -> 3.6.3
 date:    2011-05-12
