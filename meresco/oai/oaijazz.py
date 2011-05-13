@@ -33,7 +33,8 @@ from __future__ import with_statement
 from os.path import isdir, join, isfile
 from os import makedirs, listdir, rename
 from storage.storage import escapeName, unescapeName
-from time import time, strftime, localtime, mktime, strptime
+from time import time, strftime, gmtime, strptime
+from calendar import timegm
 from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
 from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
 from sys import maxint
@@ -111,7 +112,7 @@ class OaiJazz(object):
         stamp = self.getUnique(identifier)
         if stamp == None:
             return None
-        return strftime('%Y-%m-%dT%H:%M:%SZ', localtime(stamp/1000000.0))
+        return strftime('%Y-%m-%dT%H:%M:%SZ', gmtime(stamp/1000000.0))
 
     def getUnique(self, identifier):
         if hasattr(identifier, 'stamp'):
@@ -216,7 +217,7 @@ class OaiJazz(object):
     @staticmethod
     def _timeToNumber(time):
         try:
-            return int(mktime(strptime(time, '%Y-%m-%dT%H:%M:%SZ'))*1000000.0)
+            return int(timegm(strptime(time, '%Y-%m-%dT%H:%M:%SZ'))*1000000.0)
         except (ValueError, OverflowError):
             return maxint * 1000000
 

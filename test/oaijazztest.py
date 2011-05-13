@@ -34,7 +34,8 @@ from cq2utils import CQ2TestCase, CallTrace
 from os import listdir, remove
 from os.path import isfile, join
 from shutil import rmtree
-from time import time, mktime, strptime, sleep
+from time import time, strptime, sleep
+from calendar import timegm
 
 from meresco.oai import OaiJazz, OaiAddRecord
 from meresco.oai.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATOR
@@ -52,7 +53,7 @@ class OaiJazzTest(CQ2TestCase):
     def setUp(self):
         CQ2TestCase.setUp(self)
         self.jazz = OaiJazz(self.tempdir)
-        self.stampNumber = self.orginalStampNumber = int(mktime((2008, 07, 06, 05, 04, 03, 0, 0, 1)))*1000000
+        self.stampNumber = self.orginalStampNumber = int(timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1)))*1000000
         def stamp():
             result = self.stampNumber
             self.stampNumber += 1
@@ -453,7 +454,7 @@ class OaiJazzTest(CQ2TestCase):
         
     def testListRecordsWithFromAndUntil(self):
         def setTime(year, month, day):
-            self.jazz._stamp = lambda: int(mktime((year, month, day, 0, 1, 0, 0, 0 ,0))*1000000.0)
+            self.jazz._stamp = lambda: int(timegm((year, month, day, 0, 1, 0, 0, 0 ,0))*1000000.0)
         setTime(2007, 9, 21)
         self.jazz.addOaiRecord('4', metadataFormats=[('prefix','schema', 'namespace')])
         setTime(2007, 9, 22)
