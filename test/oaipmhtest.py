@@ -4,6 +4,9 @@
 #    Core and Meresco Components.
 #    Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 #    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+#    Copyright (C) 2011 Seecr http://seecr.nl
+#    Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid
+#        http://instituut.beeldengeluid.nl
 #
 #    This file is part of Meresco Oai.
 #
