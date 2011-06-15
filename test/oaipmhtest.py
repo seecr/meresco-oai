@@ -70,13 +70,23 @@ class _OaiPmhTest(CQ2TestCase):
                 jazz.delete(recordId)
 
     def _request(self, from_=None, **arguments):
+        httpMethod = getattr(self, 'httpMethod', 'GET')
         if from_:
             arguments['from'] = from_
+        RequestURI = 'http://example.org/oai'
+        queryString = urlencode(arguments, doseq=True)
+        if httpMethod == 'GET':
+            RequestURI += '?' + queryString
+            Body = None
+        else:
+            Body = queryString
+            arguments = {}
         header, body = ''.join(compose(self.root.all.handleRequest(
-                RequestURI='http://example.org/oai?' + urlencode(arguments, doseq=True),
+                RequestURI=RequestURI,
                 Headers={},
+                Body=Body,
                 Client=('127.0.0.1', 1324),
-                Method="GET",
+                Method=httpMethod,
                 port=9000,
                 arguments=arguments,
                 path='/oai',
@@ -279,6 +289,7 @@ class _OaiPmhTest(CQ2TestCase):
         errorText = xpath(body, '/oai:OAI-PMH/oai:error/text()')[0]
         self.assertTrue(additionalMessage in errorText, 'Expected "%s" in "%s"' % (additionalMessage, errorText))
 
+
 class OaiPmhTest(_OaiPmhTest):
     def setUp(self):
         _OaiPmhTest.setUp(self)
@@ -296,7 +307,6 @@ class OaiPmhTest(_OaiPmhTest):
 
         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")
-        
 
 class OaiPmhWithIdentifierTest(_OaiPmhTest):
     def setUp(self):
@@ -305,6 +315,12 @@ class OaiPmhWithIdentifierTest(_OaiPmhTest):
 
     def getOaiPmh(self):
         return OaiPmh(repositoryName='The Repository Name', adminEmail='admin@meresco.org', batchSize=BATCHSIZE, repositoryIdentifier='www.example.org')
+
+class HttpPostOaiPmhTest(OaiPmhTest):
+    def setUp(self):
+        OaiPmhTest.setUp(self)
+        self.httpMethod = 'POST'
+
 
 def xpath(node, path):
     return node.xpath(path, namespaces={'oai': 'http://www.openarchives.org/OAI/2.0/',

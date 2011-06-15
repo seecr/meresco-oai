@@ -51,7 +51,7 @@ from oaibrandingtest import OaiBrandingTest
 from oaidownloadprocessortest import OaiDownloadProcessorTest
 from oaijazztest import OaiJazzTest
 from oailisttest import OaiListTest
-from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
+from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest
 from oaiprovenancetest import OaiProvenanceTest
 from oairecordtest import OaiRecordTest
 from oaisetselecttest import OaiSetSelectTest

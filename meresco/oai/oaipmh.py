@@ -29,6 +29,8 @@
 #
 ## end license ##
 
+from cgi import parse_qs
+
 from meresco.core import be, Transparant, Observable
 from oaiidentify import OaiIdentify
 from oailist import OaiList
@@ -70,7 +72,9 @@ class OaiPmh(object):
             )
         )
 
-    def handleRequest(self, arguments, **kwargs):
+    def handleRequest(self, Method, arguments, Body=None, **kwargs):
+        if Method == 'POST':
+            arguments.update(parse_qs(Body))
         verb = arguments.get('verb', [None])[0]
         message = verb[0].lower() + verb[1:] if verb else ''
         yield self._internalObserverTree.all.unknown(message, arguments=arguments, **kwargs)
