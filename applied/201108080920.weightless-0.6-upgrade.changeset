@@ -1,0 +1,62 @@
+Changeset created on Mon Aug  8 09:20:25 CEST 2011 by Seecr (Seek You Too B.V.)
+
+Description: Upgrade to Weightless 0.6
+
+    Changed some imports to be compatible with Weightless 0.6
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/tags/version_3.6.5
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.6.5/deps.txt version_3.6.6/deps.txt
+--- version_3.6.5/deps.txt	2011-07-29 11:31:00.000000000 +0200
++++ version_3.6.6/deps.txt	2011-08-08 09:19:58.000000000 +0200
+@@ -1,7 +1,7 @@
+-python-meresco-components (>=3.4.8)
++python-meresco-components (>=3.4.17)
+ python-meresco-components (<<3.5)
+-python-weightless-core (>= 0.5)
+-python-weightless-core (<< 0.6)
++python-weightless-core (>= 0.6.2)
++python-weightless-core (<< 0.7)
+ python-storage (>=5.1.7)
+ python-storage (<<5.2)
+ python-lxml (>=2.1)
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.6.5/meresco/oai/oaijazz.py version_3.6.6/meresco/oai/oaijazz.py
+--- version_3.6.5/meresco/oai/oaijazz.py	2011-07-29 11:30:59.000000000 +0200
++++ version_3.6.6/meresco/oai/oaijazz.py	2011-08-08 09:19:58.000000000 +0200
+@@ -10,6 +10,7 @@
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -38,7 +39,7 @@
+ from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
+ from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
+ from sys import maxint
+-from weightless.http import Suspend
++from weightless.io import Suspend
+ 
+ from bisect import bisect_left
+ 
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.6.5/test/oaijazztest.py version_3.6.6/test/oaijazztest.py
+--- version_3.6.5/test/oaijazztest.py	2011-07-29 11:30:58.000000000 +0200
++++ version_3.6.6/test/oaijazztest.py	2011-08-08 09:19:58.000000000 +0200
+@@ -10,6 +10,7 @@
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -44,7 +45,7 @@
+ from lxml.etree import parse
+ from meresco.core import Observable, be, Transparant
+ from weightless.core import compose
+-from weightless.http import Suspend
++from weightless.io import Suspend
+ 
+ parseLxml = lambda s: parse(StringIO(s)).getroot()
+ 
