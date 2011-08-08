@@ -10,6 +10,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -44,7 +45,7 @@ from StringIO import StringIO
 from lxml.etree import parse
 from meresco.core import Observable, be, Transparant
 from weightless.core import compose
-from weightless.http import Suspend
+from weightless.io import Suspend
 
 parseLxml = lambda s: parse(StringIO(s)).getroot()
 

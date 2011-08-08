@@ -10,6 +10,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -38,7 +39,7 @@ from calendar import timegm
 from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
 from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
 from sys import maxint
-from weightless.http import Suspend
+from weightless.io import Suspend
 
 from bisect import bisect_left
 
