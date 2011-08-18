@@ -92,8 +92,8 @@ class PeriodicDownloadTest(CQ2TestCase):
             self.assertEquals('buildRequest', observer.calledMethods[0].name)
             self.assertEquals('handle', observer.calledMethods[1].name)
             self.assertEquals(0, len(observer.calledMethods[1].args))
-            self.assertEquals(['lxmlNode'], observer.calledMethods[1].kwargs.keys())
-            self.assertEqualsWS(ONE_RECORD, tostring(observer.calledMethods[1].kwargs['lxmlNode']))
+            self.assertEquals(['data'], observer.calledMethods[1].kwargs.keys())
+            self.assertEqualsWS(ONE_RECORD, observer.calledMethods[1].kwargs['data'])
 
     def testNoConnectionPossible(self):
         harvester, observer, reactor = self.getHarvester("some.nl", 'no-port')
@@ -166,7 +166,7 @@ class PeriodicDownloadTest(CQ2TestCase):
             self.assertEquals("", harvester._err.getvalue())
             self.assertEquals('buildRequest', observer.calledMethods[0].name)
             self.assertEquals('handle', observer.calledMethods[1].name)
-            self.assertEqualsWS(TWO_RECORDS, tostring(observer.calledMethods[1].kwargs['lxmlNode']))
+            self.assertEqualsWS(TWO_RECORDS, observer.calledMethods[1].kwargs['data'])
             self.assertEquals('removeReader', reactor.calledMethods[-2].name)
             self.assertEquals('addTimer', reactor.calledMethods[-1].name)
 
@@ -183,7 +183,7 @@ class PeriodicDownloadTest(CQ2TestCase):
             callback() # yield after self.do.add(...
             self.assertEquals("", harvester._err.getvalue())
             self.assertEquals('buildRequest', observer.calledMethods[0].name)
-            self.assertEqualsWS(ONE_RECORD, tostring(observer.calledMethods[1].kwargs['lxmlNode']))
+            self.assertEqualsWS(ONE_RECORD, observer.calledMethods[1].kwargs['data'])
 
     def testPeriod(self):
         with server([RESPONSE_TWO_RECORDS, 'HTTP/1.0 400 Error\r\n\r\nIllegal Request']) as (port, msgs):

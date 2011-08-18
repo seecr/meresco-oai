@@ -28,8 +28,6 @@
 
 from socket import socket, error as SocketError, SHUT_WR, SHUT_RD, SOL_SOCKET, SO_ERROR
 from errno import EINPROGRESS, ECONNREFUSED
-from lxml.etree import parse, ElementTree
-from StringIO import StringIO
 from traceback import format_exc
 from os import makedirs, close, remove
 from os.path import join, isfile, isdir
@@ -85,12 +83,11 @@ class PeriodicDownload(Observable):
                 if not statusLine.strip().lower().endswith('200 ok'):
                     yield self._retryAfterError('Unexpected response: ' + statusLine)
                     continue
-                lxmlNode = parse(StringIO(body))
                 alwaysReadable = TemporaryFile(prefix='meresco-oai-', suffix='-download')
                 self._reactor.addReader(alwaysReadable, self._loop.next, prio=self._prio)
                 try:
                     yield
-                    for data in self.all.handle(lxmlNode=lxmlNode):
+                    for data in self.all.handle(data=body):
                         if callable(data):
                             data(self._reactor, self._loop.next)
                             yield

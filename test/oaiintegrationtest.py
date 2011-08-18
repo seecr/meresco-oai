@@ -30,7 +30,7 @@ from time import sleep
 
 from meresco.core import be, Observable
 from meresco.components.http import ObservableHttpServer
-from meresco.components import StorageComponent
+from meresco.components import StorageComponent, XmlParseLxml
 from meresco.oai import OaiPmh, OaiJazz, PeriodicDownload, OaiDownloadProcessor
 
 from cq2utils import CQ2TestCase, CallTrace
@@ -129,8 +129,10 @@ class OaiIntegrationTest(CQ2TestCase):
         server = be(
             (Observable(),
                 (PeriodicDownload(reactor, 'localhost', portNumber),
-                    (OaiDownloadProcessor('/', 'prefix', self.tempdir),
-                        (observer,),
+                    (XmlParseLxml(fromKwarg="data", toKwarg="lxmlNode"),
+                        (OaiDownloadProcessor('/', 'prefix', self.tempdir),
+                            (observer,),
+                        )
                     )
                 )
             )
