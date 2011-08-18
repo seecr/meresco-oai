@@ -37,7 +37,6 @@ from oaiidentifierrename import OaiIdentifierRename
 from fields2oairecord import Fields2OaiRecordTx
 from oaijazz import OaiJazz
 from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
-from periodicdownload import PeriodicDownload
 from oaidownloadprocessor import OaiDownloadProcessor
 from updateadapter import UpdateAdapterFromOaiDownloadProcessor, UpdateAdapterFromOaiHarvester
 from oaibranding import OaiBranding

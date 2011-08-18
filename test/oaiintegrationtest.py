@@ -30,8 +30,8 @@ from time import sleep
 
 from meresco.core import be, Observable
 from meresco.components.http import ObservableHttpServer
-from meresco.components import StorageComponent, XmlParseLxml
-from meresco.oai import OaiPmh, OaiJazz, PeriodicDownload, OaiDownloadProcessor
+from meresco.components import StorageComponent, XmlParseLxml, PeriodicDownload
+from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
 
 from cq2utils import CQ2TestCase, CallTrace
 from weightless.io import Reactor

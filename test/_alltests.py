@@ -60,7 +60,6 @@ from oairecordtest import OaiRecordTest
 from oaisetselecttest import OaiSetSelectTest
 from oaiintegrationtest import OaiIntegrationTest
 from oaitooltest import OaiToolTest
-from periodicdownloadtest import PeriodicDownloadTest 
 from resumptiontokentest import ResumptionTokenTest
 from streaminglxmltest import StreamingLxmlTest
 from updateadaptertest import UpdateAdapterTest
