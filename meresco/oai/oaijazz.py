@@ -50,7 +50,7 @@ class OaiJazz(object):
 
     version = '2'
 
-    def __init__(self, aDirectory):
+    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False):
         self._directory = aDirectory
         isdir(aDirectory) or makedirs(aDirectory)
         self._versionFormatCheck()
@@ -66,6 +66,8 @@ class OaiJazz(object):
         self._identifier2setSpecs = BerkeleyDict(join(self._directory, 'identifier2setSpecs'))
         self._read()
         self._suspended = []
+        self._deletePrefixes = alwaysDeleteInPrefixes or []
+        self._preciseDatestamp = preciseDatestamp
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
         sets = [] if sets == None else sets
@@ -85,10 +87,10 @@ class OaiJazz(object):
 
     def delete(self, identifier):
         oldPrefixes, oldSets = self._delete(identifier)
-        if not oldPrefixes:
+        if not oldPrefixes and not self._deletePrefixes:
             return
         stamp = self._stamp()
-        self._add(stamp, identifier, oldSets, oldPrefixes)
+        self._add(stamp, identifier, oldSets, set(oldPrefixes + self._deletePrefixes))
         self._tombStones.append(stamp)
         self._resume()
 
@@ -113,7 +115,8 @@ class OaiJazz(object):
         stamp = self.getUnique(identifier)
         if stamp == None:
             return None
-        return strftime('%Y-%m-%dT%H:%M:%SZ', gmtime(stamp/1000000.0))
+        microseconds = ".%s" % (stamp % 1000000) if self._preciseDatestamp else ""
+        return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp/1000000.0)), microseconds)
 
     def getUnique(self, identifier):
         if hasattr(identifier, 'stamp'):

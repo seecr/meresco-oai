@@ -54,7 +54,7 @@ class OaiJazzTest(CQ2TestCase):
     def setUp(self):
         CQ2TestCase.setUp(self)
         self.jazz = OaiJazz(self.tempdir)
-        self.stampNumber = self.orginalStampNumber = int(timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1)))*1000000
+        self.stampNumber = self.orginalStampNumber = int((timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1))+.123456)*1000000)
         def stamp():
             result = self.stampNumber
             self.stampNumber += 1
@@ -123,11 +123,26 @@ class OaiJazzTest(CQ2TestCase):
         self.jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
         self.assertEquals('2008-07-06T05:04:03Z', self.jazz.getDatestamp('123'))
 
+    def testGetPreciseDatestamp(self):
+        jazz = OaiJazz(self.tempdir, preciseDatestamp=True)
+        jazz._stamp = self.jazz._stamp
+        jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
+        self.assertEquals('2008-07-06T05:04:03.123456Z', jazz.getDatestamp('123'))
+
     def testDeleteNonExistingRecords(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         self.jazz.delete('notExisting')
         jazz2 = OaiJazz(self.tempdir)
         self.assertEquals(None, jazz2.getUnique('notExisting'))
+
+    def testMarkDeleteOfNonExistingRecordInGivenPrefixes(self):
+        self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
+        jazz = OaiJazz(self.tempdir, alwaysDeleteInPrefixes=["aprefix"])
+        jazz.delete('notExisting')
+        self.assertEquals(['notExisting'], list(jazz.oaiSelect(prefix='aprefix')))
+        self.assertEquals(['existing'], list(jazz.oaiSelect(prefix='prefix')))
+        jazz.delete('existing')
+        self.assertEquals(['notExisting', 'existing'], list(jazz.oaiSelect(prefix='aprefix')))
 
     def testDoNotPerformSuperfluousDeletes(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
