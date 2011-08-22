@@ -57,16 +57,32 @@ class OaiDownloadProcessorTest(CQ2TestCase):
         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
         self.assertEquals(0, len(observer.calledMethods[0].args))
         self.assertEqualsWS(ONE_RECORD, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
+        self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
+        self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
 
     def testHandleWithTwoRecords(self): 
         observer = CallTrace()
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         oaiDownloadProcessor.addObserver(observer)
-        list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '<record>another record</record>')))))
+        secondRecord = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:2</identifier><datestamp>2011-08-22T07:41:00Z</datestamp></header><metadata>ignored</metadata></record>'
+        list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % secondRecord)))))
         self.assertEquals(['add', 'add'], [m.name for m in observer.calledMethods])
         self.assertEquals(0, len(observer.calledMethods[0].args))
         self.assertEqualsWS(ONE_RECORD, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
-        self.assertEqualsWS('<record xmlns="http://www.openarchives.org/OAI/2.0/">another record</record>', tostring(observer.calledMethods[1].kwargs['lxmlNode']))
+        self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
+        self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
+        self.assertEqualsWS(secondRecord, tostring(observer.calledMethods[1].kwargs['lxmlNode']))
+        self.assertEquals('2011-08-22T07:41:00Z', observer.calledMethods[1].kwargs['datestamp'])
+        self.assertEquals('oai:identifier:2', observer.calledMethods[1].kwargs['identifier'])
+
+    def testRaiseErrorOnBadArguments(self):
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+        badRecord = '<record>No Header</record>'
+        try:
+            list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % badRecord)))))
+            self.fail()
+        except IndexError:
+            pass
 
     def testListRecordsRequestError(self):
         resumptionToken = "u|c1286437597991025|mprefix|s|f"
@@ -120,7 +136,7 @@ class OaiDownloadProcessorTest(CQ2TestCase):
         self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
 
 
-ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/">ignored</record>'
+ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>'
 
 LISTRECORDS_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
 <OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/">
@@ -128,11 +144,10 @@ LISTRECORDS_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
   <request verb="ListRecords" from="1998-01-15" 
            metadataPrefix="dc">http://an.oa.org/OAI-script</request>
   <ListRecords>
-    <record>ignored</record>
     %s
   </ListRecords>
 </OAI-PMH>
-"""
+""" % (ONE_RECORD+"%s")
 
 ERROR_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
 <OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" 
