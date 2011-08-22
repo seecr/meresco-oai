@@ -45,6 +45,7 @@ from bisect import bisect_left
 
 MERGE_TRIGGER = 1000
 SETSPEC_SEPARATOR = ','
+DATESTAMP_FACTOR, DATESTAMP_FACTOR_FLOAT = 1000000, 1000000.0
 
 class OaiJazz(object):
 
@@ -115,8 +116,8 @@ class OaiJazz(object):
         stamp = self.getUnique(identifier)
         if stamp == None:
             return None
-        microseconds = ".%s" % (stamp % 1000000) if self._preciseDatestamp else ""
-        return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp/1000000.0)), microseconds)
+        microseconds = ".%s" % (stamp % DATESTAMP_FACTOR) if self._preciseDatestamp else ""
+        return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp/DATESTAMP_FACTOR_FLOAT)), microseconds)
 
     def getUnique(self, identifier):
         if hasattr(identifier, 'stamp'):
@@ -221,9 +222,9 @@ class OaiJazz(object):
     @staticmethod
     def _timeToNumber(time):
         try:
-            return int(timegm(strptime(time, '%Y-%m-%dT%H:%M:%SZ'))*1000000.0)
+            return int(timegm(strptime(time, '%Y-%m-%dT%H:%M:%SZ'))*DATESTAMP_FACTOR_FLOAT)
         except (ValueError, OverflowError):
-            return maxint * 1000000
+            return maxint * DATESTAMP_FACTOR
 
 
     def _getIdentifier(self, stamp):
@@ -266,7 +267,7 @@ class OaiJazz(object):
 
     def _stamp(self):
         """time in microseconds"""
-        return int(time()*1000000.0)
+        return int(time()*DATESTAMP_FACTOR_FLOAT)
 
     def _versionFormatCheck(self):
         if isdir(join(self._directory, 'sets')):
