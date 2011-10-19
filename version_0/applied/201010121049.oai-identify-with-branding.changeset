@@ -1,0 +1,524 @@
+Changeset created on Tue Oct 12 10:49:27 CEST 2010 by Seek You Too
+
+Description: OaiIdentify extended with branding
+
+    OaiIdentify can now be extended with an optional branding component. This components gives an collectionIcon with an url, link and title in the description of oai Identify. This component can be placed under OaiPmh in the server DNA.
+
+Baseline version: meresco-oai/workingsets/3.3-MWE/version_0
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/meresco/oai/__init__.py version_1/meresco/oai/__init__.py
+--- version_0/meresco/oai/__init__.py	2010-10-11 15:29:01.000000000 +0200
++++ version_1/meresco/oai/__init__.py	2010-10-12 10:49:13.000000000 +0200
+@@ -9,6 +9,8 @@
+ #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+ #    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
++#    Copyright (C) 2010 Maastricht University Library
++#        http://www.maastrichtuniversity.nl/web/Library/home.htm
+ #
+ #    This file is part of Meresco Oai.
+ #
+@@ -37,4 +39,4 @@
+ from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
+ from oaisuspend import OaiSuspend
+ from oaiharvester import OaiHarvester
+-
++from oaibranding import OaiBranding
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/meresco/oai/oaibranding.py version_1/meresco/oai/oaibranding.py
+--- version_0/meresco/oai/oaibranding.py	1970-01-01 01:00:00.000000000 +0100
++++ version_1/meresco/oai/oaibranding.py	2010-10-12 10:49:13.000000000 +0200
+@@ -0,0 +1,50 @@
++# -*- coding: utf-8 -*-
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2010 Maastricht University Library
++#        http://www.maastrichtuniversity.nl/web/Library/home.htm
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++
++from meresco.core import Observable
++from xml.sax.saxutils import escape as escapeXml
++
++class OaiBranding(Observable):
++   
++    def __init__(self, url, link=None, title=None):
++        self._url = url
++        self._link = link
++        self._title = title
++
++    def description(self):
++        yield """<description xmlns="http://www.openarchives.org/OAI/2.0/">"""
++        yield """<branding xmlns="http://www.openarchives.org/OAI/2.0/branding/"
++            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++            xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/branding/
++                                http://www.openarchives.org/OAI/2.0/branding.xsd">"""
++        yield "<collectionIcon>"
++        yield "     <url>%s</url>" % escapeXml(self._url)
++        yield "     <link>%s</link>" % escapeXml(self._link) if self._link else ""
++        yield "     <title>%s</title>" % self._title if self._title else ""
++        yield "</collectionIcon>"
++        yield "</branding>"
++        yield "</description>"
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/meresco/oai/oaierror.py version_1/meresco/oai/oaierror.py
+--- version_0/meresco/oai/oaierror.py	2010-10-11 15:29:01.000000000 +0200
++++ version_1/meresco/oai/oaierror.py	2010-10-12 10:49:13.000000000 +0200
+@@ -52,9 +52,9 @@
+             yield oaiError('badVerb', 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', arguments=arguments, **kwargs)
+ 
+ 
+-def oaiError(statusCode, addionalMessage, arguments, **httpkwargs):
+-    space = addionalMessage and ' ' or ''
+-    message = ERROR_CODES[statusCode] + space + addionalMessage
++def oaiError(statusCode, additionalMessage, arguments, **httpkwargs):
++    space = additionalMessage and ' ' or ''
++    message = ERROR_CODES[statusCode] + space + additionalMessage
+ 
+     yield oaiHeader()
+ 
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/meresco/oai/oaiidentify.py version_1/meresco/oai/oaiidentify.py
+--- version_0/meresco/oai/oaiidentify.py	2010-10-11 15:29:01.000000000 +0200
++++ version_1/meresco/oai/oaiidentify.py	2010-10-12 10:49:13.000000000 +0200
+@@ -9,6 +9,8 @@
+ #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2010 Maastricht University Library
++#        http://www.maastrichtuniversity.nl/web/Library/home.htm
+ #
+ #    This file is part of Meresco Oai.
+ #
+@@ -28,10 +30,12 @@
+ #
+ ## end license ##
+ 
+-from oaiverb import OaiVerb
+ from xml.sax.saxutils import escape as escapeXml
++from meresco.core import Observable
++from oaiutils import oaiHeader, oaiFooter, requestUrl, oaiRequestArgs
++from oaierror import oaiError
+ 
+-class OaiIdentify(OaiVerb):
++class OaiIdentify(Observable):
+     """
+ http://www.openarchives.org/OAI/openarchivesprotocol.html#Identify
+ 4.2 Identify
+@@ -67,27 +71,38 @@
+ 
+     """
+     def __init__(self, repositoryName = "The Repository Name", adminEmail = 'not available', repositoryIdentifier=None):
+-        OaiVerb.__init__(self, ['Identify'], {})
++        Observable.__init__(self)
+         self._repositoryName = repositoryName
+         self._adminEmail = adminEmail
+         self._repositoryIdentifier = repositoryIdentifier
+ 
+-    def identify(self, webrequest, **kwargs):
+-        self.startProcessing(webrequest)
+-        yield webrequest.generateResponse()
++    def identify(self, arguments, **httpkwargs):
++        if arguments.keys() != ['verb']:
++            additionalMessage = 'Argument(s) %s is/are illegal.' % ", ".join('"%s"' % key for key in arguments.keys() if key != 'verb')
++            yield oaiError('badArgument',
++                    additionalMessage=additionalMessage,
++                    arguments=arguments,
++                    **httpkwargs)
++            return
+ 
+-    def process(self, webRequest):
+         descriptionRepositoryIdentifier = '' if not self._repositoryIdentifier else DESCRIPTION_REPOSITORY_IDENTIFIER % { 'repositoryIdentifier': escapeXml(self._repositoryIdentifier)}
+ 
+         values = {
+             'repositoryName': escapeXml(self._repositoryName),
+-            'baseURL': escapeXml(self.getRequestUrl(webRequest)),
++            'baseURL': escapeXml(requestUrl(**httpkwargs)),
+             'adminEmails': ''.join([ADMIN_EMAIL % escapeXml(email) for email in [self._adminEmail]]),
+             'deletedRecord': 'persistent',
+-            'descriptionRepositoryIdentifier': descriptionRepositoryIdentifier
+         }
+         values.update(hardcoded_values)
+-        webRequest.write(IDENTIFY % values)
++        yield oaiHeader()
++        yield oaiRequestArgs(arguments, **httpkwargs)
++        yield '<Identify>'
++        yield IDENTIFY % values
++        yield descriptionRepositoryIdentifier
++        yield TOOLKIT_DESCRIPTION
++        yield self.all.description()
++        yield '</Identify>'
++        yield oaiFooter()
+ 
+ 
+ hardcoded_values = {
+@@ -107,9 +122,9 @@
+     %(adminEmails)s
+ <earliestDatestamp>%(earliestDatestamp)s</earliestDatestamp>
+ <deletedRecord>%(deletedRecord)s</deletedRecord>
+-<granularity>%(granularity)s</granularity>
+-%(descriptionRepositoryIdentifier)s
+-<description>
++<granularity>%(granularity)s</granularity>"""
++
++TOOLKIT_DESCRIPTION = """<description>
+     <toolkit xmlns="http://oai.dlib.vt.edu/OAI/metadata/toolkit"
+              xsi:schemaLocation="http://oai.dlib.vt.edu/OAI/metadata/toolkit http://oai.dlib.vt.edu/OAI/metadata/toolkit.xsd">
+         <title>Meresco</title>
+Binary files version_0/meresco/oai/.oaiidentify.py.swp and version_1/meresco/oai/.oaiidentify.py.swp differ
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/meresco/oai/oaipmh.py version_1/meresco/oai/oaipmh.py
+--- version_0/meresco/oai/oaipmh.py	2010-10-11 15:29:01.000000000 +0200
++++ version_1/meresco/oai/oaipmh.py	2010-10-12 10:49:13.000000000 +0200
+@@ -8,6 +8,8 @@
+ #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2010 Maastricht University Library
++#        http://www.maastrichtuniversity.nl/web/Library/home.htm
+ #
+ #    This file is part of Meresco Oai.
+ #
+@@ -45,12 +47,13 @@
+         self._oldFashionedVerbs = [
+                 'GetRecord',
+                 'ListSets',
+-                'ListMetadataFormats',
+-                'Identify']
++                'ListMetadataFormats']
+         self._internalObserverTree = be(
+             (Observable(),
+                 (OaiError(),
+-                    (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), ),
++                    (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), 
++                        (outside,)
++                    ),
+                     (OaiList(batchSize=batchSize),
+                         (outside,)
+                     ),
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/_alltests.py version_1/test/_alltests.py
+--- version_0/test/_alltests.py	2010-10-11 15:29:01.000000000 +0200
++++ version_1/test/_alltests.py	2010-10-12 10:49:13.000000000 +0200
+@@ -9,6 +9,8 @@
+ #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2010 Maastricht University Library
++#        http://www.maastrichtuniversity.nl/web/Library/home.htm
+ #
+ #    This file is part of Meresco Oai.
+ #
+@@ -44,7 +46,9 @@
+ 
+ from fields2oairecordtest import Fields2OaiRecordTest
+ from oaiaddrecordtest import OaiAddRecordTest
++from oaibrandingtest import OaiBrandingTest
+ from oaigetrecordtest import OaiGetRecordTest
++from oaiidentifytest import OaiIdentifyTest
+ from oaijazzimplementationstest import OaiJazzImplementationsTest
+ from oaijazztest import OaiJazzTest
+ from oailistmetadataformatstest import OaiListMetadataFormatsTest
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/oaibrandingtest.py version_1/test/oaibrandingtest.py
+--- version_0/test/oaibrandingtest.py	1970-01-01 01:00:00.000000000 +0100
++++ version_1/test/oaibrandingtest.py	2010-10-12 10:49:13.000000000 +0200
+@@ -0,0 +1,65 @@
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2010 Maastricht University Library
++#        http://www.maastrichtuniversity.nl/web/Library/home.htm
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++
++from cq2utils import CQ2TestCase
++from meresco.oai import OaiBranding
++from weightless import compose
++
++class OaiBrandingTest(CQ2TestCase):
++
++    def testOne(self):
++        branding = OaiBranding(url="http://example.org/icon.png", link="http://www.example.org", title="Example")
++        description = ''.join(compose(branding.description()))
++        self.assertEqualsWS(BRANDING_RESULT, description)
++
++    def testBrandingWithoutLinkAndTitle(self):
++        branding = OaiBranding(url="http://example.org/icon.png")
++        description = ''.join(compose(branding.description()))
++        self.assertEqualsWS(BRANDING_RESULT_URL, description)
++
++BRANDING_RESULT="""<description xmlns="http://www.openarchives.org/OAI/2.0/">
++    <branding xmlns="http://www.openarchives.org/OAI/2.0/branding/"
++      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++      xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/branding/
++                          http://www.openarchives.org/OAI/2.0/branding.xsd">
++      <collectionIcon>
++        <url>http://example.org/icon.png</url>
++        <link>http://www.example.org</link>
++        <title>Example</title>
++      </collectionIcon>
++    </branding>
++</description>"""
++
++BRANDING_RESULT_URL="""<description xmlns="http://www.openarchives.org/OAI/2.0/">
++    <branding xmlns="http://www.openarchives.org/OAI/2.0/branding/"
++      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++      xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/branding/
++                          http://www.openarchives.org/OAI/2.0/branding.xsd">
++      <collectionIcon>
++        <url>http://example.org/icon.png</url>
++      </collectionIcon>
++    </branding>
++</description>"""
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/oaiidentifytest.py version_1/test/oaiidentifytest.py
+--- version_0/test/oaiidentifytest.py	1970-01-01 01:00:00.000000000 +0100
++++ version_1/test/oaiidentifytest.py	2010-10-12 10:49:13.000000000 +0200
+@@ -0,0 +1,55 @@
++## begin license ##
++#
++#    Meresco Oai are components to build Oai repositories, based on Meresco
++#    Core and Meresco Components.
++#    Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2010 Maastricht University Library
++#        http://www.maastrichtuniversity.nl/web/Library/home.htm
++#
++#    This file is part of Meresco Oai.
++#
++#    Meresco Oai is free software; you can redistribute it and/or modify
++#    it under the terms of the GNU General Public License as published by
++#    the Free Software Foundation; either version 2 of the License, or
++#    (at your option) any later version.
++#
++#    Meresco Oai is distributed in the hope that it will be useful,
++#    but WITHOUT ANY WARRANTY; without even the implied warranty of
++#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++#    GNU General Public License for more details.
++#
++#    You should have received a copy of the GNU General Public License
++#    along with Meresco Oai; if not, write to the Free Software
++#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++#
++## end license ##
++
++from meresco.core import Observable
++from weightless import compose
++from cq2utils import CallTrace
++
++from meresco.oai.oaiidentify import OaiIdentify
++from meresco.components.http.utils import CRLF
++from oaitestcase import OaiTestCase
++from StringIO import StringIO
++from lxml.etree import parse
++
++class OaiIdentifyTest(OaiTestCase):
++    def getSubject(self):
++        return OaiIdentify()
++
++    def testExtraDescription(self):
++        observer = CallTrace('observer')
++        observer.methods['description'] = lambda: (f for f in ['<description>','data','</description>'])
++        self.subject.addObserver(observer)
++
++        header, body = ''.join(compose(self.subject.identify(arguments={'verb':['Identify']}, **self.httpkwargs))).split(CRLF*2)
++        result = parse(StringIO(body))
++
++        descriptions = result.xpath('/oai:OAI-PMH/oai:Identify/oai:description', namespaces={'oai':'http://www.openarchives.org/OAI/2.0/'})
++        self.assertEquals(2, len(descriptions))
++        self.assertEquals('data', descriptions[1].text)
++        self.assertEquals(['description'], [m.name for m in observer.calledMethods])
++
++        
++
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/oaipmhtest.py version_1/test/oaipmhtest.py
+--- version_0/test/oaipmhtest.py	2010-10-11 15:29:01.000000000 +0200
++++ version_1/test/oaipmhtest.py	2010-10-12 10:49:13.000000000 +0200
+@@ -31,7 +31,7 @@
+ from cq2utils import CQ2TestCase, CallTrace
+ from meresco.core import Observable, be, Transparant
+ 
+-from meresco.oai import OaiPmh
++from meresco.oai import OaiPmh, OaiBranding
+ from oaitestcase import OaiTestCase
+ 
+ from lxml.etree import parse
+@@ -44,11 +44,14 @@
+ 
+ def xpath(node, path):
+     return '\n'.join(node.xpath(path, namespaces={'oai':"http://www.openarchives.org/OAI/2.0/",
+-                                                  'tkit':"http://oai.dlib.vt.edu/OAI/metadata/toolkit"}))
++                                                  'tkit':"http://oai.dlib.vt.edu/OAI/metadata/toolkit",
++                                                  'branding':"http://www.openarchives.org/OAI/2.0/branding/"}))
+ 
+ class _OaiPmhTest(OaiTestCase):
+ 
+     def testIdentify(self):
++        branding = OaiBranding(url="http://www.example.org/icon.png", title="Collection title")
++        self.subject.addObserver(branding)
+         header, result = self.handleRequest({'verb':['Identify']})
+         self.assertValidString(result)
+         response = parse(StringIO(result))
+@@ -61,6 +64,7 @@
+         
+         self.assertEquals('Meresco', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:description/tkit:toolkit/tkit:title/text()'))
+         self.assertEquals('http://www.meresco.org', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:description/tkit:toolkit/tkit:URL/text()'))
++        self.assertEquals('Collection title', xpath(response, '/oai:OAI-PMH/oai:Identify/oai:description/branding:branding/branding:collectionIcon/branding:title/text()'))
+ 
+ 
+     def testGetRecordUsesObservers(self):
+@@ -74,7 +78,6 @@
+         self.observer.yieldRecord = yieldRecord
+ 
+         header, result = self.handleRequest({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': [self.prefix + 'ident']})
+-        
+         self.assertValidString(result)
+         self.assertEquals(['isDeleted', 'getAllPrefixes', 'isAvailable', 'isDeleted', 'getDatestamp', 'getSets', 'unknown'], [m.name for m in self.observer.calledMethods])
+         self.assertEquals('ident', self.observer.calledMethods[0].args[0]) #isDeleted
+@@ -187,6 +190,7 @@
+     def getSubject(self):
+         oaipmh = OaiPmh(repositoryName='The Repository Name', adminEmail='admin@email.extension')
+         self.observer = CallTrace('Observers')
++        self.observer.returnValues["description"] = ""
+         oaipmh.addObserver(self.observer)
+         return oaipmh
+ 
+@@ -200,6 +204,7 @@
+         oaipmh = OaiPmh(repositoryName='The Repository Name', adminEmail='admin@email.extension',
+         repositoryIdentifier='www.example.org')
+         self.observer = CallTrace('Observers')
++        self.observer.returnValues["description"] = ""
+         oaipmh.addObserver(self.observer)
+         return oaipmh
+ 
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/oaitestcase.py version_1/test/oaitestcase.py
+--- version_0/test/oaitestcase.py	2010-10-11 15:29:01.000000000 +0200
++++ version_1/test/oaitestcase.py	2010-10-12 10:49:13.000000000 +0200
+@@ -8,6 +8,8 @@
+ #    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ #    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++#    Copyright (C) 2010 Maastricht University Library
++#        http://www.maastrichtuniversity.nl/web/Library/home.htm
+ #
+ #    This file is part of Meresco Oai.
+ #
+@@ -50,8 +52,13 @@
+         self.subject = self.getSubject()
+         self.subject.getTime = lambda : '2007-02-07T00:00:00Z'
+         self.observable.addObserver(self.subject)
++        self.httpkwargs = {
++            'path': '/path/to/oai',
++            'Headers':{'Host':'server'},
++            'port':9000,
++        }
+         self.request = CallTrace('Request')
+-        self.request.path = '/path/to/oai'
++        self.request.path = self.httpkwargs['path']
+         self.request.getRequestHostname = lambda: 'server'
+         class Host:
+             def __init__(self):
+@@ -59,7 +66,8 @@
+         self.request.getHost = lambda: Host()
+         self.stream = StringIO()
+         self.request.write = self.stream.write
+-        self.request.kwargs ={'Headers':{'Host':'server'}, 'port':9000, 'path':'/path/to/oai'}
++        self.request.kwargs = self.httpkwargs
++
+ 
+     OAIPMH = """<?xml version="1.0" encoding="UTF-8"?>
+ <OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/schemas/branding.xsd version_1/test/schemas/branding.xsd
+--- version_0/test/schemas/branding.xsd	1970-01-01 01:00:00.000000000 +0100
++++ version_1/test/schemas/branding.xsd	2010-10-12 10:49:13.000000000 +0200
+@@ -0,0 +1,60 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<schema targetNamespace="http://www.openarchives.org/OAI/2.0/branding/"
++  xmlns="http://www.w3.org/2001/XMLSchema" 
++  xmlns:oai="http://www.openarchives.org/OAI/2.0/" 
++  xmlns:branding="http://www.openarchives.org/OAI/2.0/branding/" 
++  elementFormDefault="qualified" attributeFormDefault="unqualified">
++
++  <annotation>
++    <documentation>
++      Schema for collection branding within OAI
++      [Simeon Warner - $Date: 2002/05/13 18:42:49 $]
++      Validated at http://www.w3.org/2001/03/webdata/xsv on 13May2002.
++    </documentation>
++  </annotation>
++
++ <import namespace="http://www.openarchives.org/OAI/2.0/" 
++         schemaLocation="http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd"/>
++
++  <element name="branding">
++    <complexType>
++      <sequence>
++        <element name="collectionIcon" minOccurs="0" maxOccurs="1" 
++                 type="branding:collectionIconType"/>
++        <element name="metadataRendering" minOccurs="0" maxOccurs="unbounded" 
++                 type="branding:metadataRenderingType"/>
++      </sequence>
++    </complexType>
++  </element>
++
++  <complexType name="collectionIconType">
++    <sequence>
++      <element name="url" minOccurs="1" maxOccurs="1" type="anyURI"/>
++      <element name="link" minOccurs="0" maxOccurs="1" type="anyURI"/>
++      <element name="title" minOccurs="0" maxOccurs="1" type="string"/>
++      <element name="width" minOccurs="0" maxOccurs="1" type="integer"/>
++      <element name="height" minOccurs="0" maxOccurs="1" type="integer"/>
++    </sequence>
++  </complexType>
++
++  <complexType name="metadataRenderingType">
++    <simpleContent>
++      <extension base="anyURI">
++        <attribute name="metadataNamespace" type="anyURI" 
++                   use="required"/>
++        <attribute name="mimeType" type="branding:mimeType" 
++                   use="required"/>
++      </extension>
++    </simpleContent>
++  </complexType>
++
++  <!-- Style sheet mime type.                  -->
++  <!-- Left open-ended, current types include: -->
++  <!--   text/dsssl, text/css, text/xsl        --> 
++  <simpleType name="mimeType">
++    <restriction base="string">
++      <pattern value="[a-z]+/[a-z]+"/>
++    </restriction>
++  </simpleType>
++
++</schema>

@@ -1,0 +1,248 @@
+Changeset created on Thu Oct  7 11:15:33 CEST 2010 by Seek You Too
+
+Description: Save the OAI Harvester state.
+
+    The OAI Harvester state (only the ResumptionToken) is saved in the workingdir of the harvester. When restarting the resumptionToken will be read and the harveseter will continue from the last state.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.2.1-Edurep/version_4
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_4/meresco/oai/oaiharvester.py version_5/meresco/oai/oaiharvester.py
+--- version_4/meresco/oai/oaiharvester.py	2010-10-07 09:24:30.000000000 +0200
++++ version_5/meresco/oai/oaiharvester.py	2010-10-07 11:14:30.000000000 +0200
+@@ -29,6 +29,7 @@
+ from lxml.etree import parse
+ from StringIO import StringIO
+ from traceback import format_exc
++from os.path import join, isfile
+ 
+ from meresco.core import Observable
+ from weightless import compose
+@@ -37,7 +38,7 @@
+ namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
+ 
+ class OaiHarvester(Observable):
+-    def __init__(self, reactor, host, port, path, metadataPrefix, xWait=True):
++    def __init__(self, reactor, host, port, path, metadataPrefix, workingDir, xWait=True):
+         super(OaiHarvester, self).__init__()
+         self._reactor = reactor
+         self._host = host
+@@ -45,13 +46,14 @@
+         self._path = path
+         self._prefix = metadataPrefix
+         self._xWait = xWait
++        self._stateFilePath = join(workingDir, "harvester.state")
+ 
+     def observer_init(self):
+-        self._loop = compose(self.loop())
++        resumptionToken = self._readState()
++        self._loop = compose(self.loop(resumptionToken))
+         self._reactor.addTimer(1, self._loop.next)
+ 
+-    def loop(self):
+-        resumptionToken = None
++    def loop(self, resumptionToken=None):
+         while True:
+             sok = yield self._tryConnect()
+             sok.send(self._buildRequest(resumptionToken))
+@@ -70,9 +72,17 @@
+                 resumptionToken = self._processResponse(''.join(responses))
+             except Exception:
+                 self._logError(format_exc())
++            finally:
++                open(self._stateFilePath, 'w').write("Resumptiontoken: %s" % resumptionToken)
+             self._reactor.addTimer(1, self._loop.next)
+             yield
+ 
++    def _readState(self):
++        state = []
++        if isfile(self._stateFilePath):
++            state = open(self._stateFilePath).read().split("Resumptiontoken: ")
++        return state[1] if len(state)  == 2 else "" 
++
+     def _buildRequest(self, resumptionToken):
+         request = LISTRECORDS % self._path
+         if resumptionToken:
+@@ -129,7 +139,7 @@
+ 
+ 
+ def head(l):
+-    return l[0] if l else None
++    return l[0] if l else ""
+ 
+ 
+ STATUSLINE = "GET %s HTTP/1.0\r\n\r\n"
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_4/test/oaiharvestertest.py version_5/test/oaiharvestertest.py
+--- version_4/test/oaiharvestertest.py	2010-10-06 16:14:22.000000000 +0200
++++ version_5/test/oaiharvestertest.py	2010-10-07 11:14:30.000000000 +0200
+@@ -31,6 +31,7 @@
+ from socket import socket, error as SocketError
+ from lxml.etree import tostring
+ from StringIO import StringIO
++from os.path import join
+ 
+ from cq2utils import CQ2TestCase, CallTrace
+ from meresco.core import Observable, be
+@@ -160,11 +161,32 @@
+             callback() # sok.recv
+             callback() # sok.recv == ''
+             self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+-            self.assertEquals('addTimer', reactor.calledMethods[-1].name)            
++            self.assertEquals('addTimer', reactor.calledMethods[-1].name)
++            self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
+             callback() # (re)connect
+             callback() # HTTP GET
+             sleep(0.01)
+             self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[1])
++            callback() # sok.recv
++            callback() # sok.recv == ''
++            self.assertEquals('Resumptiontoken: ', open(self._harvester._stateFilePath).read())
++
++    def testKeepResumptionTokenOnRestart(self):
++        with server([LISTRECORDS_RESPONSE % RESUMPTION_TOKEN]) as (port, msgs):
++            harvester, observer, reactor = self.getHarvester('localhost', port, '/oai', 'dc')
++            callback = self.doConnect()
++            callback() # HTTP GET
++            sleep(0.01)
++            self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc&x-wait=True HTTP/1.0\r\n\r\n", msgs[0])
++            callback() # sok.recv
++            callback() # sok.recv == ''
++            self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
++        with server([LISTRECORDS_RESPONSE % RESUMPTION_TOKEN]) as (port, msgs):
++            harvester, observer, reactor = self.getHarvester('localhost', port, '/oai', 'dc')
++            callback = self.doConnect()
++            callback() # HTTP GET
++            sleep(0.01)
++            self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[0])
+ 
+     def testKeepResumptionTokenOnInvalidResponse(self):
+         with server([LISTRECORDS_RESPONSE % RESUMPTION_TOKEN, STATUSLINE + 'not XML']) as (port, msgs):
+@@ -175,6 +197,7 @@
+             self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc&x-wait=True HTTP/1.0\r\n\r\n", msgs[0])
+             callback() # sok.recv
+             callback() # soc.recv == ''
++            self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
+             callback() # (re)connect
+             callback() # HTTP GET
+             sleep(0.01)
+@@ -182,16 +205,31 @@
+             callback() # sok.recv
+             callback() # sok.recv == ''
+             self.assertTrue("XMLSyntaxError: Start tag expected, '<' not found, line 1, column 1" in self._err.getvalue(), self._err.getvalue())
++            self.assertEquals('Resumptiontoken: xyz', open(self._harvester._stateFilePath).read())
+             callback() # (re)connect
+             callback() # HTTP GET
+             sleep(0.01)
+             self.assertEquals("GET /oai?verb=ListRecords&resumptionToken=xyz&x-wait=True HTTP/1.0\r\n\r\n", msgs[-1])
+ 
++    def testReadResumptionTokenFromState(self):
++        harvester, observer, reactor = self.getHarvester("localhost", 99999, "/", "prefix")
++        resumptionToken = "u|c1286437597991025|mprefix|s|f"
++        open(harvester._stateFilePath, 'w').write("Resumptiontoken: %s" % resumptionToken)
++        self.assertEquals(resumptionToken, harvester._readState())
++
++    def testReadResumptionTokenWhenNoState(self):
++        harvester, observer, reactor = self.getHarvester("localhost", 99999, "/", "prefix")
++        self.assertEquals("", harvester._readState())
++
++    def testReadInvalidState(self):
++        harvester, observer, reactor = self.getHarvester("localhost", 99999, "/", "prefix")
++        open(harvester._stateFilePath, 'w').write("invalid")
++        self.assertEquals("", harvester._readState())
+ 
+     def getHarvester(self, host, port, path, metadataPrefix, xWait=True):
+         self._err = StringIO()
+         self._reactor = CallTrace("reactor")
+-        self._harvester = OaiHarvester(self._reactor, host, port, path, metadataPrefix, xWait=xWait)
++        self._harvester = OaiHarvester(self._reactor, host, port, path, metadataPrefix, self.tempdir, xWait=xWait)
+         self._harvester._logError = lambda s: self._err.write(s + '\n')
+         self._observer = CallTrace("observer")
+         self._harvester.addObserver(self._observer)
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_4/test/oaisuspendtest.py version_5/test/oaisuspendtest.py
+--- version_4/test/oaisuspendtest.py	2010-10-06 16:14:22.000000000 +0200
++++ version_5/test/oaisuspendtest.py	2010-10-07 11:14:30.000000000 +0200
+@@ -69,6 +69,7 @@
+             )
+         )
+         storageComponent = StorageComponent(join(self.tempdir, 'storage'))
++        self._addOaiRecords(storageComponent, oaiJazz, 3)
+ 
+         oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
+         harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
+@@ -101,11 +102,58 @@
+         oaiPmhThread.join()
+         harvestThread.join()
+ 
++    def testNearRealtimeOaiSavesState(self):
++        observer = CallTrace("observer", ignoredAttributes=["observer_init"])
++        oaiJazz = be(
++            (OaiSuspend(),
++                (OaiJazz(join(self.tempdir, 'oai')),),
++            )
++        )
++        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
++        self._addOaiRecords(storageComponent, oaiJazz, 1)
++        
++        oaiPmhThread = None
++        harvestThread = None
++
++        def start():
++            global oaiPmhThread, harvestThread
++            self.run = True
++            portNumber = randint(50000, 60000)
++            oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
++            harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
++            oaiPmhThread.start()
++            harvestThread.start()
++
++        def stop():
++            self.run = False
++            oaiPmhThread.join()
++            harvestThread.join()
++
++        start()
++        requests = 1
++        sleep(1.0 + 1.0 * requests)
++        self.assertEquals(1, len(observer.calledMethods))
++        arg = tostring(observer.calledMethods[0].args[0])
++        self.assertTrue("id0" in arg, arg)
++        stop()
++
++        storageComponent.add("id1", "prefix", "<a>a1</a>")
++        oaiJazz.addOaiRecord("id1", sets=[], metadataFormats=[("prefix", "", "")])
++
++        start()
++        requests = 1
++        sleep(1.0 + 1.0 * requests)
++        self.assertEquals(2, len(observer.calledMethods))
++        arg = tostring(observer.calledMethods[1].args[0])
++        self.assertFalse("id0" in arg, arg)
++        self.assertTrue("id1" in arg, arg)
++        stop()
++
+     def startOaiHarvester(self, portNumber, observer):
+         reactor = Reactor()
+         server = be(
+             (Observable(),
+-                (OaiHarvester(reactor, 'localhost', portNumber, '/', 'prefix'),
++                (OaiHarvester(reactor, 'localhost', portNumber, '/', 'prefix', self.tempdir),
+                     (observer,),
+                 )
+             )
+@@ -126,14 +174,13 @@
+             )
+         )
+         server.once.observer_init()
++        self._loopReactor(reactor)
+ 
+-        for i in range(3):            
++    def _addOaiRecords(self, storageComponent, oaiJazz, count):
++        for i in range(count):            
+             storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)
+             oaiJazz.addOaiRecord("id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
+ 
+-
+-        self._loopReactor(reactor)
+-
+     def _loopReactor(self, reactor):
+         def tick():
+             reactor.addTimer(0.1, tick)

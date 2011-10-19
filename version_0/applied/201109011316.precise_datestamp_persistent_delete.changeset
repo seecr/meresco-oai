@@ -1,0 +1,121 @@
+Changeset created on Thu Sep 01 13:16:36 CET 2011 by Seecr (Seek You Too B.V.)
+
+Description: Precise datestamp and always persistent delete
+
+    Show precise datestamp with microseconds if configured in preciseDatestamp.
+    Always list deletes, even if they've never exist before. This allows you to 
+    have multiple oai-server which all do a part of everything.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.7-Edurep/version_0
+
+diff --unidirectional-new-file --recursive --unified --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied version_0/meresco/oai/oaijazz.py version_1/meresco/oai/oaijazz.py
+--- version_0/meresco/oai/oaijazz.py	2011-08-10 11:47:45.000000000 +0200
++++ version_1/meresco/oai/oaijazz.py	2011-08-22 08:55:14.000000000 +0200
+@@ -45,12 +45,13 @@
+ 
+ MERGE_TRIGGER = 1000
+ SETSPEC_SEPARATOR = ','
++DATESTAMP_FACTOR, DATESTAMP_FACTOR_FLOAT = 1000000, 1000000.0
+ 
+ class OaiJazz(object):
+ 
+     version = '2'
+ 
+-    def __init__(self, aDirectory):
++    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False):
+         self._directory = aDirectory
+         isdir(aDirectory) or makedirs(aDirectory)
+         self._versionFormatCheck()
+@@ -66,6 +67,8 @@
+         self._identifier2setSpecs = BerkeleyDict(join(self._directory, 'identifier2setSpecs'))
+         self._read()
+         self._suspended = []
++        self._deletePrefixes = alwaysDeleteInPrefixes or []
++        self._preciseDatestamp = preciseDatestamp
+ 
+     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
+         sets = [] if sets == None else sets
+@@ -85,10 +88,10 @@
+ 
+     def delete(self, identifier):
+         oldPrefixes, oldSets = self._delete(identifier)
+-        if not oldPrefixes:
++        if not oldPrefixes and not self._deletePrefixes:
+             return
+         stamp = self._stamp()
+-        self._add(stamp, identifier, oldSets, oldPrefixes)
++        self._add(stamp, identifier, oldSets, set(oldPrefixes + self._deletePrefixes))
+         self._tombStones.append(stamp)
+         self._resume()
+ 
+@@ -113,7 +116,8 @@
+         stamp = self.getUnique(identifier)
+         if stamp == None:
+             return None
+-        return strftime('%Y-%m-%dT%H:%M:%SZ', gmtime(stamp/1000000.0))
++        microseconds = ".%s" % (stamp % DATESTAMP_FACTOR) if self._preciseDatestamp else ""
++        return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp/DATESTAMP_FACTOR_FLOAT)), microseconds)
+ 
+     def getUnique(self, identifier):
+         if hasattr(identifier, 'stamp'):
+@@ -218,9 +222,9 @@
+     @staticmethod
+     def _timeToNumber(time):
+         try:
+-            return int(timegm(strptime(time, '%Y-%m-%dT%H:%M:%SZ'))*1000000.0)
++            return int(timegm(strptime(time, '%Y-%m-%dT%H:%M:%SZ'))*DATESTAMP_FACTOR_FLOAT)
+         except (ValueError, OverflowError):
+-            return maxint * 1000000
++            return maxint * DATESTAMP_FACTOR
+ 
+ 
+     def _getIdentifier(self, stamp):
+@@ -263,7 +267,7 @@
+ 
+     def _stamp(self):
+         """time in microseconds"""
+-        return int(time()*1000000.0)
++        return int(time()*DATESTAMP_FACTOR_FLOAT)
+ 
+     def _versionFormatCheck(self):
+         if isdir(join(self._directory, 'sets')):
+diff --unidirectional-new-file --recursive --unified --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied version_0/test/oaijazztest.py version_1/test/oaijazztest.py
+--- version_0/test/oaijazztest.py	2011-08-10 11:47:45.000000000 +0200
++++ version_1/test/oaijazztest.py	2011-08-19 15:15:38.000000000 +0200
+@@ -54,7 +54,7 @@
+     def setUp(self):
+         CQ2TestCase.setUp(self)
+         self.jazz = OaiJazz(self.tempdir)
+-        self.stampNumber = self.orginalStampNumber = int(timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1)))*1000000
++        self.stampNumber = self.orginalStampNumber = int((timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1))+.123456)*1000000)
+         def stamp():
+             result = self.stampNumber
+             self.stampNumber += 1
+@@ -123,12 +123,27 @@
+         self.jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
+         self.assertEquals('2008-07-06T05:04:03Z', self.jazz.getDatestamp('123'))
+ 
++    def testGetPreciseDatestamp(self):
++        jazz = OaiJazz(self.tempdir, preciseDatestamp=True)
++        jazz._stamp = self.jazz._stamp
++        jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
++        self.assertEquals('2008-07-06T05:04:03.123456Z', jazz.getDatestamp('123'))
++
+     def testDeleteNonExistingRecords(self):
+         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
+         self.jazz.delete('notExisting')
+         jazz2 = OaiJazz(self.tempdir)
+         self.assertEquals(None, jazz2.getUnique('notExisting'))
+ 
++    def testMarkDeleteOfNonExistingRecordInGivenPrefixes(self):
++        self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
++        jazz = OaiJazz(self.tempdir, alwaysDeleteInPrefixes=["aprefix"])
++        jazz.delete('notExisting')
++        self.assertEquals(['notExisting'], list(jazz.oaiSelect(prefix='aprefix')))
++        self.assertEquals(['existing'], list(jazz.oaiSelect(prefix='prefix')))
++        jazz.delete('existing')
++        self.assertEquals(['notExisting', 'existing'], list(jazz.oaiSelect(prefix='aprefix')))
++
+     def testDoNotPerformSuperfluousDeletes(self):
+         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
+         self.jazz._stamp2identifier = CallTrace('mockdict', returnValues={'getKeysFor': None, '__delitem__':None})

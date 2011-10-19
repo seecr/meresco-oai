@@ -1,0 +1,91 @@
+Changeset created on Tue Oct 19 11:24:35 CEST 2010 by Seek You Too
+
+Description: Delete message will also resume suspended objects.
+
+    OaiSuspend will now also resume suspended objects when a delete
+    message is received.
+
+Baseline version: meresco-oai/workingsets/3.3-Edurep/version_2
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/meresco/oai/oaisuspend.py version_3/meresco/oai/oaisuspend.py
+--- version_2/meresco/oai/oaisuspend.py	2010-10-19 10:04:10.000000000 +0200
++++ version_3/meresco/oai/oaisuspend.py	2010-10-19 11:24:06.000000000 +0200
+@@ -38,7 +38,16 @@
+         yield suspend
+         suspend.getResult()
+ 
+-    def addOaiRecord(self, identifier, sets, metadataFormats):
+-        self.do.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
++    def addOaiRecord(self, **kwargs):
++        self.do.addOaiRecord(**kwargs)
++        self._resume()
++
++    def delete(self, **kwargs):
++        self.do.delete(**kwargs)
++        self._resume()
++
++    def _resume(self):
+         while len(self._suspended) > 0:
+             self._suspended.pop().resume()
++
++
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_2/test/oaisuspendtest.py version_3/test/oaisuspendtest.py
+--- version_2/test/oaisuspendtest.py	2010-10-19 10:04:10.000000000 +0200
++++ version_3/test/oaisuspendtest.py	2010-10-19 11:24:06.000000000 +0200
+@@ -54,11 +54,28 @@
+         suspend = oaiSuspend.suspend().next()
+         resumed = []
+         suspend(reactor, lambda: resumed.append(True))
+-        oaiSuspend.addOaiRecord("ignored", "sets", "metadataFormats")
++
++        oaiSuspend.addOaiRecord(identifier="ignored", sets="sets", metadataFormats="metadataFormats")
++
+         self.assertEquals([True], resumed)
+         self.assertEquals([], oaiSuspend._suspended)
+         self.assertEquals("addOaiRecord", observer.calledMethods[0].name)
+ 
++    def testDelete(self):
++        oaiSuspend = OaiSuspend()
++        observer = CallTrace("oaijazz")
++        oaiSuspend.addObserver(observer)
++        reactor = CallTrace("reactor")
++        suspend = oaiSuspend.suspend().next()
++        resumed = []
++        suspend(reactor, lambda: resumed.append(True))
++
++        oaiSuspend.delete(identifier='identifier')
++
++        self.assertEquals([True], resumed)
++        self.assertEquals([], oaiSuspend._suspended)
++        self.assertEquals("delete", observer.calledMethods[0].name)
++
+     def testNearRealtimeOai(self):
+         self.run = True
+         portNumber = randint(50000, 60000)
+@@ -89,7 +106,7 @@
+         self.assertEquals(1, len(oaiJazz._suspended))
+ 
+         storageComponent.add("id3", "prefix", "<a>a3</a>")
+-        oaiJazz.addOaiRecord("id3", sets=[], metadataFormats=[("prefix", "", "")])
++        oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
+         sleep(0.1)
+         self.assertEquals(0, len(oaiJazz._suspended))
+         self.assertEquals(3, len(observer.calledMethods))
+@@ -138,7 +155,7 @@
+         stop()
+ 
+         storageComponent.add("id1", "prefix", "<a>a1</a>")
+-        oaiJazz.addOaiRecord("id1", sets=[], metadataFormats=[("prefix", "", "")])
++        oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
+ 
+         start()
+         requests = 1
+@@ -179,7 +196,7 @@
+     def _addOaiRecords(self, storageComponent, oaiJazz, count):
+         for i in range(count):            
+             storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)
+-            oaiJazz.addOaiRecord("id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
++            oaiJazz.addOaiRecord(identifier="id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
+ 
+     def _loopReactor(self, reactor):
+         def tick():

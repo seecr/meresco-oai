@@ -1,0 +1,293 @@
+CHANGELOG Meresco-Oai
+=====================
+
+version: 3.6.2 -> 3.6.3
+date:    2011-05-13
+
+Use UTC as timestamp for records
+--------------------------------
+Timestamp for records was in localtime but given as gmtime. Therefore some
+records could be in the future. Now all datestamps are given with the correct
+datestamp in UTC.
+(2011-05-13, 3.6.3-Edurep)
+
+==============================================================================
+
+version: 3.6.2 -> 3.6.3
+date:    2011-05-12
+
+Getting the last stampId
+------------------------
+Added convenience method for reading the last stampId. This can be used to
+compare with a resumptionToken of a harvester.
+(2011-05-11, 3.6.2-Edurep)
+
+Disappearing recordId bugfix.
+-----------------------------
+RecordIds return by the OaiJazz.oaiSelect(..) method can be changed due to
+updates/deletes. This resulted in 'None' records. These disappearing records are
+now filtered.
+(2011-05-11, 3.6.2-Edurep)
+
+==============================================================================
+
+version: 3.6.1 -> 3.6.2
+date:    2011-04-28
+
+X-wait now always suspend if no records are found
+-------------------------------------------------
+If the cannotDisseminateFormat error is raised a ListRecord call with x-wait now
+also suspends the connection.
+
+Replaces AlwaysReadable in the PeriodicDownload with a TemporaryFile object
+(2011-04-28, 3.6.1-Edurep)
+
+==============================================================================
+
+version: 3.6 -> 3.6.1
+date:    2011-04-13
+
+Renamed UpdateAdapter
+---------------------
+Renamed UpdateAdapterFromOaiHarvester to UpdateAdapterFromOaiDownloadProcessor
+to match the name of the OaiDownloadProcessor (extracted from the former
+OaiHarvester)
+(2011-04-13, 3.6)
+
+==============================================================================
+
+version: 3.5.4 -> 3.6
+date:    2011-04-13
+
+Explicit configure support x-wait
+---------------------------------
+Added parameter to OaiPmh for explicitly stating is supports x-wait. Previous
+version could cause the server to be non-responsive.
+(2011-04-12, 3.5.4-Edurep)
+
+==============================================================================
+
+version: 3.4.5 -> 3.4.6
+version: 3.5.3 -> 3.5.4
+date:    2011-04-11
+
+No about-part is returned when a record is deleted
+--------------------------------------------------
+Previously, OaiRecord component returned an about part wether or not it was
+deleted.  This superfluous behaviour is now changed to comply with the
+specification.
+(2011-04-11, 3.4.5-Edurep)
+
+==============================================================================
+
+version: 3.4.4 -> 3.4.5
+version: 3.5.2 -> 3.5.3
+date:    2011-03-29
+
+Stripped .py from script file
+-----------------------------
+Stripped the .py extension from script file. Also improved the test so it works
+for an installed version.
+(2011-03-29, 3.5.2
+)
+
+Local imports in namespace
+--------------------------
+Changed all imports in schemas to local imports, so the test does not need an
+internet connection.
+(2011-03-29, 3.5.2
+)
+
+==============================================================================
+
+version: 3.4.3 -> 3.4.4
+version: 3.5.1 -> 3.5.2
+date:    2011-03-28
+
+Removal of WebRequest object.
+-----------------------------
+The last bits of the WebRequest object are removed. This was a remainder from
+the time Meresco used Twisted as it's http framework.
+
+Also fixed a problem in GetRecord which cause incomplete responses for records
+larger than 4kb.
+(2011-03-28, 3.4.3)
+
+==============================================================================
+
+version: 3.4.2 -> 3.4.3
+version: 3.5 -> 3.5.1
+date:    2011-03-09
+
+Fixed xpath for oai:header in OaiAddRecord
+------------------------------------------
+OaiAddRecord searches for an oai:header node even when it is not the root.
+(2011-03-09, 3.4.2)
+
+==============================================================================
+
+version: 3.4 -> 3.5
+date:    2011-03-04
+
+Extracted PeriodicDownload from OaiHarvester
+--------------------------------------------
+Extracted PeriodicDownload from OaiHarvester
+(2011-03-04, 3.4-MWE)
+
+==============================================================================
+
+version: 3.4.1 -> 3.4.2
+date:    2011-03-01
+
+Weightless Upgrade
+------------------
+Weightless is upgraded to version 0.5, therefor some imports changed and
+callstackscope was removed.
+(2011-03-01, 3.4.1)
+
+==============================================================================
+
+version: 3.4 -> 3.4.1
+date:    2011-02-11
+
+IOError in socket.connect now handled
+-------------------------------------
+Socket.connect can raise an IOError with message "No route to host". This
+removes the oaiharvester from the reactor. This is now logged and retried 
+like a SocketError
+(2011-01-06, 3.4-Edurep)
+
+==============================================================================
+
+version: 3.3 -> 3.4
+date:    2010-12-06
+
+Using faster PersistentSortedIntegerList instead of SortedFileList in OaiJazz
+-----------------------------------------------------------------------------
+PersistentSortedIntegerList is faster than SortedFileList, especially for
+deletes (which could halt the system for seconds). Because the format of
+persisted lists differ from the previous version, a version check + conversion
+script was added as well.
+(2010-12-03, 3.3-Edurep)
+
+OaiHarvester fix w.r.t. splitting HTTP header and body
+------------------------------------------------------
+Bug fixed that caused OaiHarvester to choke on responses that contain \r\n\r\n
+in body.
+(2010-11-17, 3.3-Edurep)
+
+OaiHarvester resumptionToken handling improvement
+-------------------------------------------------
+The OaiHarvester read the resumptionToken too literally from file, which
+inhibited manual editing - newlines are now stripped. Url-encoding is used when
+using the resumptionToken to allow for unusual characters in an Oai-request.
+(2010-11-15, 3.3-Edurep)
+
+Fix OaiList concurrency bug
+---------------------------
+OaiList concurrent ListRecords and ListIdentifiers calls no longer interfere.
+(2010-11-12, 3.3-Edurep)
+
+OaiHarvester defaults to logging to stderr.
+-------------------------------------------
+The OaiHarvester will always log to stderr. To make it log to stdout use the
+parameter verbose in the constructor.
+(2010-11-03, 3.3-Edurep)
+
+OaiHarvester scheduling support added
+-------------------------------------
+The OaiHarvester previously processed all records from a ListRecords response in
+a single do.add(...) call.  Since do-calls are intentionally uninterruptible,
+this blocked the service containing the OaiHarvester too long. The ListRecords
+response is now handled on a per-record basis, scheduled by the Reactor
+(optionally with a specified priority); including a matching
+UpdateAdapterFromOaiHarvester.
+(2010-10-29, 3.3-Edurep)
+
+Delete message will also resume suspended objects.
+--------------------------------------------------
+OaiSuspend will now also resume suspended objects when a delete message is
+received.
+(2010-10-19, 3.3-Edurep)
+
+Use do instead of any when sending message to observers.
+--------------------------------------------------------
+Message to observers of OaiHarvester are now called using do so that more
+observers can listen to the sent message.
+(2010-10-19, 3.3-Edurep)
+
+Use kwargs in OaiHarvester
+--------------------------
+OaiHarvester will now use keywordarguments to send calls to its observers.
+(2010-10-19, 3.3-Edurep)
+
+Oai Harvester state directory is created when absent
+----------------------------------------------------
+When the configured state directory (workingDir) does not exist yet it is now
+created for you (including parent directories). The Oai Harvester now has the
+same behaviour as similar meresco components which keep state in a configured
+directory.
+(2010-10-18, 3.3-Edurep)
+
+OaiIdentify extended with branding
+----------------------------------
+OaiIdentify can now be extended with an optional branding component. This
+components gives an collectionIcon with an url, link and title in the
+description of oai Identify. This component can be placed under OaiPmh in the
+server DNA.
+(2010-10-12, 3.3-MWE)
+
+==============================================================================
+
+version: 3.2.1 -> 3.3
+date:    2010-10-11
+
+Save the OAI Harvester state.
+-----------------------------
+The OAI Harvester state (only the ResumptionToken) is saved in the workingdir of
+the harvester. When restarting the resumptionToken will be read and the
+harveseter will continue from the last state.
+(2010-10-07, 3.2.1-Edurep)
+
+Near realtime OAI + OaiHarvester component
+------------------------------------------
+OaiPmh (specifically OaiList) now supports the custom 'x-wait' parameter on
+ListRecords verb that enables long polling for OAI updates over HTTP between
+harvester and provider. The new OaiHarvester component enables non-blocking
+harvesting from within a Meresco DNA server. It calls 'add' on an obeserver for
+each ListRecords response and supports the 'x-wait' custom parameter.
+(2010-10-06, 3.2.1-Edurep)
+
+Oai ListRecords using yields
+----------------------------
+Oai ListRecords now uses yield statements instead of WebRequestServer-writes.
+(2010-10-04, 3.2.1-Edurep)
+
+==============================================================================
+
+version: 3.2 -> 3.2.1
+date:    2010-09-21
+
+bugfix about in ListIdentifiers
+-------------------------------
+The output of the ListIdentifiers wrongfully contained Provenance statements. 
+These have been removed in order to make the output compliant with the OAI-PMH
+specification.
+
+bugfix oai identifier in Identify
+---------------------------------
+The Oai Identifier in the Identify verb is matched against a regular expression
+to make sure the identifier is valid according to OAI PMH specifications.
+
+==============================================================================
+
+version: 3.1.1 -> 3.2
+date:    2010-09-20
+
+!! Meresco-Oai 3.2 is not backwards compatible with Meresco-Oai 3.1.1
+
+Consistant usage of args and kwargs in add calls
+------------------------------------------------
+The usage of args and kwargs with add calls has been normalized throughout
+Meresco. Therefore the meresco-oai code has been made compliant with this new
+practice.

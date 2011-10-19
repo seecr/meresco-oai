@@ -1,0 +1,131 @@
+Changeset created on Wed Jun 15 10:10:00 CEST 2011 by Seek You Too
+
+Description: HTTP POST support
+
+    Added support for HTTP POST requests to OaiPmh
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.4-Natag/version_0
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/meresco/oai/oaipmh.py version_0-http-post/meresco/oai/oaipmh.py
+--- version_0/meresco/oai/oaipmh.py	2011-06-15 09:18:24.000000000 +0200
++++ version_0-http-post/meresco/oai/oaipmh.py	2011-06-15 10:07:22.000000000 +0200
+@@ -10,6 +10,9 @@
+ #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+ #    Copyright (C) 2010 Maastricht University Library
+ #        http://www.maastrichtuniversity.nl/web/Library/home.htm
++#    Copyright (C) 2011 Seecr http://seecr.nl
++#    Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid 
++#        http://instituut.beeldengeluid.nl
+ #
+ #    This file is part of Meresco Oai.
+ #
+@@ -29,6 +32,8 @@
+ #
+ ## end license ##
+ 
++from cgi import parse_qs
++
+ from meresco.core import be, Transparant, Observable
+ from oaiidentify import OaiIdentify
+ from oailist import OaiList
+@@ -70,7 +75,9 @@
+             )
+         )
+ 
+-    def handleRequest(self, arguments, **kwargs):
++    def handleRequest(self, Method, arguments, Body=None, **kwargs):
++        if Method == 'POST':
++            arguments.update(parse_qs(Body))
+         verb = arguments.get('verb', [None])[0]
+         message = verb[0].lower() + verb[1:] if verb else ''
+         yield self._internalObserverTree.all.unknown(message, arguments=arguments, **kwargs)
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/_alltests.py version_0-http-post/test/_alltests.py
+--- version_0/test/_alltests.py	2011-06-15 09:18:24.000000000 +0200
++++ version_0-http-post/test/_alltests.py	2011-06-15 10:09:14.000000000 +0200
+@@ -11,6 +11,9 @@
+ #    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+ #    Copyright (C) 2010 Maastricht University Library
+ #        http://www.maastrichtuniversity.nl/web/Library/home.htm
++#    Copyright (C) 2011 Seecr http://seecr.nl
++#    Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid
++#        http://instituut.beeldengeluid.nl
+ #
+ #    This file is part of Meresco Oai.
+ #
+@@ -51,7 +54,7 @@
+ from oaidownloadprocessortest import OaiDownloadProcessorTest
+ from oaijazztest import OaiJazzTest
+ from oailisttest import OaiListTest
+-from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest
++from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest
+ from oaiprovenancetest import OaiProvenanceTest
+ from oairecordtest import OaiRecordTest
+ from oaisetselecttest import OaiSetSelectTest
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_0/test/oaipmhtest.py version_0-http-post/test/oaipmhtest.py
+--- version_0/test/oaipmhtest.py	2011-06-15 09:18:24.000000000 +0200
++++ version_0-http-post/test/oaipmhtest.py	2011-06-15 10:08:56.000000000 +0200
+@@ -4,6 +4,9 @@
+ #    Core and Meresco Components.
+ #    Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
+ #    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
++#    Copyright (C) 2011 Seecr http://seecr.nl
++#    Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid
++#        http://instituut.beeldengeluid.nl
+ #
+ #    This file is part of Meresco Oai.
+ #
+@@ -70,13 +73,23 @@
+                 jazz.delete(recordId)
+ 
+     def _request(self, from_=None, **arguments):
++        httpMethod = getattr(self, 'httpMethod', 'GET')
+         if from_:
+             arguments['from'] = from_
++        RequestURI = 'http://example.org/oai'
++        queryString = urlencode(arguments, doseq=True)
++        if httpMethod == 'GET':
++            RequestURI += '?' + queryString
++            Body = None
++        else:
++            Body = queryString
++            arguments = {}
+         header, body = ''.join(compose(self.root.all.handleRequest(
+-                RequestURI='http://example.org/oai?' + urlencode(arguments, doseq=True),
++                RequestURI=RequestURI,
+                 Headers={},
++                Body=Body,
+                 Client=('127.0.0.1', 1324),
+-                Method="GET",
++                Method=httpMethod,
+                 port=9000,
+                 arguments=arguments,
+                 path='/oai',
+@@ -279,6 +292,7 @@
+         errorText = xpath(body, '/oai:OAI-PMH/oai:error/text()')[0]
+         self.assertTrue(additionalMessage in errorText, 'Expected "%s" in "%s"' % (additionalMessage, errorText))
+ 
++
+ class OaiPmhTest(_OaiPmhTest):
+     def setUp(self):
+         _OaiPmhTest.setUp(self)
+@@ -296,7 +310,6 @@
+ 
+         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
+         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")
+-        
+ 
+ class OaiPmhWithIdentifierTest(_OaiPmhTest):
+     def setUp(self):
+@@ -306,6 +319,12 @@
+     def getOaiPmh(self):
+         return OaiPmh(repositoryName='The Repository Name', adminEmail='admin@meresco.org', batchSize=BATCHSIZE, repositoryIdentifier='www.example.org')
+ 
++class HttpPostOaiPmhTest(OaiPmhTest):
++    def setUp(self):
++        OaiPmhTest.setUp(self)
++        self.httpMethod = 'POST'
++
++
+ def xpath(node, path):
+     return node.xpath(path, namespaces={'oai': 'http://www.openarchives.org/OAI/2.0/',
+         'oai_dc': 'http://www.openarchives.org/OAI/2.0/oai_dc/',

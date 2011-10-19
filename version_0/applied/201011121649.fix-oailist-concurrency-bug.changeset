@@ -1,0 +1,113 @@
+Changeset created on Fri Nov 12 16:49:28 CET 2010 by Seek You Too
+
+Description: Fix OaiList concurrency bug
+
+    OaiList concurrent ListRecords and ListIdentifiers calls no
+    longer interfere.
+
+Baseline version: meresco-oai/workingsets/3.3-Edurep/version_5
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_5/meresco/oai/oailist.py version_6/meresco/oai/oailist.py
+--- version_5/meresco/oai/oailist.py	2010-11-03 10:22:42.000000000 +0100
++++ version_6/meresco/oai/oailist.py	2010-11-12 16:47:09.000000000 +0100
+@@ -96,8 +96,8 @@
+         yield self.doProcess(arguments, **httpkwargs)
+ 
+     def doProcess(self, arguments, **httpkwargs):
+-        self._verb = arguments.get('verb', [None])[0]
+-        if not self._verb in self._supportedVerbs:
++        verb = arguments.get('verb', [None])[0]
++        if not verb in self._supportedVerbs:
+             return
+ 
+         try:
+@@ -119,9 +119,9 @@
+         
+         yield oaiHeader()
+         yield oaiRequestArgs(arguments, **httpkwargs)
+-        yield '<%s>' % self._verb
+-        yield self.process(results, validatedArguments, **httpkwargs)
+-        yield '</%s>' % self._verb
++        yield '<%s>' % verb
++        yield self.process(verb, results, validatedArguments, **httpkwargs)
++        yield '</%s>' % verb
+ 
+         yield oaiFooter()
+ 
+@@ -146,13 +146,13 @@
+             token = resumptionTokenFromString(validatedArguments['resumptionToken'])
+             if not token:
+                 raise OaiException("badResumptionToken")
+-            self._continueAfter = token._continueAfter
++            continueAfter = token._continueAfter
+             _from = token._from
+             _until = token._until
+             _set = token._set
+             _metadataPrefix = token._metadataPrefix
+         else:
+-            self._continueAfter = '0'
++            continueAfter = '0'
+             _from = validatedArguments.get('from', None)
+             _until = validatedArguments.get('until', None)
+             _set = validatedArguments.get('set', None)
+@@ -179,20 +179,20 @@
+         validatedArguments['set'] = _set
+         validatedArguments['metadataPrefix'] = _metadataPrefix
+         result = self.any.oaiSelect(
+-            sets = [_set] if _set else None,
+-            prefix = _metadataPrefix,
+-            continueAfter  = self._continueAfter,
+-            oaiFrom = _from,
+-            oaiUntil = _until)
++            sets=[_set] if _set else None,
++            prefix=_metadataPrefix,
++            continueAfter=continueAfter,
++            oaiFrom=_from,
++            oaiUntil=_until)
+         try:
+             firstRecord = result.next()
+             return chain(iter([firstRecord]), result)
+         except StopIteration:
+             raise OaiException('noRecordsMatch')
+ 
+-    def process(self, results, validatedArguments, **httpkwargs):
++    def process(self, verb, results, validatedArguments, **httpkwargs):
+         for id in islice(results, 0, self._batchSize):
+-            yield self.oaiRecord(validatedArguments, id, self._verb == "ListRecords")
++            yield self.oaiRecord(validatedArguments, id, verb == "ListRecords")
+ 
+         try:
+             if not 'x-wait' in validatedArguments:
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_5/test/oailisttest.py version_6/test/oailisttest.py
+--- version_5/test/oailisttest.py	2010-11-03 10:22:42.000000000 +0100
++++ version_6/test/oailisttest.py	2010-11-12 16:47:09.000000000 +0100
+@@ -307,3 +307,29 @@
+         self.assertTrue("<setSpec>one:two:three</setSpec>" in result)
+         self.assertTrue("<setSpec>one:two:four</setSpec>" in result)
+ 
++    def testConcurrentListRequestsDontInterfere(self):
++        httpArguments = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}
++        kwargs = self.request.kwargs
++        calltrace = CallTrace("oaisuspend", ignoredAttributes=['oaiSelect', 'unknown', 'isDeleted', 'getDatestamp', 'getSets', 'yieldRecord', 'provenance'])
++
++        self.subject.addObserver(calltrace)
++        mockoaijazz = MockOaiJazz()
++        mockoaijazz._selectAnswer = []
++        self.subject.addObserver(mockoaijazz)
++       
++        # ListRecords request
++        resultListRecords = self.observable.all.listRecords(httpArguments, **kwargs)
++        suspend = resultListRecords.next()
++    
++        # ListIdentifiers request
++        httpArguments = {'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}
++        resultListIdentifiers = self.observable.all.listIdentifiers(httpArguments, **kwargs)
++        resultListIdentifiers.next()
++
++        # resume ListRecords
++        mockoaijazz._selectAnswer=['RESULT']
++        result = ''.join(compose(resultListRecords))
++        body = result.split(CRLF*2)[-1]
++        self.assertFalse('</ListIdentifiers>' in body, body)
++        self.assertTrue('</ListRecords>' in body, body)
++

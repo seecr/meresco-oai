@@ -1,0 +1,83 @@
+Changeset created on Wed Apr 13 09:30:01 CEST 2011 by Seek You Too
+
+Description: Renamed UpdateAdapter
+
+    Renamed UpdateAdapterFromOaiHarvester to UpdateAdapterFromOaiDownloadProcessor to
+    match the name of the OaiDownloadProcessor (extracted from the former OaiHarvester)
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/tags/version_3.6
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.6/meresco/oai/__init__.py version_3.6.1/meresco/oai/__init__.py
+--- version_3.6/meresco/oai/__init__.py	2011-04-13 08:58:11.000000000 +0200
++++ version_3.6.1/meresco/oai/__init__.py	2011-04-13 09:22:57.000000000 +0200
+@@ -39,5 +39,5 @@
+ from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
+ from periodicdownload import PeriodicDownload
+ from oaidownloadprocessor import OaiDownloadProcessor
+-from updateadapter import UpdateAdapterFromOaiHarvester
++from updateadapter import UpdateAdapterFromOaiDownloadProcessor, UpdateAdapterFromOaiHarvester
+ from oaibranding import OaiBranding
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.6/meresco/oai/updateadapter.py version_3.6.1/meresco/oai/updateadapter.py
+--- version_3.6/meresco/oai/updateadapter.py	2011-04-13 08:58:11.000000000 +0200
++++ version_3.6.1/meresco/oai/updateadapter.py	2011-04-13 09:22:19.000000000 +0200
+@@ -24,12 +24,13 @@
+ ## end license ##
+ 
+ from meresco.core import Observable
++from warnings import warn
+ 
+ namespaces = {
+     'oai': 'http://www.openarchives.org/OAI/2.0/'
+ }
+ 
+-class UpdateAdapterFromOaiHarvester(Observable):
++class UpdateAdapterFromOaiDownloadProcessor(Observable):
+ 
+     def add(self, lxmlNode):
+         header = xpath(lxmlNode, '/oai:record/oai:header')
+@@ -42,6 +43,10 @@
+         else:
+             return self.all.add(identifier=identifier, partname='record', lxmlNode=lxmlNode)
+ 
++class UpdateAdapterFromOaiHarvester(UpdateAdapterFromOaiDownloadProcessor):
++    def __init__(self, *args, **kwargs):
++        warn("UpdateAdapterFromOaiHarvester is deprecated, please use UpdateAdapterFromOaiDownloadProcessor,", DeprecationWarning)
++        UpdateAdapterFromOaiDownloadProcessor.__init__(self, *args, **kwargs)
+ 
+ def xpath(node, path):
+     return node.xpath(path, namespaces=namespaces)
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_3.6/test/updateadaptertest.py version_3.6.1/test/updateadaptertest.py
+--- version_3.6/test/updateadaptertest.py	2011-04-13 08:58:11.000000000 +0200
++++ version_3.6.1/test/updateadaptertest.py	2011-04-13 09:25:28.000000000 +0200
+@@ -27,11 +27,11 @@
+ from lxml.etree import parse
+ from StringIO import StringIO
+ 
+-from meresco.oai import UpdateAdapterFromOaiHarvester
++from meresco.oai import UpdateAdapterFromOaiHarvester, UpdateAdapterFromOaiDownloadProcessor
+ 
+ class UpdateAdapterTest(CQ2TestCase):
+     def testDelete(self):
+-        adapter = UpdateAdapterFromOaiHarvester()
++        adapter = UpdateAdapterFromOaiDownloadProcessor()
+         observer = CallTrace('observer')
+         adapter.addObserver(observer)
+ 
+@@ -41,7 +41,7 @@
+         self.assertEquals({'identifier':'oai:test:identifier'}, observer.calledMethods[0].kwargs)
+ 
+     def testAdd(self):
+-        adapter = UpdateAdapterFromOaiHarvester()
++        adapter = UpdateAdapterFromOaiDownloadProcessor()
+         observer = CallTrace('observer')
+         adapter.addObserver(observer)
+ 
+@@ -55,7 +55,7 @@
+             'lxmlNode': recordNode}, kwargs)
+ 
+     def testRaiseErrorOnBadArguments(self):
+-        adapter = UpdateAdapterFromOaiHarvester()
++        adapter = UpdateAdapterFromOaiDownloadProcessor()
+         observer = CallTrace('observer')
+         adapter.addObserver(observer)
+ 

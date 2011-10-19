@@ -1,0 +1,98 @@
+Changeset created on Wed Nov 17 11:25:28 CET 2010 by Seek You Too
+
+Description: OaiHarvester fix w.r.t. splitting HTTP header and body
+
+    Bug fixed that caused OaiHarvester to choke on responses that contain \r\n\r\n in body.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.3-Edurep/version_7
+
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_7/meresco/oai/oaiharvester.py version_8/meresco/oai/oaiharvester.py
+--- version_7/meresco/oai/oaiharvester.py	2010-11-15 11:15:04.000000000 +0100
++++ version_8/meresco/oai/oaiharvester.py	2010-11-17 11:23:58.000000000 +0100
+@@ -92,7 +92,7 @@
+             alwaysReadable = AlwaysReadable()
+             try:
+                 response = ''.join(responses)
+-                headers, body = response.split("\r\n\r\n")
++                headers, body = response.split(2 * CRLF, 1)
+                 self._assertStatusOk(headers, body)
+                 lxmlNode = parse(StringIO(body))
+                 errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
+diff --unidirectional-new-file --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied --recursive --unified version_7/test/oaiharvestertest.py version_8/test/oaiharvestertest.py
+--- version_7/test/oaiharvestertest.py	2010-11-15 11:15:04.000000000 +0100
++++ version_8/test/oaiharvestertest.py	2010-11-17 11:23:58.000000000 +0100
+@@ -35,8 +35,10 @@
+ 
+ from cq2utils import CQ2TestCase, CallTrace
+ from meresco.core import Observable, be
++from meresco.components.http.utils import CRLF
+ from meresco.oai import OaiHarvester
+ 
++
+ @contextmanager
+ def server(responses, bufsize=4096):
+     port = randint(10000,60000)
+@@ -81,6 +83,7 @@
+             callback() # sok.recv
+             callback() # sok.recv
+             callback() # yield after self.do.add(...
++            self.assertEquals("", self._err.getvalue())
+             self.assertEquals('add', observer.calledMethods[0].name)
+             self.assertFalse(len(observer.calledMethods[0].args))
+             self.assertEquals(['lxmlNode'], observer.calledMethods[0].kwargs.keys())
+@@ -135,6 +138,7 @@
+         callback()
+         self.assertEquals("addWriter", reactor.calledMethods[1].name)
+         callback()
++        self.assertEquals("Connection to 127.0.0.255:9876/oai refused.\n", self._err.getvalue())
+         self.assertEquals("removeWriter", reactor.calledMethods[2].name)
+         self.assertEquals("addTimer", reactor.calledMethods[3].name)
+ 
+@@ -149,6 +153,7 @@
+             callback() # recv = ''
+             callback() # yield after self.do.add(...
+             callback() # yield after self.do.add(...
++            self.assertEquals("", self._err.getvalue())
+             self.assertEquals('add', observer.calledMethods[0].name)
+             self.assertEquals('add', observer.calledMethods[1].name)
+             self.assertEqualsWS(ONE_RECORD, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
+@@ -169,6 +174,7 @@
+             callback() # recv = ''
+             callback() # yield after self.do.add(...
+             
++            self.assertEquals("", self._err.getvalue())
+             self.assertEquals('add', observer.calledMethods[0].name)
+             self.assertEquals('add', anotherObserver.calledMethods[0].name)
+ 
+@@ -179,6 +185,7 @@
+             callback() # HTTP GET
+             sleep(0.01)
+             self.assertEquals("GET /oai?verb=ListRecords&metadataPrefix=dc HTTP/1.0\r\n\r\n", msgs[0])
++            self.assertEquals("", self._err.getvalue())
+ 
+     def testListRecordsRequestError(self):
+         with server([ERROR_RESPONSE]) as (port, msgs):
+@@ -296,17 +303,19 @@
+         callback = self._reactor.calledMethods[1].args[1]
+         return callback
+ 
+-STATUSLINE = """HTTP/1.0 200 OK \r\n\r\n"""
+-EMBEDDED_RECORD = '<record>ignored</record>\n'
++HTTP_SEPARATOR = 2 * CRLF
++STATUSLINE = """HTTP/1.0 200 OK """ + HTTP_SEPARATOR
++EMBEDDED_RECORD = '<record>ignored</record>'
+ ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/">ignored</record>'
+ BODY = """<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/">
+     <ListRecords>
+         %s
+     </ListRecords>
++    %s
+ </OAI-PMH>
+ """
+-RESPONSE_ONE_RECORD = STATUSLINE + BODY % EMBEDDED_RECORD
+-RESPONSE_TWO_RECORDS = STATUSLINE + BODY % (EMBEDDED_RECORD *2)
++RESPONSE_ONE_RECORD = STATUSLINE + BODY % (EMBEDDED_RECORD, HTTP_SEPARATOR)
++RESPONSE_TWO_RECORDS = STATUSLINE + BODY % (EMBEDDED_RECORD * 2, "")
+ 
+ LISTRECORDS_RESPONSE = STATUSLINE + """<?xml version="1.0" encoding="UTF-8" ?>
+ <OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" 
