@@ -82,7 +82,7 @@ class OaiDownloadProcessor(Observable):
                     datestamp = xpath(record, 'oai:header/oai:datestamp/text()')[0]
                     identifier = xpath(record, 'oai:header/oai:identifier/text()')[0]
                     yield self.asyncdo.add(identifier=identifier, lxmlNode=ElementTree(record), datestamp=datestamp)
-                    yield
+                    yield # some room for others
                 self._resumptionToken = head(xpath(lxmlNode, "/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()"))
         finally:
             self._writeState()
