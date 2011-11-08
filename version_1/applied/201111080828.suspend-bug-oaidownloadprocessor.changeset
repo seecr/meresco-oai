@@ -1,0 +1,62 @@
+Changeset created on Tue Nov 08 08:28:39 UTC 2011 by Seecr (Seek You Too B.V.)
+
+Description: 'yield' from processRecord in oaidownloadprocessor
+
+    The asyncdo only yields if a suspend object is found. If no suspend is found
+    like in 'Edurep-Search', processRecord will never yield and process all records
+    in line which blocks the server. This is resolved with an empty yield.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.8-Edurep/version_0
+
+diff --unidirectional-new-file --recursive --unified --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied version_0/meresco/oai/oaidownloadprocessor.py version_1/meresco/oai/oaidownloadprocessor.py
+--- version_0/meresco/oai/oaidownloadprocessor.py	2011-10-19 13:52:02.000000000 +0200
++++ version_1/meresco/oai/oaidownloadprocessor.py	2011-11-08 09:28:19.000000000 +0100
+@@ -82,7 +82,7 @@
+                     datestamp = xpath(record, 'oai:header/oai:datestamp/text()')[0]
+                     identifier = xpath(record, 'oai:header/oai:identifier/text()')[0]
+                     yield self.asyncdo.add(identifier=identifier, lxmlNode=ElementTree(record), datestamp=datestamp)
+-                    yield
++                    yield # some room for others
+                 self._resumptionToken = head(xpath(lxmlNode, "/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()"))
+         finally:
+             self._writeState()
+Only in version_0/meresco/oai: .oaidownloadprocessor.py.swp
+diff --unidirectional-new-file --recursive --unified --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied version_0/test/oaidownloadprocessortest.py version_1/test/oaidownloadprocessortest.py
+--- version_0/test/oaidownloadprocessortest.py	2011-10-19 13:52:02.000000000 +0200
++++ version_1/test/oaidownloadprocessortest.py	2011-11-08 09:28:19.000000000 +0100
+@@ -43,6 +43,7 @@
+ from meresco.oai import OaiDownloadProcessor
+ 
+ from weightless.core import compose
++from weightless.io import Suspend
+ 
+ class OaiDownloadProcessorTest(CQ2TestCase):
+     def testRequest(self):
+@@ -135,6 +136,27 @@
+         self.assertEquals("", oaiDownloadProcessor._err.getvalue())
+         self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
+ 
++    def testHandleYieldsAtLeastOnceAfterEachRecord(self):
++        observer = CallTrace()
++        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
++        oaiDownloadProcessor.addObserver(observer)
++        yields = list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
++        self.assertEquals(1, len(yields))
++
++        secondRecord = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:2</identifier><datestamp>2011-08-22T07:41:00Z</datestamp></header><metadata>ignored</metadata></record>'
++        yields = list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % secondRecord)))))
++        self.assertEquals(2, len(yields))
++
++    def testYieldSuspendFromAdd(self):
++        observer = CallTrace()
++        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
++        oaiDownloadProcessor.addObserver(observer)
++        suspend = Suspend()
++        observer.returnValues['add'] = (x for x in [suspend])
++        yields = list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
++        self.assertEquals([suspend, None], yields)
++
++
+ 
+ ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>'
+ 
