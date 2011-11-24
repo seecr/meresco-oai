@@ -28,9 +28,8 @@
 ## end license ##
 
 from meresco.oai.oaitool import ISO8601Exception, ISO8601
-from meresco.oai.oaiutils import oaiRequestArgs
-from cq2utils.cq2testcase import CQ2TestCase
-from cq2utils.calltrace import CallTrace
+from meresco.oai.oaiutils import oaiRequestArgs, validSetSpecName
+from cq2utils import CQ2TestCase, CallTrace
 
 class OaiToolTest(CQ2TestCase):
     
@@ -38,7 +37,17 @@ class OaiToolTest(CQ2TestCase):
         result = ''.join(oaiRequestArgs({'identifier': ['with a "']}, Headers={'Host':'localhost'}, port=8000, path='/oai'))
         
         self.assertEquals('<request identifier="with a &quot;">http://localhost:8000/oai</request>', result)
-        
+       
+    def testSetSpecName(self):
+        self.assertTrue(validSetSpecName("name"))
+        self.assertTrue(validSetSpecName("123name"))
+        self.assertTrue(validSetSpecName("n-a-m-e"))
+        self.assertTrue(validSetSpecName("(._~-'!*!'-~_.)"))
+        self.assertFalse(validSetSpecName("separated:name"))
+        self.assertFalse(validSetSpecName("separated name"))
+        self.assertFalse(validSetSpecName("separated#/name"))
+
+
     def testISO8601(self):
         """http://www.w3.org/TR/NOTE-datetime
    Below is the complete spec by w3. OAI-PMH only allows for 
