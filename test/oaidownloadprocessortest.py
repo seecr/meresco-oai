@@ -55,6 +55,10 @@ class OaiDownloadProcessorTest(CQ2TestCase):
         self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=setName&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="set-_.!~*'()", workingDirectory=self.tempdir, xWait=True)
         self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=set-_.%21%7E%2A%27%28%29&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
+        resumptionToken = "u|c1286437597991025|mprefix|s|f"
+        open(join(self.tempdir, 'harvester.state'), 'w').write("Resumptiontoken: %s\n" % resumptionToken)
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="setName", workingDirectory=self.tempdir, xWait=True)
+        self.assertEquals("""GET /oai?verb=ListRecords&resumptionToken=u%7Cc1286437597991025%7Cmprefix%7Cs%7Cf&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
 
     def testHandle(self): 
         observer = CallTrace()

@@ -65,8 +65,8 @@ class OaiDownloadProcessor(Observable):
             arguments.append(('resumptionToken', self._resumptionToken))
         else:
             arguments.append(('metadataPrefix', self._metadataPrefix))
-        if self._set:
-            arguments.append(('set', self._set))
+            if self._set:
+                arguments.append(('set', self._set))
         if self._xWait:
             arguments.append(('x-wait', 'True'))
         statusline = "GET %s?%s HTTP/1.0\r\n\r\n"
