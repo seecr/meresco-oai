@@ -46,10 +46,11 @@ from tempfile import mkstemp
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiDownloadProcessor(Observable):
-    def __init__(self, path, metadataPrefix, workingDirectory, xWait=True, err=None):
+    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None):
         Observable.__init__(self)
         self._metadataPrefix = metadataPrefix
         self._resumptionToken = None
+        self._set = set
         self._xWait = xWait
         self._path = path
         self._err = err or stderr
@@ -64,6 +65,8 @@ class OaiDownloadProcessor(Observable):
             arguments.append(('resumptionToken', self._resumptionToken))
         else:
             arguments.append(('metadataPrefix', self._metadataPrefix))
+        if self._set:
+            arguments.append(('set', self._set))
         if self._xWait:
             arguments.append(('x-wait', 'True'))
         statusline = "GET %s?%s HTTP/1.0\r\n\r\n"

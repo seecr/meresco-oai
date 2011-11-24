@@ -1,0 +1,218 @@
+Changeset created on Thu Nov 24 14:14:35 UTC 2011 by Seecr (Seek You Too B.V.)
+
+Description: Set harvesting
+
+    The OAI download processor supports an optional set argument. If set, only that set will be harvested
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.9-Natag/version_0
+
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/bin/convert_oai_v1_to_v2 version_1/bin/convert_oai_v1_to_v2
+--- version_0/bin/convert_oai_v1_to_v2	2011-11-24 12:00:56.000000000 +0100
++++ version_1/bin/convert_oai_v1_to_v2	2011-11-24 15:14:24.000000000 +0100
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python2.5
+ # -*- coding: utf-8 -*-
+ ## begin license ##
+ #
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/deps.txt.~1~ version_1/deps.txt.~1~
+--- version_0/deps.txt.~1~	1970-01-01 01:00:00.000000000 +0100
++++ version_1/deps.txt.~1~	2011-11-24 15:14:24.000000000 +0100
+@@ -0,0 +1,8 @@
++python-meresco-components (>=3.4.17)
++python-meresco-components (<<3.5)
++python-weightless-core (>= 0.6.2)
++python-weightless-core (<< 0.7)
++python-storage (>=5.1.7)
++python-storage (<<5.2)
++python-lxml (>=2.1)
++python-lxml (<<3.0)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/deps.txt.rej version_1/deps.txt.rej
+--- version_0/deps.txt.rej	1970-01-01 01:00:00.000000000 +0100
++++ version_1/deps.txt.rej	2011-11-24 15:14:24.000000000 +0100
+@@ -0,0 +1,13 @@
++--- deps.txt	2011-10-11 10:17:16.000000000 +0200
+++++ deps.txt	2011-10-11 14:42:12.000000000 +0200
++@@ -1,7 +1,7 @@
++-python-meresco-components-4.0-beta1-seecr (>=2)
++-python-weightless-core (>= 0.6.2)
+++python-meresco-components-4.0-beta1-seecr (>=3)
+++python-weightless-core (>= 0.6.3)
++ python-weightless-core (<< 0.7)
++-python-storage (>=5.1.7)
+++python-storage (>=5.1.9)
++ python-storage (<<5.2)
++ python-lxml (>=2.1)
++ python-lxml (<<3.0)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaidownloadprocessor.py version_1/meresco/oai/oaidownloadprocessor.py
+--- version_0/meresco/oai/oaidownloadprocessor.py	2011-11-24 12:00:56.000000000 +0100
++++ version_1/meresco/oai/oaidownloadprocessor.py	2011-11-24 15:14:24.000000000 +0100
+@@ -46,10 +46,11 @@
+ namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
+ 
+ class OaiDownloadProcessor(Observable):
+-    def __init__(self, path, metadataPrefix, workingDirectory, xWait=True, err=None):
++    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None):
+         Observable.__init__(self)
+         self._metadataPrefix = metadataPrefix
+         self._resumptionToken = None
++        self._set = set
+         self._xWait = xWait
+         self._path = path
+         self._err = err or stderr
+@@ -64,6 +65,8 @@
+             arguments.append(('resumptionToken', self._resumptionToken))
+         else:
+             arguments.append(('metadataPrefix', self._metadataPrefix))
++        if self._set:
++            arguments.append(('set', self._set))
+         if self._xWait:
+             arguments.append(('x-wait', 'True'))
+         statusline = "GET %s?%s HTTP/1.0\r\n\r\n"
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaiutils.py version_1/meresco/oai/oaiutils.py
+--- version_0/meresco/oai/oaiutils.py	2011-11-24 12:00:56.000000000 +0100
++++ version_1/meresco/oai/oaiutils.py	2011-11-24 15:14:24.000000000 +0100
+@@ -1,3 +1,28 @@
++## begin license ##
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
++## end license ##
+ 
+ from time import strftime, gmtime
+ from socket import gethostname
+@@ -98,6 +123,9 @@
+             result.append(arg)
+     return result
+ 
++def validSetSpecName(name):
++    return len([l for l in name if not l.isalnum() and not l in "-_.!~*'()"]) == 0
++
+ OAIHEADER = '<?xml version="1.0" encoding="UTF-8"?>\n' +\
+     '<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" ' +\
+     'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' +\
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaidownloadprocessortest.py version_1/test/oaidownloadprocessortest.py
+--- version_0/test/oaidownloadprocessortest.py	2011-11-24 12:00:56.000000000 +0100
++++ version_1/test/oaidownloadprocessortest.py	2011-11-24 15:14:24.000000000 +0100
+@@ -50,6 +50,12 @@
+         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+         self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
+ 
++    def testSetInRequest(self):
++        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="setName", workingDirectory=self.tempdir, xWait=True)
++        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=setName&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
++        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="set-_.!~*'()", workingDirectory=self.tempdir, xWait=True)
++        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=set-_.%21%7E%2A%27%28%29&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
++
+     def testHandle(self): 
+         observer = CallTrace()
+         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaitooltest.py version_1/test/oaitooltest.py
+--- version_0/test/oaitooltest.py	2011-11-24 12:00:56.000000000 +0100
++++ version_1/test/oaitooltest.py	2011-11-24 15:14:24.000000000 +0100
+@@ -1,36 +1,37 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+ from meresco.oai.oaitool import ISO8601Exception, ISO8601
+-from meresco.oai.oaiutils import oaiRequestArgs
+-from cq2utils.cq2testcase import CQ2TestCase
+-from cq2utils.calltrace import CallTrace
++from meresco.oai.oaiutils import oaiRequestArgs, validSetSpecName
++from cq2utils import CQ2TestCase, CallTrace
+ 
+ class OaiToolTest(CQ2TestCase):
+     
+@@ -38,7 +39,17 @@
+         result = ''.join(oaiRequestArgs({'identifier': ['with a "']}, Headers={'Host':'localhost'}, port=8000, path='/oai'))
+         
+         self.assertEquals('<request identifier="with a &quot;">http://localhost:8000/oai</request>', result)
+-        
++       
++    def testSetSpecName(self):
++        self.assertTrue(validSetSpecName("name"))
++        self.assertTrue(validSetSpecName("123name"))
++        self.assertTrue(validSetSpecName("n-a-m-e"))
++        self.assertTrue(validSetSpecName("(._~-'!*!'-~_.)"))
++        self.assertFalse(validSetSpecName("separated:name"))
++        self.assertFalse(validSetSpecName("separated name"))
++        self.assertFalse(validSetSpecName("separated#/name"))
++
++
+     def testISO8601(self):
+         """http://www.w3.org/TR/NOTE-datetime
+    Below is the complete spec by w3. OAI-PMH only allows for 
