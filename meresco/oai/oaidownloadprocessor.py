@@ -46,7 +46,7 @@ from tempfile import mkstemp
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiDownloadProcessor(Observable):
-    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None):
+    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None):
         Observable.__init__(self)
         self._metadataPrefix = metadataPrefix
         self._resumptionToken = None
@@ -54,13 +54,13 @@ class OaiDownloadProcessor(Observable):
         self._xWait = xWait
         self._path = path
         self._err = err or stderr
-
+        self._verb = verb or 'ListRecords'
         isdir(workingDirectory) or makedirs(workingDirectory)
         self._stateFilePath = join(workingDirectory, "harvester.state")
         self._readState()
 
     def buildRequest(self):
-        arguments = [('verb', 'ListRecords')]
+        arguments = [('verb', self._verb)]
         if self._resumptionToken:
             arguments.append(('resumptionToken', self._resumptionToken))
         else:
