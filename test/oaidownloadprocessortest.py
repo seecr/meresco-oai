@@ -76,6 +76,17 @@ class OaiDownloadProcessorTest(CQ2TestCase):
         self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
         self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
 
+    def testListIdentifiersHandle(self): 
+        observer = CallTrace()
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, verb='ListIdentifiers')
+        oaiDownloadProcessor.addObserver(observer)
+        list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTIDENTIFIERS_RESPONSE)))))
+        self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+        self.assertEquals(0, len(observer.calledMethods[0].args))
+        self.assertEqualsWS(ONE_HEADER, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
+        self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
+        self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
+
     def testHandleWithTwoRecords(self): 
         observer = CallTrace()
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
@@ -172,7 +183,6 @@ class OaiDownloadProcessorTest(CQ2TestCase):
         self.assertEquals([suspend, None], yields)
 
 
-
 ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>'
 
 LISTRECORDS_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
@@ -184,7 +194,7 @@ LISTRECORDS_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
     %s
   </ListRecords>
 </OAI-PMH>
-""" % (ONE_RECORD+"%s")
+""" % (ONE_RECORD + "%s")
 
 ERROR_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
 <OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" 
@@ -201,4 +211,17 @@ ERROR_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
 RESUMPTION_TOKEN = """<resumptionToken expirationDate="2002-06-01T23:20:00Z" 
       completeListSize="6" 
       cursor="0">x?y&amp;z</resumptionToken>"""
+
+ONE_HEADER = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header>'
+
+LISTIDENTIFIERS_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/">
+  <responseDate>2002-06-01T19:20:30Z</responseDate>
+  <request verb="ListRecords" from="1998-01-15" 
+           metadataPrefix="dc">http://an.oa.org/OAI-script</request>
+  <ListIdentifiers>
+    %s
+  </ListIdentifiers>
+</OAI-PMH>
+""" % ONE_HEADER
 

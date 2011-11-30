@@ -73,20 +73,23 @@ class OaiDownloadProcessor(Observable):
         return statusline % (self._path, urlencode(arguments))
 
     def handle(self, lxmlNode):
+        errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
+        if len(errors) > 0:
+            for error in errors:
+                self._logError("%s: %s" % (error.get("code"), error.text))
+            self._resumptionToken = None
+            self._writeState()                
+            return
         try:
-            errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
-            if len(errors) > 0:
-                for error in errors:
-                    self._logError("%s: %s" % (error.get("code"), error.text))
-                self._resumptionToken = None
-            else:
-                records = xpath(lxmlNode, '/oai:OAI-PMH/oai:ListRecords/oai:record')
-                for record in records:
-                    datestamp = xpath(record, 'oai:header/oai:datestamp/text()')[0]
-                    identifier = xpath(record, 'oai:header/oai:identifier/text()')[0]
-                    yield self.asyncdo.add(identifier=identifier, lxmlNode=ElementTree(record), datestamp=datestamp)
-                    yield # some room for others
-                self._resumptionToken = head(xpath(lxmlNode, "/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()"))
+            verbNode = xpath(lxmlNode, "/oai:OAI-PMH/oai:%s" % self._verb)[0]
+            itemXPath, headerXPath = VERB_XPATHS[self._verb]
+            for item in xpath(verbNode, itemXPath):
+                header = xpath(item, headerXPath)[0]
+                datestamp = xpath(header, 'oai:datestamp/text()')[0]
+                identifier = xpath(header, 'oai:identifier/text()')[0]
+                yield self.asyncdo.add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
+                yield # some room for others
+            self._resumptionToken = head(xpath(verbNode, "oai:resumptionToken/text()"))
         finally:
             self._writeState()
 
@@ -114,3 +117,7 @@ def xpath(node, path):
 
 RESUMPTIONTOKEN_STATE = "Resumptiontoken: "
 
+VERB_XPATHS = {
+    'ListRecords': ('oai:record', 'oai:header'),
+    'ListIdentifiers': ('oai:header', '.')
+}
