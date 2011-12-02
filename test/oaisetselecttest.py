@@ -30,7 +30,7 @@ from cq2utils import CQ2TestCase, CallTrace
 
 from meresco.core import Observable
 from meresco.oai import OaiSetSelect
-from weightless.core import be
+from weightless.core import be, compose
 
 class OaiSetSelectTest(CQ2TestCase):
     def setUp(self):
@@ -46,19 +46,19 @@ class OaiSetSelectTest(CQ2TestCase):
         )
 
     def testOne(self):
-        list(self.dna.all.oaiSelect())
+        list(compose(self.dna.all.oaiSelect()))
         self.assertEquals(1, len(self.observer.calledMethods))
         methodCalled = self.observer.calledMethods[0]
         self.assertTrue('sets' in methodCalled.kwargs, methodCalled)
         self.assertEquals(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
 
     def testOtherMethodsArePassed(self):
-        list(self.dna.all.getAllMetadataFormats())
+        list(compose(self.dna.all.getAllMetadataFormats()))
         self.assertEquals(1, len(self.observer.calledMethods))
         self.assertEquals('getAllMetadataFormats', self.observer.calledMethods[0].name)
 
     def testSetsIsNone(self):
-        list(self.dna.all.oaiSelect(sets=None))
+        list(compose(self.dna.all.oaiSelect(sets=None)))
         self.assertEquals(1, len(self.observer.calledMethods))
         methodCalled = self.observer.calledMethods[0]
         self.assertTrue('sets' in methodCalled.kwargs, methodCalled)

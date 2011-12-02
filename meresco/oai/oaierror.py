@@ -28,11 +28,12 @@
 ## end license ##
 
 from meresco.core import Observable
+from weightless.core import compose
 from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl, oaiRequestArgs
 
 class OaiError(Observable):
-    def unknown(self, message, **kwargs):
-        result = self.all.unknown(message, **kwargs)
+    def all_unknown(self, message, **kwargs):
+        result = compose(self.all.unknown(message, **kwargs))
         try:
             firstResult = result.next()
         except StopIteration:

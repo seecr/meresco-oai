@@ -25,8 +25,9 @@
 
 
 from meresco.core import Transparent
-from xml.sax.saxutils import escape as xmlEscape
 from meresco.core.generatorutils import decorate
+from weightless.core import compose
+from xml.sax.saxutils import escape as xmlEscape
 
 class OaiRecord(Transparent):
     def _oaiRecordHeader(self, recordId, isDeleted):
@@ -51,7 +52,7 @@ class OaiRecord(Transparent):
             yield self.all.yieldRecord(recordId, metadataPrefix)
             yield '</metadata>'
             
-            provenance = self.all.provenance(recordId)
+            provenance = compose(self.all.provenance(recordId))
             for line in decorate('<about>', provenance, '</about>'):
                 yield line
 

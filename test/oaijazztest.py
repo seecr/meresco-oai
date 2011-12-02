@@ -221,7 +221,7 @@ class OaiJazzTest(CQ2TestCase):
             )
         ))
         server.once.observer_init()
-        mf = list(server.any.getAllMetadataFormats())
+        mf = list(server.call.getAllMetadataFormats())
         self.assertEquals(2, len(mf))
         self.assertEquals(set(['one', 'two']), set(prefix for prefix, schema, namespace in mf))
 
