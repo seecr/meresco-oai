@@ -59,7 +59,7 @@ Error and Exception Conditions
             if 'resumptionToken' in validatedArguments:
                 raise OaiException('badResumptionToken')
 
-            sets = self.any.getAllSets()
+            sets = self.call.getAllSets()
             if len(sets) == 0:
                 raise OaiException('noSetHierarchy')
         except OaiException, e:

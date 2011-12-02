@@ -174,14 +174,14 @@ Error and Exception Conditions
             except ISO8601Exception, e:
                 raise OaiBadArgumentException('From and/or until arguments are faulty.')
 
-        if not _metadataPrefix in set(self.any.getAllPrefixes()):
+        if not _metadataPrefix in set(self.call.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
 
         validatedArguments['from'] = _from
         validatedArguments['until'] = _until
         validatedArguments['set'] = _set
         validatedArguments['metadataPrefix'] = _metadataPrefix
-        result = self.any.oaiSelect(
+        result = self.call.oaiSelect(
             sets=[_set] if _set else None,
             prefix=_metadataPrefix,
             continueAfter=continueAfter,
@@ -203,7 +203,7 @@ Error and Exception Conditions
                 results.next()
             yield '<resumptionToken>%s</resumptionToken>' % ResumptionToken(
                 validatedArguments['metadataPrefix'],
-                self.any.getUnique(recordId),
+                self.call.getUnique(recordId),
                 validatedArguments['from'],
                 validatedArguments['until'],
                 validatedArguments['set'])

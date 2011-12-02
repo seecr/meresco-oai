@@ -38,11 +38,11 @@ from os.path import join
 from urllib import urlencode
 
 from cq2utils import CQ2TestCase, CallTrace
-from meresco.core import Observable, be
+from meresco.core import Observable
 from meresco.components.http.utils import CRLF
 from meresco.oai import OaiDownloadProcessor
 
-from weightless.core import compose
+from weightless.core import be, compose
 from weightless.io import Suspend
 
 

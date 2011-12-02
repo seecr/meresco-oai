@@ -43,8 +43,8 @@ from meresco.oai.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATO
 from meresco.oai.oailist import OaiList
 from StringIO import StringIO
 from lxml.etree import parse
-from meresco.core import Observable, be, Transparant
-from weightless.core import compose
+from meresco.core import Observable, Transparent
+from weightless.core import be, compose
 from weightless.io import Suspend
 
 parseLxml = lambda s: parse(StringIO(s)).getroot()
@@ -216,7 +216,7 @@ class OaiJazzTest(CQ2TestCase):
     def testWithObservablesAndUseOfAnyBreaksStuff(self):
         self.jazz.addOaiRecord('23', metadataFormats=[('one','schema1', 'namespace1'), ('two','schema2', 'namespace2')])
         server = be((Observable(),
-            (Transparant(),
+            (Transparent(),
                 (self.jazz,)
             )
         ))

@@ -30,14 +30,14 @@ from cq2utils import CQ2TestCase, CallTrace
 from oaischema import assertValidOai
 
 from meresco.oai import OaiPmh, OaiJazz, OaiBranding
-from meresco.core import Observable, be
+from meresco.core import Observable
 from meresco.components.http.utils import CRLF
 from meresco.components import StorageComponent
 from os.path import join
 from urllib import urlencode
 from lxml.etree import parse, tostring
 from StringIO import StringIO
-from weightless.core import compose
+from weightless.core import be, compose
 from socket import gethostname
 
 BATCHSIZE = 10

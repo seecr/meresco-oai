@@ -34,7 +34,8 @@
 
 from cgi import parse_qs
 
-from meresco.core import be, Transparant, Observable
+from meresco.core import Transparent, Observable
+from weightless.core import be
 from oaiidentify import OaiIdentify
 from oailist import OaiList
 from oaigetrecord import OaiGetRecord
@@ -46,7 +47,7 @@ from oairecord import OaiRecord
 
 class OaiPmh(object):
     def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=OaiList.DEFAULT_BATCH_SIZE, supportXWait=False):
-        outside = Transparant() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
+        outside = Transparent() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
         self._internalObserverTree = be(

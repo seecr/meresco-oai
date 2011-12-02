@@ -26,15 +26,15 @@
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 ## end license ##
-from meresco.core import Transparant
+from meresco.core import Transparent
 
-class OaiSetSelect(Transparant):
+class OaiSetSelect(Transparent):
     def __init__(self, setsList):
-        Transparant.__init__(self)
+        Transparent.__init__(self)
         self._setsList = setsList
 
     def oaiSelect(self, sets=[], *args, **kwargs):
         if not sets:
             sets = []
         sets += self._setsList
-        return self.any.oaiSelect(sets=sets, *args, **kwargs)
+        return self.call.oaiSelect(sets=sets, *args, **kwargs)

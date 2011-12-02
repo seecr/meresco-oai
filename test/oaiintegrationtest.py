@@ -30,13 +30,14 @@ from random import randint
 from threading import Thread
 from time import sleep
 
-from meresco.core import be, Observable
+from meresco.core import Observable
 from meresco.components.http import ObservableHttpServer
 from meresco.components import StorageComponent, XmlParseLxml, PeriodicDownload
 from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
 
 from cq2utils import CQ2TestCase, CallTrace
 from weightless.io import Reactor
+from weightless.core import be
 
 from lxml.etree import tostring
 

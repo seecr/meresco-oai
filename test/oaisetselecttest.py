@@ -28,8 +28,9 @@
 ## end license ##
 from cq2utils import CQ2TestCase, CallTrace
 
-from meresco.core import be, Observable
+from meresco.core import Observable
 from meresco.oai import OaiSetSelect
+from weightless.core import be
 
 class OaiSetSelectTest(CQ2TestCase):
     def setUp(self):

@@ -37,7 +37,6 @@ from itertools import imap
 from mockoaijazz import MockOaiJazz
 
 from meresco.components.http.utils import CRLF
-from meresco.core import ObserverFunction
 from meresco.oai.oailist import OaiList
 from meresco.oai.oairecord import OaiRecord
 from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionToken

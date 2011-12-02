@@ -14,10 +14,10 @@
 #    Meresco Oai is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
+#    (at your option) call later version.
 #
 #    Meresco Oai is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    but WITHOUT call WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
 #
@@ -27,15 +27,15 @@
 #
 ## end license ##
 
-from meresco.core import Observable
+from meresco.core import Transparent
 from oaijazz import RecordId, WrapIterable
 
 import re
 repositoryIdentifierRe = re.compile(r"[a-zA-Z][a-zA-Z0-9\-]*(\.[a-zA-Z][a-zA-Z0-9\-]+)+")
 
-class OaiIdentifierRename(Observable):
+class OaiIdentifierRename(Transparent):
     def __init__(self, repositoryIdentifier):
-        Observable.__init__(self)
+        Transparent.__init__(self)
         if not repositoryIdentifierRe.match(repositoryIdentifier):
             raise ValueError("Invalid repositoryIdentifier: %s" % repositoryIdentifier)
 
@@ -52,35 +52,32 @@ class OaiIdentifierRename(Observable):
 
 
     def isDeleted(self, identifier):
-        return self.any.isDeleted(self._strip(identifier))
+        return self.call.isDeleted(self._strip(identifier))
 
     def getUnique(self, identifier):
-        return self.any.getUnique(self._strip(identifier))
+        return self.call.getUnique(self._strip(identifier))
 
     def getDatestamp(self, identifier):
-        return self.any.getDatestamp(self._strip(identifier))
+        return self.call.getDatestamp(self._strip(identifier))
     
     def isAvailable(self, id, partName):
-        return self.any.isAvailable(self._strip(id), partName)
+        return self.call.isAvailable(self._strip(id), partName)
     
     def getPrefixes(self, identifier):
-        return self.any.getPrefixes(self._strip(identifier))
+        return self.call.getPrefixes(self._strip(identifier))
     
     def getSets(self, identifier):
-        return self.any.getSets(self._strip(identifier))
+        return self.call.getSets(self._strip(identifier))
 
     def write(self, sink, id, partName):
-        return self.any.write(sink, self._strip(id), partName)
+        return self.call.write(sink, self._strip(id), partName)
 
     def yieldRecord(self, identifier, partname):
-        return self.any.yieldRecord(self._strip(identifier), partname)
+        return self.call.yieldRecord(self._strip(identifier), partname)
 
     def getStream(self, id, partName):
-        return self.any.getStream(self._strip(id), partName)
+        return self.call.getStream(self._strip(id), partName)
     
-    def unknown(self, message, *args, **kwargs):
-        return self.all.unknown(message, *args, **kwargs)
-
     def oaiSelect(self, *args, **kwargs):
-        return WrapIterable((self._append(recordId) for recordId in self.any.oaiSelect(*args, **kwargs)))
+        return WrapIterable((self._append(recordId) for recordId in self.call.oaiSelect(*args, **kwargs)))
             

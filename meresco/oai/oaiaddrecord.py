@@ -29,7 +29,7 @@
 # 
 ## end license ##
 
-from meresco.core import Transparant
+from meresco.core import Transparent
 from lxml.etree import iselement
 
 namespaces = {
@@ -37,7 +37,7 @@ namespaces = {
     'xsi': "http://www.w3.org/2001/XMLSchema-instance",
 }
 
-class OaiAddRecord(Transparant):
+class OaiAddRecord(Transparent):
     def add(self, identifier, partname, lxmlNode):
         record = lxmlNode if iselement(lxmlNode) else lxmlNode.getroot()
         setSpecs = record.xpath('//oai:header/oai:setSpec/text()', namespaces=namespaces)
@@ -54,14 +54,14 @@ class OaiAddRecord(Transparant):
 
     def _magicSchemaNamespace(self, prefix, name, schema, namespace):
         searchForPrefix = prefix or name
-        for oldprefix, oldschema, oldnamespace in self.any.getAllMetadataFormats():
+        for oldprefix, oldschema, oldnamespace in self.call.getAllMetadataFormats():
             if searchForPrefix == oldprefix:
                 return schema or oldschema, namespace or oldnamespace
         return schema, namespace
 
-class OaiAddRecordWithDefaults(Transparant):
+class OaiAddRecordWithDefaults(Transparent):
     def __init__(self, metadataFormats=None, sets=None):
-        Transparant.__init__(self)
+        Transparent.__init__(self)
         self._metadataFormats = metadataFormats if metadataFormats else []
         self._sets = sets if sets else []
         
