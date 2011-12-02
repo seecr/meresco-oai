@@ -37,7 +37,7 @@ from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
 
 from cq2utils import CQ2TestCase, CallTrace
 from weightless.io import Reactor
-from weightless.core import be
+from weightless.core import be, compose
 
 from lxml.etree import tostring
 
@@ -140,7 +140,7 @@ class OaiIntegrationTest(CQ2TestCase):
                 )
             )
         )
-        server.once.observer_init()
+        list(compose(server.once.observer_init()))
         self._loopReactor(reactor)
 
     def startOaiPmh(self, portNumber, oaiJazz, storageComponent):
@@ -155,7 +155,7 @@ class OaiIntegrationTest(CQ2TestCase):
                 )
             )
         )
-        server.once.observer_init()
+        list(compose(server.once.observer_init()))
         self._loopReactor(reactor)
 
     def _addOaiRecords(self, storageComponent, oaiJazz, count):
