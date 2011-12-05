@@ -66,7 +66,7 @@ class OaiIntegrationTest(CQ2TestCase):
         self.assertEquals(1, len(oaiJazz._suspended))
 
         requests += 1
-        storageComponent.add("id3", "prefix", "<a>a3</a>")
+        list(compose(storageComponent.add("id3", "prefix", "<a>a3</a>")))
         oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
         sleep(0.1)
 
@@ -115,7 +115,7 @@ class OaiIntegrationTest(CQ2TestCase):
         self.assertTrue("id0" in kwarg, kwarg)
         stop()
 
-        storageComponent.add("id1", "prefix", "<a>a1</a>")
+        list(compose(storageComponent.add("id1", "prefix", "<a>a1</a>")))
         oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
 
         start()
@@ -160,7 +160,7 @@ class OaiIntegrationTest(CQ2TestCase):
 
     def _addOaiRecords(self, storageComponent, oaiJazz, count):
         for i in range(count):            
-            storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)
+            list(compose(storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)))
             oaiJazz.addOaiRecord(identifier="id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
 
     def _loopReactor(self, reactor):

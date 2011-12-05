@@ -29,7 +29,7 @@
 # 
 ## end license ##
 
-from meresco.core import Transparent
+from meresco.core import Transparent, asyncreturn
 from lxml.etree import iselement
 
 namespaces = {
@@ -38,6 +38,8 @@ namespaces = {
 }
 
 class OaiAddRecord(Transparent):
+
+    @asyncreturn
     def add(self, identifier, partname, lxmlNode):
         record = lxmlNode if iselement(lxmlNode) else lxmlNode.getroot()
         setSpecs = record.xpath('//oai:header/oai:setSpec/text()', namespaces=namespaces)
@@ -64,7 +66,8 @@ class OaiAddRecordWithDefaults(Transparent):
         Transparent.__init__(self)
         self._metadataFormats = metadataFormats if metadataFormats else []
         self._sets = sets if sets else []
-        
+
+    @asyncreturn
     def add(self, identifier, partname, lxmlNode):
         self.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats=self._metadataFormats)
 

@@ -28,22 +28,32 @@
 #
 ## end license ##
 
-class Fields2OaiRecordTx(object):
-    def __init__(self, resourceManager):
-        self.resourceManager = resourceManager
-        self._sets = set()
-        self._metadataFormats = set()
+from meresco.core import Observable, asyncreturn
 
-    def addField(self, name, value):
-        if name == 'set':
-            self._sets.add(value)
-        elif name == 'metadataFormat':
-            self._metadataFormats.add(value)
+class Fields2OaiRecord(Observable):
+    @asyncreturn
+    def beginTransaction(self):
+        return Fields2OaiRecord.Fields2OaiRecordTx(self)
 
-    def commit(self):
-        if self._metadataFormats:
-            identifier = self.resourceManager.ctx.tx.locals['id']
-            self.resourceManager.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats = self._metadataFormats)
+    class Fields2OaiRecordTx(object):
+        def __init__(self, resource):
+            self._sets = set()
+            self._metadataFormats = set()
+            self._resource = resource
 
-    def rollback(self):
-        pass
+        def addField(self, name, value):
+            if name == 'set':
+                self._sets.add(value)
+            elif name == 'metadataFormat':
+                self._metadataFormats.add(value)
+
+        @asyncreturn
+        def commit(self):
+            if self._metadataFormats:
+                identifier = self._resource.ctx.tx.locals['id']
+                self._resource.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats=self._metadataFormats)
+
+        @asyncreturn
+        def rollback(self):
+            pass
+

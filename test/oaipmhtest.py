@@ -57,10 +57,10 @@ class _OaiPmhTest(CQ2TestCase):
         for i in xrange(20):
             recordId = 'record:id:%02d' % i
             metadataFormats = [('oai_dc', 'http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://www.openarchives.org/OAI/2.0/oai_dc/')]
-            storage.add(identifier=recordId, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)
+            list(compose(storage.add(identifier=recordId, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)))
             if i >= 10:
                 metadataFormats.append(('prefix2', 'http://example.org/prefix2/?format=xsd&prefix=2','http://example.org/prefix2/'))
-                storage.add(identifier=recordId, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)
+                list(compose(storage.add(identifier=recordId, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)))
             sets = []
             if i >= 5:
                 sets.append(('setSpec%s' % ((i//5)*5), 'setName'))
@@ -70,7 +70,7 @@ class _OaiPmhTest(CQ2TestCase):
                 sets.append(('hierarchical', 'hierarchical toplevel only'))
             jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
             if i % 5 == 0:
-                jazz.delete(recordId)
+                list(compose(jazz.delete(recordId)))
 
     def _request(self, from_=None, **arguments):
         httpMethod = getattr(self, 'httpMethod', 'GET')

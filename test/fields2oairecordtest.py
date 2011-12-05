@@ -30,41 +30,74 @@
 
 from cq2utils import CQ2TestCase, CallTrace
 
-from meresco.oai import Fields2OaiRecordTx
+from meresco.core import Observable, TransactionScope, ResourceManager
+from weightless.core import be, compose
+from meresco.oai import Fields2OaiRecord
 
 class Fields2OaiRecordTest(CQ2TestCase):
     def testOne(self):
-        transaction = CallTrace('Transaction')
-        rm = CallTrace('ResourceManager')
-        rm.ctx = CallTrace('ctx')
-        rm.ctx.tx = transaction
-        rm.do = rm
-        transaction.locals = {'id':'identifier'}
-        
-        tx = Fields2OaiRecordTx(rm)
+        __callstack_var_tx__ = CallTrace('TX')
+        __callstack_var_tx__.locals = {'id': 'identifier'}
+        intercept = CallTrace()
+        fields2OaiRecord = Fields2OaiRecord()
+        fields2OaiRecord.addObserver(intercept)
+        def f():
+            f = yield fields2OaiRecord.beginTransaction()
+            yield f
+        tx = compose(f()).next()
         
         tx.addField('set', ('setSpec', 'setName'))
         tx.addField('metadataFormat', ('prefix', 'schema', 'namespace'))
-        tx.commit()
+        list(compose(tx.commit()))
 
-        self.assertEquals(1, len(rm.calledMethods))
-        self.assertEquals('addOaiRecord', rm.calledMethods[0].name)
+        self.assertEquals(1, len(intercept.calledMethods))
+        self.assertEquals('addOaiRecord', intercept.calledMethods[0].name)
         self.assertEquals({'identifier':'identifier',
                 'metadataFormats': set([('prefix', 'schema', 'namespace')]),
                 'sets': set([('setSpec', 'setName')])},
-            rm.calledMethods[0].kwargs)
+            intercept.calledMethods[0].kwargs)
 
     def testNothing(self):
-        transaction = CallTrace('Transaction')
-        rm = CallTrace('ResourceManager')
-        rm.tx = transaction
-        rm.do = rm
-        transaction.locals = {'id':'identifier'}
-        
-        tx = Fields2OaiRecordTx(rm)
-        
+        __callstack_var_tx__ = CallTrace('TX')
+        __callstack_var_tx__.locals = {'id': 'identifier'}
+        intercept = CallTrace()
+        fields2OaiRecord = Fields2OaiRecord()
+        fields2OaiRecord.addObserver(intercept)
+        def f():
+            f = yield fields2OaiRecord.beginTransaction()
+            yield f
+        tx = compose(f()).next()
         tx.addField('set', ('setSpec', 'setName'))
         tx.commit()
+        self.assertEquals(0, len(intercept.calledMethods))
 
-        self.assertEquals(0, len(rm.calledMethods))
-        
+    def testWorksWithRealTransactionScope(self):
+        intercept = CallTrace('Intercept', ignoredAttributes=['begin', 'commit', 'rollback'])
+        class MockVenturi(Observable):
+            def all_unknown(self, message, *args, **kwargs):
+                self.ctx.tx.locals['id'] = 'an:identifier'
+                yield self.all.unknown(message, *args, **kwargs)
+        class MockMultiFielder(Observable):
+            def add(self, *args, **kwargs):
+                self.do.addField('set', ('setSpec', 'setName'))
+                self.do.addField('metadataFormat', ('prefix', 'schema', 'namespace'))
+                yield 'ok'
+        root = be( 
+            (Observable(),
+                (TransactionScope(transactionName="oaiRecord"),
+                    (MockVenturi(),
+                        (MockMultiFielder(),
+                            (ResourceManager("oaiRecord"),
+                                (Fields2OaiRecord(),
+                                    (intercept,),
+                                )   
+                            )   
+                        )   
+                    )   
+                )   
+            )   
+        )
+        list(compose(root.all.add('some', 'arguments')))
+        self.assertEquals(['addOaiRecord'], [m.name for m in intercept.calledMethods])
+        method = intercept.calledMethods[0]
+        self.assertEquals(((), {'identifier': 'an:identifier', 'metadataFormats': set([('prefix', 'schema', 'namespace')]), 'sets': set([('setSpec', 'setName')])}), (method.args, method.kwargs))        

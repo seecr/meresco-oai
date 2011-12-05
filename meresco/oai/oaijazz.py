@@ -38,6 +38,7 @@ from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
 from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
+from meresco.core import asyncreturn
 from sys import maxint
 from weightless.io import Suspend
 
@@ -86,6 +87,7 @@ class OaiJazz(object):
         self._storeMetadataFormats(metadataFormats)
         self._resume()
 
+    @asyncreturn
     def delete(self, identifier):
         oldPrefixes, oldSets = self._delete(identifier)
         if not oldPrefixes and not self._deletePrefixes:
