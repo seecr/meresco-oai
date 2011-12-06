@@ -35,11 +35,14 @@ class OaiError(Observable):
     def all_unknown(self, message, **kwargs):
         result = compose(self.all.unknown(message, **kwargs))
         try:
-            firstResult = result.next()
+            firstDataResult = result.next()
+            while callable(firstDataResult):
+                yield firstDataResult
+                firstDataResult = result.next()
         except StopIteration:
             yield self._error(**kwargs)
             return
-        yield firstResult
+        yield firstDataResult
         for remainder in result:
             yield remainder
 
