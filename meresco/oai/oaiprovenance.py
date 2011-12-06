@@ -55,6 +55,6 @@ class OaiProvenance(XmlCompose):
             identifier=identifier,
             datestamp=datestamp)
 
-    def provenance(self, aRecordId):
-        return self.getRecord(aRecordId)
+    def provenance(self, identifier):
+        return self.getRecord(identifier=identifier)
         
