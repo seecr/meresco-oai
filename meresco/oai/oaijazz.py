@@ -99,19 +99,23 @@ class OaiJazz(object):
         sets = [] if sets == None else sets
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
         stop = self._untilTime(oaiUntil)
-        stampIds = self._prefixes.get(prefix, [])
-        if stop:
-            stampIds = stampIds[bisect_left(stampIds,start):bisect_left(stampIds,stop)]
-        else:
-            stampIds = stampIds[bisect_left(stampIds,start):]
+        stampIds = self._sliceOnValues(self._prefixes.get(prefix, []), start, stop)
         if sets:
-            allStampIdsFromSets = (self._sets.get(setSpec,[]) for setSpec in sets)
+            allStampIdsFromSets = (
+                self._sliceOnValues(self._sets.get(setSpec, []), start, stop)
+                for setSpec in sets
+            )
             stampIds = AndIterator(stampIds,
                 reduce(OrIterator, allStampIdsFromSets))
         #WrapIterable to fool Observable's any message
         idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
         return WrapIterable((RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None))
                 
+    def _sliceOnValues(self, stampIds, start, stop):
+        if stop:
+            return stampIds[bisect_left(stampIds, start):bisect_left(stampIds, stop)]
+        return stampIds[bisect_left(stampIds, start):]
+
     def getDatestamp(self, identifier):
         stamp = self.getUnique(identifier)
         if stamp == None:
