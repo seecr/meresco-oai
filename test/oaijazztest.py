@@ -323,6 +323,7 @@ class OaiJazzTest(CQ2TestCase):
         select = self.jazz.oaiSelect(prefix='oai_dc')
         result.append(select.next())
         result.append(select.next())
+        self._addRecord(1)
         self._addRecord(3)
         for r in select:
             result.append(r)
@@ -334,7 +335,7 @@ class OaiJazzTest(CQ2TestCase):
         select = self.jazz.oaiSelect(prefix='oai_dc')
         for r in select:
             result.append(r)
-        self.assertEquals(['00001', '00002', '00004', '00003'], result)
+        self.assertEquals(['00002', '00004', '00001', '00003'], result)
 
     def testAddOaiRecordWithNoMetadataFormats(self):
         try:
