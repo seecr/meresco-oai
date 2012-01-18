@@ -57,9 +57,8 @@ def oaiError(statusCode, additionalMessage, arguments, **httpkwargs):
     message = ERROR_CODES[statusCode] + space + additionalMessage
 
     yield oaiHeader()
-
     if statusCode in ["badArgument", "badResumptionToken", "badVerb"]:
-        """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the responce will not validate either"""
+        """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the response will not validate either"""
         yield oaiRequestArgs({}, **httpkwargs)
     else:
         yield oaiRequestArgs(arguments, **httpkwargs)

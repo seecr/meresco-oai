@@ -95,7 +95,7 @@ The response may include multiple instances of the following optional elements:
             'deletedRecord': 'persistent',
         }
         values.update(hardcoded_values)
-        yield oaiHeader()
+        yield oaiHeader(self)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<Identify>'
         yield IDENTIFY % values
