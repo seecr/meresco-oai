@@ -96,7 +96,6 @@ The response may include multiple instances of the following optional elements:
         }
         values.update(hardcoded_values)
         yield oaiHeader()
-        yield self.all.extraOaiHeader()
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<Identify>'
         yield IDENTIFY % values
