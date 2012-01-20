@@ -76,6 +76,10 @@ class OaiJazzTest(CQ2TestCase):
         recordIds = myJazz.oaiSelect(prefix='prefix')
         self.assertEquals('oai://1234?34', recordIds.next())
 
+    def testAddOaiRecordEmptyIdentifier(self):
+        self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord("", metadataFormats=[('prefix', 'schema', 'namespace')]))
+        self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord(None, metadataFormats=[('prefix', 'schema', 'namespace')]))
+
     def xtestPerformanceTestje(self):
         t0 = time()
         lastTime = t0
@@ -134,6 +138,10 @@ class OaiJazzTest(CQ2TestCase):
         self.jazz.delete('notExisting')
         jazz2 = OaiJazz(self.tempdir)
         self.assertEquals(None, jazz2.getUnique('notExisting'))
+
+    def testDeleteEmptyIdentifier(self):
+        self.assertRaises(ValueError, lambda: self.jazz.delete(""))
+        self.assertRaises(ValueError, lambda: self.jazz.delete(None))
 
     def testMarkDeleteOfNonExistingRecordInGivenPrefixes(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])

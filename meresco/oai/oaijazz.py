@@ -71,8 +71,10 @@ class OaiJazz(object):
         self._preciseDatestamp = preciseDatestamp
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
-        sets = [] if sets == None else sets
-        metadataFormats = [] if metadataFormats == None else metadataFormats
+        if not identifier:
+            raise ValueError("Empty identifier not allowed.")
+        sets = sets or []
+        metadataFormats = metadataFormats or []
         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
         for setSpec, setName in sets:
             assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
@@ -87,6 +89,8 @@ class OaiJazz(object):
         self._resume()
 
     def delete(self, identifier):
+        if not identifier:
+            raise ValueError("Empty identifier not allowed.")
         oldPrefixes, oldSets = self._delete(identifier)
         if not oldPrefixes and not self._deletePrefixes:
             return
