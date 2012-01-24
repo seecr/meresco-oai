@@ -33,10 +33,18 @@ from StringIO import StringIO
 from meresco.oai import UpdateAdapterFromOaiHarvester, UpdateAdapterFromOaiDownloadProcessor
 from weightless.core import compose
 
+def addMock(identifier, partname, lxmlNode):
+    return
+    yield
+
+def deleteMock(identifier):
+    return
+    yield
+
 class UpdateAdapterTest(CQ2TestCase):
     def testDelete(self):
         adapter = UpdateAdapterFromOaiDownloadProcessor()
-        observer = CallTrace('observer')
+        observer = CallTrace('observer', methods={'delete': deleteMock})
         adapter.addObserver(observer)
 
         list(compose(adapter.add(identifier='oai:test:identifier', lxmlNode=parse(StringIO(OAI_DELETED_RECORD)), datestamp="2010-10-19T09:57:32Z")))
@@ -46,7 +54,7 @@ class UpdateAdapterTest(CQ2TestCase):
 
     def testAdd(self):
         adapter = UpdateAdapterFromOaiDownloadProcessor()
-        observer = CallTrace('observer')
+        observer = CallTrace('observer', methods={'add': addMock})
         adapter.addObserver(observer)
 
         recordNode = parse(StringIO(OAI_RECORD))
