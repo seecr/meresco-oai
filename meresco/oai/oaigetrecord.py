@@ -62,7 +62,7 @@ Error and Exception Conditions
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
 
-        yield oaiHeader(self)
+        yield oaiHeader()
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
         yield self.all.oaiRecord(recordId=recordId, metadataPrefix=metadataPrefix)
@@ -70,11 +70,11 @@ Error and Exception Conditions
         yield oaiFooter()
 
     def _validateValues(self, recordId, metadataPrefix):
-        if not metadataPrefix in set(self.any.getAllPrefixes()):
+        if not metadataPrefix in set(self.call.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
 
-        isDeleted = self.any.isDeleted(recordId)
-        hasId, hasPartName = self.any.isAvailable(recordId, metadataPrefix)
+        isDeleted = self.call.isDeleted(recordId)
+        hasId, hasPartName = self.call.isAvailable(recordId, metadataPrefix)
 
         if not hasId:
             raise OaiException('idDoesNotExist')

@@ -30,13 +30,14 @@ from random import randint
 from threading import Thread
 from time import sleep
 
-from meresco.core import be, Observable
+from meresco.core import Observable
 from meresco.components.http import ObservableHttpServer
 from meresco.components import StorageComponent, XmlParseLxml, PeriodicDownload
 from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
 
 from cq2utils import CQ2TestCase, CallTrace
 from weightless.io import Reactor
+from weightless.core import be, compose
 
 from lxml.etree import tostring
 
@@ -65,7 +66,7 @@ class OaiIntegrationTest(CQ2TestCase):
         self.assertEquals(1, len(oaiJazz._suspended))
 
         requests += 1
-        storageComponent.add("id3", "prefix", "<a>a3</a>")
+        list(compose(storageComponent.add("id3", "prefix", "<a>a3</a>")))
         oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
         sleep(0.1)
 
@@ -114,7 +115,7 @@ class OaiIntegrationTest(CQ2TestCase):
         self.assertTrue("id0" in kwarg, kwarg)
         stop()
 
-        storageComponent.add("id1", "prefix", "<a>a1</a>")
+        list(compose(storageComponent.add("id1", "prefix", "<a>a1</a>")))
         oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
 
         start()
@@ -139,7 +140,7 @@ class OaiIntegrationTest(CQ2TestCase):
                 )
             )
         )
-        server.once.observer_init()
+        list(compose(server.once.observer_init()))
         self._loopReactor(reactor)
 
     def startOaiPmh(self, portNumber, oaiJazz, storageComponent):
@@ -154,12 +155,12 @@ class OaiIntegrationTest(CQ2TestCase):
                 )
             )
         )
-        server.once.observer_init()
+        list(compose(server.once.observer_init()))
         self._loopReactor(reactor)
 
     def _addOaiRecords(self, storageComponent, oaiJazz, count):
         for i in range(count):            
-            storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)
+            list(compose(storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)))
             oaiJazz.addOaiRecord(identifier="id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
 
     def _loopReactor(self, reactor):

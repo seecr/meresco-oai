@@ -37,7 +37,6 @@ from urllib import urlencode
 
 from meresco.core import Observable
 from meresco.components.http.utils import CRLF
-from weightless.core import compose
 
 from sys import stderr, stdout
 from time import time
@@ -87,7 +86,7 @@ class OaiDownloadProcessor(Observable):
                 header = xpath(item, headerXPath)[0]
                 datestamp = xpath(header, 'oai:datestamp/text()')[0]
                 identifier = xpath(header, 'oai:identifier/text()')[0]
-                yield self.asyncdo.add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
+                yield self.all.add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
                 yield # some room for others
             self._resumptionToken = head(xpath(verbNode, "oai:resumptionToken/text()"))
         finally:

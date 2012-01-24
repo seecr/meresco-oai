@@ -28,17 +28,21 @@
 ## end license ##
 
 from meresco.core import Observable
+from weightless.core import compose
 from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl, oaiRequestArgs
 
 class OaiError(Observable):
-    def unknown(self, message, **kwargs):
-        result = self.all.unknown(message, **kwargs)
+    def all_unknown(self, message, **kwargs):
+        result = compose(self.all.unknown(message, **kwargs))
         try:
-            firstResult = result.next()
+            firstDataResult = result.next()
+            while callable(firstDataResult):
+                yield firstDataResult
+                firstDataResult = result.next()
         except StopIteration:
             yield self._error(**kwargs)
             return
-        yield firstResult
+        yield firstDataResult
         for remainder in result:
             yield remainder
 
@@ -57,8 +61,9 @@ def oaiError(statusCode, additionalMessage, arguments, **httpkwargs):
     message = ERROR_CODES[statusCode] + space + additionalMessage
 
     yield oaiHeader()
+
     if statusCode in ["badArgument", "badResumptionToken", "badVerb"]:
-        """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the response will not validate either"""
+        """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the responce will not validate either"""
         yield oaiRequestArgs({}, **httpkwargs)
     else:
         yield oaiRequestArgs(arguments, **httpkwargs)

@@ -38,6 +38,7 @@ from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
 from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
+from meresco.core import asyncreturn
 from sys import maxint
 from weightless.io import Suspend
 
@@ -71,10 +72,8 @@ class OaiJazz(object):
         self._preciseDatestamp = preciseDatestamp
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
-        if not identifier:
-            raise ValueError("Empty identifier not allowed.")
-        sets = sets or []
-        metadataFormats = metadataFormats or []
+        sets = [] if sets == None else sets
+        metadataFormats = [] if metadataFormats == None else metadataFormats
         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
         for setSpec, setName in sets:
             assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
@@ -88,9 +87,8 @@ class OaiJazz(object):
         self._storeMetadataFormats(metadataFormats)
         self._resume()
 
+    @asyncreturn
     def delete(self, identifier):
-        if not identifier:
-            raise ValueError("Empty identifier not allowed.")
         oldPrefixes, oldSets = self._delete(identifier)
         if not oldPrefixes and not self._deletePrefixes:
             return
@@ -103,23 +101,19 @@ class OaiJazz(object):
         sets = [] if sets == None else sets
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
         stop = self._untilTime(oaiUntil)
-        stampIds = self._sliceStampIds(self._prefixes.get(prefix, []), start, stop)
+        stampIds = self._prefixes.get(prefix, [])
+        if stop:
+            stampIds = stampIds[bisect_left(stampIds,start):bisect_left(stampIds,stop)]
+        else:
+            stampIds = stampIds[bisect_left(stampIds,start):]
         if sets:
-            allStampIdsFromSets = (
-                self._sliceStampIds(self._sets.get(setSpec, []), start, stop)
-                for setSpec in sets
-            )
+            allStampIdsFromSets = (self._sets.get(setSpec,[]) for setSpec in sets)
             stampIds = AndIterator(stampIds,
                 reduce(OrIterator, allStampIdsFromSets))
         #WrapIterable to fool Observable's any message
         idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
         return WrapIterable((RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None))
                 
-    def _sliceStampIds(self, stampIds, start, stop):
-        if stop:
-            return stampIds[bisect_left(stampIds, start):bisect_left(stampIds, stop)]
-        return stampIds[bisect_left(stampIds, start):]
-
     def getDatestamp(self, identifier):
         stamp = self.getUnique(identifier)
         if stamp == None:

@@ -30,14 +30,14 @@ from cq2utils import CQ2TestCase, CallTrace
 from oaischema import assertValidOai
 
 from meresco.oai import OaiPmh, OaiJazz, OaiBranding
-from meresco.core import Observable, be
+from meresco.core import Observable
 from meresco.components.http.utils import CRLF
 from meresco.components import StorageComponent
 from os.path import join
 from urllib import urlencode
 from lxml.etree import parse, tostring
 from StringIO import StringIO
-from weightless.core import compose
+from weightless.core import be, compose
 from socket import gethostname
 
 BATCHSIZE = 10
@@ -57,10 +57,10 @@ class _OaiPmhTest(CQ2TestCase):
         for i in xrange(20):
             recordId = 'record:id:%02d' % i
             metadataFormats = [('oai_dc', 'http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://www.openarchives.org/OAI/2.0/oai_dc/')]
-            storage.add(identifier=recordId, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)
+            list(compose(storage.add(identifier=recordId, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)))
             if i >= 10:
                 metadataFormats.append(('prefix2', 'http://example.org/prefix2/?format=xsd&prefix=2','http://example.org/prefix2/'))
-                storage.add(identifier=recordId, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)
+                list(compose(storage.add(identifier=recordId, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)))
             sets = []
             if i >= 5:
                 sets.append(('setSpec%s' % ((i//5)*5), 'setName'))
@@ -70,7 +70,7 @@ class _OaiPmhTest(CQ2TestCase):
                 sets.append(('hierarchical', 'hierarchical toplevel only'))
             jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
             if i % 5 == 0:
-                jazz.delete(recordId)
+                list(compose(jazz.delete(recordId)))
 
     def _request(self, from_=None, **arguments):
         httpMethod = getattr(self, 'httpMethod', 'GET')
@@ -213,6 +213,7 @@ class _OaiPmhTest(CQ2TestCase):
             self.assertEquals(1, len(descriptions))
         self.assertEquals(['Meresco'], xpath(descriptions[-1], 'toolkit:toolkit/toolkit:title/text()'))
 
+
     def testIdentifyWithDescription(self):
         self.oaipmh.addObserver(OaiBranding('http://meresco.org/files/images/meresco-logo-small.png', 'http://www.meresco.org/', 'Meresco'))
         header, body = self._request(verb=['Identify'])
@@ -226,27 +227,6 @@ class _OaiPmhTest(CQ2TestCase):
             self.assertEquals(2, len(descriptions))
         self.assertEquals(['Meresco'], xpath(descriptions[-2], 'toolkit:toolkit/toolkit:title/text()'))
         self.assertEquals(['Meresco'], xpath(descriptions[-1], 'branding:branding/branding:collectionIcon/branding:title/text()'))
-    
-    def testWatermarking(self):
-        class OaiWatermark(object):
-            def oaiWatermark(this):
-                yield "<!-- Watermarked by Seecr -->"
-        self.oaipmh.addObserver(OaiWatermark())
-
-        def assertWaterMarked(**oaiArgs):
-            header, body = self._request(**oaiArgs)
-            try:
-                comment = xpath(body, "/oai:OAI-PMH/comment()")[0]
-            except:
-                print tostring(body, pretty_print=True)
-                raise
-            self.assertEquals(" Watermarked by Seecr ", comment.text)
-        assertWaterMarked(verb=["Identify"])
-        assertWaterMarked(verb=['ListRecords'], metadataPrefix=['prefix2'])
-        assertWaterMarked(verb=['ListIdentifiers'], metadataPrefix=['prefix2'])
-        assertWaterMarked(verb=['ListSets'])
-        assertWaterMarked(verb=['ListMetadataFormats'])
-        assertWaterMarked(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=[self.prefix + 'record:id:11'])
 
     def testNoVerb(self):
         self.assertOaiError({}, additionalMessage='No "verb" argument found.', errorCode='badArgument')

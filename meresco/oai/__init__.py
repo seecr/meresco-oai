@@ -34,7 +34,7 @@ from oaipmh import OaiPmh
 from oaiprovenance import OaiProvenance
 from oaisetselect import OaiSetSelect
 from oaiidentifierrename import OaiIdentifierRename
-from fields2oairecord import Fields2OaiRecordTx
+from fields2oairecord import Fields2OaiRecord
 from oaijazz import OaiJazz
 from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
 from oaidownloadprocessor import OaiDownloadProcessor

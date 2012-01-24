@@ -59,14 +59,14 @@ Error and Exception Conditions
             if 'resumptionToken' in validatedArguments:
                 raise OaiException('badResumptionToken')
 
-            sets = self.any.getAllSets()
+            sets = self.call.getAllSets()
             if len(sets) == 0:
                 raise OaiException('noSetHierarchy')
         except OaiException, e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
 
-        yield oaiHeader(self)
+        yield oaiHeader()
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
         for setSpec in sets:

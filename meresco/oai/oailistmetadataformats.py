@@ -58,19 +58,19 @@ Error and Exception Conditions
 
         try:
             validatedArguments = self._validateArguments(arguments)
-            metadataFormats = self.any.getAllMetadataFormats()
+            metadataFormats = self.call.getAllMetadataFormats()
             if 'identifier' in validatedArguments:
                 identifier = validatedArguments['identifier']
-                if not self.any.getUnique(identifier):
+                if not self.call.getUnique(identifier):
                     raise OaiException('idDoesNotExist')
-                prefixes = set(self.any.getPrefixes(identifier))
+                prefixes = set(self.call.getPrefixes(identifier))
                 metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in prefixes]
             displayedMetadataFormats = sorted(metadataFormats)
         except OaiException, e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
 
-        yield oaiHeader(self)
+        yield oaiHeader()
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
         for metadataPrefix, schema, metadataNamespace in displayedMetadataFormats:

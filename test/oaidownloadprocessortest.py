@@ -38,11 +38,11 @@ from os.path import join
 from urllib import urlencode
 
 from cq2utils import CQ2TestCase, CallTrace
-from meresco.core import Observable, be
+from meresco.core import Observable, asyncreturn
 from meresco.components.http.utils import CRLF
 from meresco.oai import OaiDownloadProcessor
 
-from weightless.core import compose
+from weightless.core import be, compose
 from weightless.io import Suspend
 
 
@@ -163,7 +163,10 @@ class OaiDownloadProcessorTest(CQ2TestCase):
         self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
 
     def testHandleYieldsAtLeastOnceAfterEachRecord(self):
-        observer = CallTrace()
+        @asyncreturn
+        def add(**kwargs):
+            pass
+        observer = CallTrace(methods={'add': add})
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         oaiDownloadProcessor.addObserver(observer)
         yields = list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))

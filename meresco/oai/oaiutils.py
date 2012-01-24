@@ -48,11 +48,9 @@ def requestUrl(Headers, path, port, **kwargs):
     hostname = Headers.get('Host', HOSTNAME).split(':')[0]
     return 'http://%s:%s%s' % (hostname, port, path)
 
-def oaiHeader(observable=None):
+def oaiHeader():
     yield okXml
     yield OAIHEADER
-    if observable:
-        yield observable.all.oaiWatermark()
     yield RESPONSE_DATE % zuluTime()
 
 def oaiFooter():

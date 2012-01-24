@@ -24,14 +24,15 @@
 ## end license ##
 
 
-from meresco.core import Transparant
-from xml.sax.saxutils import escape as xmlEscape
+from meresco.core import Transparent
 from meresco.core.generatorutils import decorate
+from weightless.core import compose
+from xml.sax.saxutils import escape as xmlEscape
 
-class OaiRecord(Transparant):
+class OaiRecord(Transparent):
     def _oaiRecordHeader(self, recordId, isDeleted):
         isDeletedStr = ' status="deleted"' if isDeleted else ''
-        datestamp = self.any.getDatestamp(recordId)
+        datestamp = self.call.getDatestamp(recordId)
         yield '<header%s>' % isDeletedStr
         yield '<identifier>%s</identifier>' % xmlEscape(recordId.encode('utf-8'))
         yield '<datestamp>%s</datestamp>' % datestamp
@@ -39,11 +40,11 @@ class OaiRecord(Transparant):
         yield '</header>'
 
     def oaiRecordHeader(self, recordId, **kwargs):
-        yield self._oaiRecordHeader(recordId, self.any.isDeleted(recordId))
+        yield self._oaiRecordHeader(recordId, self.call.isDeleted(recordId))
 
     def oaiRecord(self, recordId, metadataPrefix):
         yield '<record>'
-        isDeleted = self.any.isDeleted(recordId)
+        isDeleted = self.call.isDeleted(recordId)
         yield self._oaiRecordHeader(recordId, isDeleted)
 
         if not isDeleted:
@@ -51,14 +52,14 @@ class OaiRecord(Transparant):
             yield self.all.yieldRecord(recordId, metadataPrefix)
             yield '</metadata>'
             
-            provenance = self.all.provenance(recordId)
+            provenance = compose(self.all.provenance(recordId))
             for line in decorate('<about>', provenance, '</about>'):
                 yield line
 
         yield '</record>'
 
     def _getSetSpecs(self, recordId):
-        sets = self.any.getSets(recordId)
+        sets = self.call.getSets(recordId)
         if sets:
             return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in sets)
         return ''

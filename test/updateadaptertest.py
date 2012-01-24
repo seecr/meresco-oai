@@ -31,6 +31,7 @@ from lxml.etree import parse
 from StringIO import StringIO
 
 from meresco.oai import UpdateAdapterFromOaiHarvester, UpdateAdapterFromOaiDownloadProcessor
+from weightless.core import compose
 
 class UpdateAdapterTest(CQ2TestCase):
     def testDelete(self):
@@ -38,7 +39,7 @@ class UpdateAdapterTest(CQ2TestCase):
         observer = CallTrace('observer')
         adapter.addObserver(observer)
 
-        list(adapter.add(identifier='oai:test:identifier', lxmlNode=parse(StringIO(OAI_DELETED_RECORD)), datestamp="2010-10-19T09:57:32Z"))
+        list(compose(adapter.add(identifier='oai:test:identifier', lxmlNode=parse(StringIO(OAI_DELETED_RECORD)), datestamp="2010-10-19T09:57:32Z")))
 
         self.assertEquals(['delete'], [m.name for m in observer.calledMethods])
         self.assertEquals({'identifier':'oai:test:identifier'}, observer.calledMethods[0].kwargs)
@@ -49,7 +50,7 @@ class UpdateAdapterTest(CQ2TestCase):
         adapter.addObserver(observer)
 
         recordNode = parse(StringIO(OAI_RECORD))
-        list(adapter.add(identifier='oai:test:identifier', lxmlNode=recordNode, datestamp="2010-10-19T09:57:32Z"))
+        list(compose(adapter.add(identifier='oai:test:identifier', lxmlNode=recordNode, datestamp="2010-10-19T09:57:32Z")))
 
         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
         kwargs = observer.calledMethods[0].kwargs

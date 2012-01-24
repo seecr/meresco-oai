@@ -43,8 +43,8 @@ from meresco.oai.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATO
 from meresco.oai.oailist import OaiList
 from StringIO import StringIO
 from lxml.etree import parse
-from meresco.core import Observable, be, Transparant
-from weightless.core import compose
+from meresco.core import Observable, Transparent
+from weightless.core import be, compose
 from weightless.io import Suspend
 
 parseLxml = lambda s: parse(StringIO(s)).getroot()
@@ -75,10 +75,6 @@ class OaiJazzTest(CQ2TestCase):
         myJazz = OaiJazz(self.tempdir)
         recordIds = myJazz.oaiSelect(prefix='prefix')
         self.assertEquals('oai://1234?34', recordIds.next())
-
-    def testAddOaiRecordEmptyIdentifier(self):
-        self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord("", metadataFormats=[('prefix', 'schema', 'namespace')]))
-        self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord(None, metadataFormats=[('prefix', 'schema', 'namespace')]))
 
     def xtestPerformanceTestje(self):
         t0 = time()
@@ -135,27 +131,23 @@ class OaiJazzTest(CQ2TestCase):
 
     def testDeleteNonExistingRecords(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
-        self.jazz.delete('notExisting')
+        list(compose(self.jazz.delete('notExisting')))
         jazz2 = OaiJazz(self.tempdir)
         self.assertEquals(None, jazz2.getUnique('notExisting'))
-
-    def testDeleteEmptyIdentifier(self):
-        self.assertRaises(ValueError, lambda: self.jazz.delete(""))
-        self.assertRaises(ValueError, lambda: self.jazz.delete(None))
 
     def testMarkDeleteOfNonExistingRecordInGivenPrefixes(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         jazz = OaiJazz(self.tempdir, alwaysDeleteInPrefixes=["aprefix"])
-        jazz.delete('notExisting')
+        list(compose(jazz.delete('notExisting')))
         self.assertEquals(['notExisting'], list(jazz.oaiSelect(prefix='aprefix')))
         self.assertEquals(['existing'], list(jazz.oaiSelect(prefix='prefix')))
-        jazz.delete('existing')
+        list(compose(jazz.delete('existing')))
         self.assertEquals(['notExisting', 'existing'], list(jazz.oaiSelect(prefix='aprefix')))
 
     def testDoNotPerformSuperfluousDeletes(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         self.jazz._stamp2identifier = CallTrace('mockdict', returnValues={'getKeysFor': None, '__delitem__':None})
-        self.jazz.delete('notExisting')
+        list(compose(self.jazz.delete('notExisting')))
         self.assertFalse("__delitem__" in str(self.jazz._stamp2identifier.calledMethods))
 
     # What happens if you do addOaiRecord('id1', prefix='aap') and afterwards
@@ -165,7 +157,7 @@ class OaiJazzTest(CQ2TestCase):
 
     def testDeleteIsPersistent(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
-        self.jazz.delete('42')
+        list(compose(self.jazz.delete('42')))
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
         jazz2 = OaiJazz(self.tempdir)
         self.assertTrue(jazz2.isDeleted('42'))
@@ -192,7 +184,7 @@ class OaiJazzTest(CQ2TestCase):
         stamp = self.jazz.getDatestamp('23')
         unique = self.jazz.getUnique('23')
         self.stampNumber += 1234567890 # increaseTime
-        self.jazz.delete('23')
+        list(compose(self.jazz.delete('23')))
         self.assertNotEqual(stamp, self.jazz.getDatestamp('23'))
         self.assertNotEquals(unique, int(self.jazz.getUnique('23')))
 
@@ -224,12 +216,12 @@ class OaiJazzTest(CQ2TestCase):
     def testWithObservablesAndUseOfAnyBreaksStuff(self):
         self.jazz.addOaiRecord('23', metadataFormats=[('one','schema1', 'namespace1'), ('two','schema2', 'namespace2')])
         server = be((Observable(),
-            (Transparant(),
+            (Transparent(),
                 (self.jazz,)
             )
         ))
         server.once.observer_init()
-        mf = list(server.any.getAllMetadataFormats())
+        mf = list(server.call.getAllMetadataFormats())
         self.assertEquals(2, len(mf))
         self.assertEquals(set(['one', 'two']), set(prefix for prefix, schema, namespace in mf))
 
@@ -248,7 +240,7 @@ class OaiJazzTest(CQ2TestCase):
         self.assertEquals(0, self.jazz.getNrOfRecords('anotherPrefix'))
         self.jazz.addOaiRecord('id2', metadataFormats=[('aPrefix', 'schema', 'namespace')])
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
-        self.jazz.delete('id1')
+        list(compose(self.jazz.delete('id1')))
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
 
     def testGetLastStampId(self):
@@ -331,7 +323,6 @@ class OaiJazzTest(CQ2TestCase):
         select = self.jazz.oaiSelect(prefix='oai_dc')
         result.append(select.next())
         result.append(select.next())
-        self._addRecord(1)
         self._addRecord(3)
         for r in select:
             result.append(r)
@@ -343,7 +334,7 @@ class OaiJazzTest(CQ2TestCase):
         select = self.jazz.oaiSelect(prefix='oai_dc')
         for r in select:
             result.append(r)
-        self.assertEquals(['00002', '00004', '00001', '00003'], result)
+        self.assertEquals(['00001', '00002', '00004', '00003'], result)
 
     def testAddOaiRecordWithNoMetadataFormats(self):
         try:
@@ -364,8 +355,8 @@ class OaiJazzTest(CQ2TestCase):
     
     def testAddSetInfo(self):
         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>%s</setSpec></header>'
-        self.oaiAddRecord.add('123', 'oai_dc', parseLxml(header % 1))
-        self.oaiAddRecord.add('124', 'oai_dc', parseLxml(header % 2))
+        list(compose(self.oaiAddRecord.add('123', 'oai_dc', parseLxml(header % 1))))
+        list(compose(self.oaiAddRecord.add('124', 'oai_dc', parseLxml(header % 2))))
         results = self.jazz.oaiSelect(sets=['1'], prefix='oai_dc')
         self.assertEquals(1, len(list(results)))
         results = self.jazz.oaiSelect(sets=['2'], prefix='oai_dc')
@@ -428,10 +419,10 @@ class OaiJazzTest(CQ2TestCase):
         self.assertEquals(['id:1'], list(result))
 
     def testAddPartWithUniqueNumbersAndSorting(self):
-        self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<oai_dc/>'))
-        self.oaiAddRecord.add('124', 'lom', parseLxml('<lom/>'))
-        self.oaiAddRecord.add('121', 'lom', parseLxml('<lom/>'))
-        self.oaiAddRecord.add('122', 'lom', parseLxml('<lom/>'))
+        list(compose(self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<oai_dc/>'))))
+        list(compose(self.oaiAddRecord.add('124', 'lom', parseLxml('<lom/>'))))
+        list(compose(self.oaiAddRecord.add('121', 'lom', parseLxml('<lom/>'))))
+        list(compose(self.oaiAddRecord.add('122', 'lom', parseLxml('<lom/>'))))
         results = self.jazz.oaiSelect(prefix='oai_dc')
         self.assertEquals(1, len(list(results)))
         results = self.jazz.oaiSelect(prefix='lom')
@@ -454,13 +445,13 @@ class OaiJazzTest(CQ2TestCase):
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
         self.assertFalse(self.jazz.isDeleted('42'))
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
-        self.jazz.delete('42')
+        list(compose(self.jazz.delete('42')))
         self.assertTrue(self.jazz.isDeleted('42'))
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
 
     def testDeleteKeepsSetsAndPrefixes(self):
         self.jazz.addOaiRecord('42', sets=[('setSpec1', 'setName1'),('setSpec2', 'setName2')], metadataFormats=[('prefix1','schema', 'namespace'), ('prefix2','schema', 'namespace')])
-        self.jazz.delete('42')
+        list(compose(self.jazz.delete('42')))
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix1')))
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix2')))
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix1', sets=['setSpec1'])))
@@ -470,7 +461,7 @@ class OaiJazzTest(CQ2TestCase):
     
     def testDeleteAndReadd(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
-        self.jazz.delete('42')
+        list(compose(self.jazz.delete('42')))
         self.assertTrue(self.jazz.isDeleted('42'))
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
         self.assertFalse(self.jazz.isDeleted('42'))
@@ -520,29 +511,29 @@ class OaiJazzTest(CQ2TestCase):
         self.assertEquals(set([]), set(self.jazz.getPrefixes('doesNotExist')))
 
     def testPreserveRicherPrefixInfo(self):
-        self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))
-        self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc/>'))
+        list(compose(self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
+        list(compose(self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc/>'))))
         metadataFormats = set(self.jazz.getAllMetadataFormats())
         self.assertEquals(set([('oai_dc', 'http://oai_dc/dc.xsd', 'http://oai_dc')]), metadataFormats)
 
     def testIncompletePrefixInfo(self):
-        self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc/>'))
+        list(compose(self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc/>'))))
         metadataFormats = set(self.jazz.getAllMetadataFormats())
         self.assertEquals(set([('dc2', '', '')]), metadataFormats)
 
     def testMetadataPrefixesOnly(self):
-        self.oaiAddRecord.add('456', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
-             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))
+        list(compose(self.oaiAddRecord.add('456', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
         prefixes = set(self.jazz.getAllPrefixes())
         self.assertEquals(set(['oai_dc']), prefixes)
-        self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))
+        list(compose(self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))))
         prefixes = set(self.jazz.getAllPrefixes())
         self.assertEquals(set(['oai_dc', 'dc2']), prefixes)
         
     def testGetPrefixes(self):
-        self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<dc/>'))
-        self.oaiAddRecord.add('123', 'lom', parseLxml('<lom/>'))
+        list(compose(self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<dc/>'))))
+        list(compose(self.oaiAddRecord.add('123', 'lom', parseLxml('<lom/>'))))
         parts = set(self.jazz.getPrefixes('123'))
         self.assertEquals(set(['oai_dc', 'lom']), parts)
         self.assertEquals(['123'], list(self.jazz.oaiSelect(prefix='lom')))
@@ -571,7 +562,7 @@ class OaiJazzTest(CQ2TestCase):
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
 
-        self.jazz.delete(identifier='identifier')
+        list(compose(self.jazz.delete(identifier='identifier')))
 
         self.assertEquals([True], resumed)
         self.assertEquals([], self.jazz._suspended)

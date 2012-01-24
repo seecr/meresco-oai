@@ -37,9 +37,9 @@ class UpdateAdapterFromOaiDownloadProcessor(Observable):
     def add(self, identifier, lxmlNode, datestamp):
         __callstack_var_identifier = identifier
         if xpath(lxmlNode, '/oai:record/oai:header[@status="deleted"]'):
-            return self.all.delete(identifier=identifier)
+            yield self.all.delete(identifier=identifier)
         else:
-            return self.all.add(identifier=identifier, partname='record', lxmlNode=lxmlNode)
+            yield self.all.add(identifier=identifier, partname='record', lxmlNode=lxmlNode)
 
 class UpdateAdapterFromOaiHarvester(UpdateAdapterFromOaiDownloadProcessor):
     def __init__(self, *args, **kwargs):
