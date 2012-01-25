@@ -5,7 +5,7 @@
 # 
 # Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -35,18 +35,18 @@ from meresco.components.http import ObservableHttpServer
 from meresco.components import StorageComponent, XmlParseLxml, PeriodicDownload
 from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
 
-from cq2utils import CQ2TestCase, CallTrace
+from seecr.test import SeecrTestCase, CallTrace
 from weightless.io import Reactor
 from weightless.core import be, compose
 
 from lxml.etree import tostring
 
-class OaiIntegrationTest(CQ2TestCase):
 
+class OaiIntegrationTest(SeecrTestCase):
     def testNearRealtimeOai(self):
         self.run = True
         portNumber = randint(50000, 60000)
-        observer = CallTrace("observer", ignoredAttributes=["observer_init"])
+        observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
         storageComponent = StorageComponent(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, 3)
@@ -82,7 +82,7 @@ class OaiIntegrationTest(CQ2TestCase):
         harvestThread.join()
 
     def testNearRealtimeOaiSavesState(self):
-        observer = CallTrace("observer", ignoredAttributes=["observer_init"])
+        observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
         storageComponent = StorageComponent(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, 1)

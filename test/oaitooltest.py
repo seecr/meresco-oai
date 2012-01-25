@@ -8,7 +8,7 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 # 
 # This file is part of "Meresco Oai"
@@ -31,9 +31,9 @@
 
 from meresco.oai.oaitool import ISO8601Exception, ISO8601
 from meresco.oai.oaiutils import oaiRequestArgs, validSetSpecName
-from cq2utils import CQ2TestCase, CallTrace
+from seecr.test import SeecrTestCase, CallTrace
 
-class OaiToolTest(CQ2TestCase):
+class OaiToolTest(SeecrTestCase):
     
     def testWriteRequestArgs(self):
         result = ''.join(oaiRequestArgs({'identifier': ['with a "']}, Headers={'Host':'localhost'}, port=8000, path='/oai'))

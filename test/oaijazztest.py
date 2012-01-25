@@ -10,7 +10,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -30,7 +30,7 @@
 # 
 ## end license ##
 
-from cq2utils import CQ2TestCase, CallTrace
+from seecr.test import SeecrTestCase, CallTrace
 
 from os import listdir, remove
 from os.path import isfile, join
@@ -50,9 +50,9 @@ from weightless.io import Suspend
 parseLxml = lambda s: parse(StringIO(s)).getroot()
 
 
-class OaiJazzTest(CQ2TestCase):
+class OaiJazzTest(SeecrTestCase):
     def setUp(self):
-        CQ2TestCase.setUp(self)
+        SeecrTestCase.setUp(self)
         self.jazz = OaiJazz(self.tempdir)
         self.stampNumber = self.orginalStampNumber = int((timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1))+.123456)*1000000)
         def stamp():

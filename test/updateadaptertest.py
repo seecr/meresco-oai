@@ -5,7 +5,7 @@
 # 
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -25,7 +25,7 @@
 # 
 ## end license ##
 
-from cq2utils import CQ2TestCase, CallTrace
+from seecr.test import SeecrTestCase, CallTrace
 
 from lxml.etree import parse
 from StringIO import StringIO
@@ -41,7 +41,7 @@ def deleteMock(identifier):
     return
     yield
 
-class UpdateAdapterTest(CQ2TestCase):
+class UpdateAdapterTest(SeecrTestCase):
     def testDelete(self):
         adapter = UpdateAdapterFromOaiDownloadProcessor()
         observer = CallTrace('observer', methods={'delete': deleteMock})

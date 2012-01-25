@@ -10,7 +10,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -36,7 +36,7 @@ from os import makedirs, listdir, rename
 from storage.storage import escapeName, unescapeName
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
-from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
+from meresco.components.sorteditertools import OrIterator, AndIterator
 from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
 from meresco.core import asyncreturn
 from sys import maxint
@@ -110,9 +110,8 @@ class OaiJazz(object):
             allStampIdsFromSets = (self._sets.get(setSpec,[]) for setSpec in sets)
             stampIds = AndIterator(stampIds,
                 reduce(OrIterator, allStampIdsFromSets))
-        #WrapIterable to fool Observable's any message
         idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
-        return WrapIterable((RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None))
+        return (RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None)
                 
     def getDatestamp(self, identifier):
         stamp = self.getUnique(identifier)
@@ -133,7 +132,7 @@ class OaiJazz(object):
         return stamp in self._tombStones
 
     def getAllMetadataFormats(self):
-        return WrapIterable(self._getAllMetadataFormats())
+        return self._getAllMetadataFormats()
 
     def getAllPrefixes(self):
         return self._prefixes.keys()
@@ -147,7 +146,7 @@ class OaiJazz(object):
         stamp = self.getUnique(identifier)
         if not stamp:
             return []
-        return WrapIterable((prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds))
+        return (prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds)
 
     def getAllSets(self):
         return self._sets.keys()

@@ -5,7 +5,7 @@
 # 
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 # 
 # This file is part of "Meresco Oai"
@@ -37,16 +37,17 @@ from StringIO import StringIO
 from os.path import join
 from urllib import urlencode
 
-from cq2utils import CQ2TestCase, CallTrace
-from meresco.core import Observable, asyncreturn
-from meresco.components.http.utils import CRLF
-from meresco.oai import OaiDownloadProcessor
+from seecr.test import SeecrTestCase, CallTrace
 
 from weightless.core import be, compose
 from weightless.io import Suspend
 
+from meresco.core import Observable, asyncreturn
+from meresco.components.http.utils import CRLF
+from meresco.oai import OaiDownloadProcessor
 
-class OaiDownloadProcessorTest(CQ2TestCase):
+
+class OaiDownloadProcessorTest(SeecrTestCase):
     def testRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
@@ -66,7 +67,7 @@ class OaiDownloadProcessorTest(CQ2TestCase):
         self.assertEquals("""GET /oai?verb=ListRecords&resumptionToken=u%7Cc1286437597991025%7Cmprefix%7Cs%7Cf&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
 
     def testHandle(self): 
-        observer = CallTrace()
+        observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         oaiDownloadProcessor.addObserver(observer)
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
@@ -77,7 +78,7 @@ class OaiDownloadProcessorTest(CQ2TestCase):
         self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
 
     def testListIdentifiersHandle(self): 
-        observer = CallTrace()
+        observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, verb='ListIdentifiers')
         oaiDownloadProcessor.addObserver(observer)
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTIDENTIFIERS_RESPONSE)))))
@@ -88,7 +89,7 @@ class OaiDownloadProcessorTest(CQ2TestCase):
         self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
 
     def testHandleWithTwoRecords(self): 
-        observer = CallTrace()
+        observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         oaiDownloadProcessor.addObserver(observer)
         secondRecord = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:2</identifier><datestamp>2011-08-22T07:41:00Z</datestamp></header><metadata>ignored</metadata></record>'
