@@ -8,8 +8,8 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2010-2012 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -65,6 +65,6 @@ class OaiAddRecordWithDefaults(Transparant):
         self._metadataFormats = metadataFormats if metadataFormats else []
         self._sets = sets if sets else []
         
-    def add(self, identifier, partname, lxmlNode):
+    def add(self, identifier, *args, **kwargs):
         self.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats=self._metadataFormats)
 
