@@ -1,6 +1,102 @@
 CHANGELOG Meresco-Oai
 =====================
 
+==============================================================================
+
+version: 3.6.3 -> ... -> 3.6.17
+date:    2012-01-27
+
+OaiAddRecordWithDefaults a bit more flexible
+--------------------------------------------
+OaiAddRecordWithDefaults adds a record based on a given identifier to a
+observing OaiJazz component. Formerly you had to pass an lxmlNode, which is not
+used. This is now resolved by accepting all args or kwargs. The only mandatory
+argument is the identifier.
+(2012-01-27, 3.6.16-Edurep)
+
+Disallow empty identifiers in OaiJazz addOaiRecord and delete
+-------------------------------------------------------------
+Calling addOaiRecord and delete on OaiJazz will raise a ValueError
+(2012-01-20, 3.6.15)
+
+Watermark
+---------
+Added a hook to allow a "watermark" comment to be added to the xml output
+(2012-01-18, 3.6.14-Seecr)
+
+ListRecords with a set parameter can now be evaluated faster.
+-------------------------------------------------------------
+Optimization by slicing the set stampIds on resumptionToken before comparing to
+all matching stampIds.
+(2011-12-21, 3.6.12-Natag)
+
+introduces support for ListIdentifiers
+--------------------------------------
+OaiDownloadProcessor now takes an optional 'verb' parameter that can be used to
+make ListIdentifiers r    equests instead of ListRecords.
+(2011-11-30, 3.6.11-Natag)
+
+Fix for set argument when there is a resumptionToken
+----------------------------------------------------
+THe OAI-PMH protocol does not allow for a set argument to be present when a
+reumptionToken is specified.
+(2011-11-24, 3.6.10-Natag)
+
+Set harvesting
+--------------
+The OAI download processor supports an optional set argument. If set, only that
+set will be harvested
+(2011-11-24, 3.6.9-Natag)
+
+'yield' from processRecord in oaidownloadprocessor
+--------------------------------------------------
+The asyncdo only yields if a suspend object is found. If no suspend is found
+like in 'Edurep-Search', processRecord will never yield and process all records
+in line which blocks the server. This is resolved with an empty yield.
+(2011-11-08, 3.6.8-Edurep)
+
+Removed PeriodicDownload
+------------------------
+PeriodicDownload component is moved to Meresco-Components
+(2011-09-01, 3.6.7-Edurep)
+
+Precise datestamp and always persistent delete
+----------------------------------------------
+Show precise datestamp with microseconds if configured in preciseDatestamp.
+Always list deletes, even if they've never exist before. This allows you to have
+multiple oai-server which all do a part of everything.
+(2011-09-01, 3.6.7-Edurep)
+
+Extract datestamp and identifier in download processor
+------------------------------------------------------
+To process records in order from multiple oai-server you need the datestamp to
+define ordering. Some small improvents in oaiaddrecord, updateadapter
+(2011-09-01, 3.6.7-Edurep)
+
+Seek You Too changed its name to Seecr
+--------------------------------------
+The name mentioned in the Toolkit (Identify verb) has changed to Seecr.
+(2011-08-09, 3.6.6)
+
+Upgrade to Weightless 0.6
+-------------------------
+Changed some imports to be compatible with Weightless 0.6
+(2011-08-08, 3.6.5)
+
+HTTP POST support
+-----------------
+Added support for HTTP POST requests to OaiPmh
+(2011-06-15, 3.6.4-Natag)
+
+Use UTC as timestamp for records
+--------------------------------
+Timestamp for records was in localtime but given as gmtime. Therefore some
+records could be in the future. Now all datestamps are given with the correct
+datestamp in UTC.
+(2011-05-13, 3.6.3-Edurep)
+
+==============================================================================
+
 version: 3.6.2 -> 3.6.3
 date:    2011-05-13
 
