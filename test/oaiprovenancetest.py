@@ -31,6 +31,7 @@
 from seecr.test import CallTrace, SeecrTestCase
 from StringIO import StringIO
 
+from weightless.core import compose
 from meresco.core import Observable
 from meresco.oai.oaiprovenance import OaiProvenance
 
@@ -52,7 +53,7 @@ class OaiProvenanceTest(SeecrTestCase):
         provenance.addObserver(observer)
 
         self.assertEquals(0, storage.timesCalled)
-        result = ''.join(list(observable.any.provenance("recordId")))
+        result = ''.join(list(compose(observable.any.provenance("recordId"))))
         self.assertEquals(2, storage.timesCalled)
 
     def testProvenance(self):
@@ -69,7 +70,7 @@ class OaiProvenanceTest(SeecrTestCase):
         observer = MockStorage()
         provenance.addObserver(observer)
 
-        result = ''.join(list(observable.any.provenance("recordId")))
+        result = ''.join(list(compose(observable.any.provenance("recordId"))))
         self.assertEqualsWS(result, """<provenance xmlns="http://www.openarchives.org/OAI/2.0/provenance"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/provenance
@@ -97,7 +98,7 @@ class OaiProvenanceTest(SeecrTestCase):
         observer = MockStorage()
         provenance.addObserver(observer)
 
-        result = ''.join(list(observable.any.provenance("recordId")))
+        result = ''.join(list(compose(observable.any.provenance("recordId"))))
         self.assertEquals('', result)
 
 class MockStorage(object):
