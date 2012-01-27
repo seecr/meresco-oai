@@ -1,0 +1,104 @@
+Changeset created on Fri Jan 27 09:20:13 UTC 2012 by Seecr (Seek You Too B.V.)
+
+Description: OaiAddRecordWithDefaults a bit more flexible
+
+    OaiAddRecordWithDefaults adds a record based on a given identifier
+    to a observing OaiJazz component. Formerly you had to pass an lxmlNode,
+    which is not used. This is now resolved by accepting all args or kwargs.
+    The only mandatory argument is the identifier.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.16-Edurep/version_0
+
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaiaddrecord.py /home/thijs/development/sf/meresco-oai/workingsets/3.6.16-Edurep/version_1/meresco/oai/oaiaddrecord.py
+--- version_0/meresco/oai/oaiaddrecord.py	2012-01-27 10:02:53.000000000 +0100
++++ version_1/meresco/oai/oaiaddrecord.py	2012-01-27 10:20:08.000000000 +0100
+@@ -8,8 +8,8 @@
+ # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2010-2012 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -65,6 +65,6 @@
+         self._metadataFormats = metadataFormats if metadataFormats else []
+         self._sets = sets if sets else []
+         
+-    def add(self, identifier, partname, lxmlNode):
++    def add(self, identifier, *args, **kwargs):
+         self.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats=self._metadataFormats)
+ 
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/_alltests.py /home/thijs/development/sf/meresco-oai/workingsets/3.6.16-Edurep/version_1/test/_alltests.py
+--- version_0/test/_alltests.py	2012-01-27 10:02:53.000000000 +0100
++++ version_1/test/_alltests.py	2012-01-27 10:20:08.000000000 +0100
+@@ -11,8 +11,8 @@
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
+ # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -49,6 +49,7 @@
+ from convertoaiv1tov2test import ConvertOaiV1ToV2Test
+ from fields2oairecordtest import Fields2OaiRecordTest
+ from oaiaddrecordtest import OaiAddRecordTest
++from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest
+ from oaibrandingtest import OaiBrandingTest
+ from oaidownloadprocessortest import OaiDownloadProcessorTest
+ from oaijazztest import OaiJazzTest
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaiaddrecordwithdefaultstest.py /home/thijs/development/sf/meresco-oai/workingsets/3.6.16-Edurep/version_1/test/oaiaddrecordwithdefaultstest.py
+--- version_0/test/oaiaddrecordwithdefaultstest.py	1970-01-01 01:00:00.000000000 +0100
++++ version_1/test/oaiaddrecordwithdefaultstest.py	2012-01-27 10:20:08.000000000 +0100
+@@ -0,0 +1,45 @@
++## begin license ##
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
++## end license ##
++
++from cq2utils import CallTrace
++from unittest import TestCase
++
++from meresco.oai import OaiAddRecordWithDefaults
++
++class OaiAddRecordWithDefaultsTest(TestCase):
++    def testAdd(self):
++        subject = OaiAddRecordWithDefaults(sets="SETS", metadataFormats="METADATAFORMATS")
++        observer = CallTrace('oaijazz')
++        subject.addObserver(observer)
++
++        subject.add('id', 'ignoredArg', ignored="kwarg")
++
++        self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
++        self.assertEquals({'identifier':'id',
++            'sets':'SETS',
++            'metadataFormats': 'METADATAFORMATS'},
++            observer.calledMethods[0].kwargs)
++
