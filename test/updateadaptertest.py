@@ -30,7 +30,7 @@ from seecr.test import SeecrTestCase, CallTrace
 from lxml.etree import parse
 from StringIO import StringIO
 
-from meresco.oai import UpdateAdapterFromOaiHarvester, UpdateAdapterFromOaiDownloadProcessor
+from meresco.oai import UpdateAdapterFromOaiDownloadProcessor
 from weightless.core import compose
 
 def addMock(identifier, partname, lxmlNode):

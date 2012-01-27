@@ -38,5 +38,5 @@ from fields2oairecord import Fields2OaiRecord
 from oaijazz import OaiJazz
 from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
 from oaidownloadprocessor import OaiDownloadProcessor
-from updateadapter import UpdateAdapterFromOaiDownloadProcessor, UpdateAdapterFromOaiHarvester
+from updateadapter import UpdateAdapterFromOaiDownloadProcessor
 from oaibranding import OaiBranding

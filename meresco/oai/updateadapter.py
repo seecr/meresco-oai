@@ -28,12 +28,12 @@
 from meresco.core import Observable
 from warnings import warn
 
+
 namespaces = {
     'oai': 'http://www.openarchives.org/OAI/2.0/'
 }
 
 class UpdateAdapterFromOaiDownloadProcessor(Observable):
-
     def add(self, identifier, lxmlNode, datestamp):
         __callstack_var_identifier = identifier
         if xpath(lxmlNode, '/oai:record/oai:header[@status="deleted"]'):
@@ -41,10 +41,6 @@ class UpdateAdapterFromOaiDownloadProcessor(Observable):
         else:
             yield self.all.add(identifier=identifier, partname='record', lxmlNode=lxmlNode)
 
-class UpdateAdapterFromOaiHarvester(UpdateAdapterFromOaiDownloadProcessor):
-    def __init__(self, *args, **kwargs):
-        warn("UpdateAdapterFromOaiHarvester is deprecated, please use UpdateAdapterFromOaiDownloadProcessor,", DeprecationWarning)
-        UpdateAdapterFromOaiDownloadProcessor.__init__(self, *args, **kwargs)
 
 def xpath(node, path):
     return node.xpath(path, namespaces=namespaces)
