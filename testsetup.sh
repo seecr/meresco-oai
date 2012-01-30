@@ -24,6 +24,5 @@ cd tmp/test
 ./alltests.sh
 )
 set -o errexit
-exit 123
 
 rm -rf tmp build
