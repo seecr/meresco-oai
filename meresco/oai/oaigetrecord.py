@@ -62,7 +62,7 @@ Error and Exception Conditions
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
 
-        yield oaiHeader()
+        yield oaiHeader(self)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
         yield self.all.oaiRecord(recordId=recordId, metadataPrefix=metadataPrefix)

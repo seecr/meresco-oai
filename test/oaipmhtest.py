@@ -214,7 +214,6 @@ class _OaiPmhTest(SeecrTestCase):
             self.assertEquals(1, len(descriptions))
         self.assertEquals(['Meresco'], xpath(descriptions[-1], 'toolkit:toolkit/toolkit:title/text()'))
 
-
     def testIdentifyWithDescription(self):
         self.oaipmh.addObserver(OaiBranding('http://meresco.org/files/images/meresco-logo-small.png', 'http://www.meresco.org/', 'Meresco'))
         header, body = self._request(verb=['Identify'])
@@ -228,6 +227,27 @@ class _OaiPmhTest(SeecrTestCase):
             self.assertEquals(2, len(descriptions))
         self.assertEquals(['Meresco'], xpath(descriptions[-2], 'toolkit:toolkit/toolkit:title/text()'))
         self.assertEquals(['Meresco'], xpath(descriptions[-1], 'branding:branding/branding:collectionIcon/branding:title/text()'))
+    
+    def testWatermarking(self):
+        class OaiWatermark(object):
+            def oaiWatermark(this):
+                yield "<!-- Watermarked by Seecr -->"
+        self.oaipmh.addObserver(OaiWatermark())
+
+        def assertWaterMarked(**oaiArgs):
+            header, body = self._request(**oaiArgs)
+            try:
+                comment = xpath(body, "/oai:OAI-PMH/comment()")[0]
+            except:
+                print tostring(body, pretty_print=True)
+                raise
+            self.assertEquals(" Watermarked by Seecr ", comment.text)
+        assertWaterMarked(verb=["Identify"])
+        assertWaterMarked(verb=['ListRecords'], metadataPrefix=['prefix2'])
+        assertWaterMarked(verb=['ListIdentifiers'], metadataPrefix=['prefix2'])
+        assertWaterMarked(verb=['ListSets'])
+        assertWaterMarked(verb=['ListMetadataFormats'])
+        assertWaterMarked(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=[self.prefix + 'record:id:11'])
 
     def testNoVerb(self):
         self.assertOaiError({}, additionalMessage='No "verb" argument found.', errorCode='badArgument')
