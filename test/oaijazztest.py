@@ -363,8 +363,8 @@ class OaiJazzTest(SeecrTestCase):
     
     def testAddSetInfo(self):
         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>%s</setSpec></header>'
-        list(compose(self.oaiAddRecord.add('123', 'oai_dc', parseLxml(header % 1))))
-        list(compose(self.oaiAddRecord.add('124', 'oai_dc', parseLxml(header % 2))))
+        list(compose(self.oaiAddRecord.add(identifier='123', partname='oai_dc', lxmlNode=parseLxml(header % 1))))
+        list(compose(self.oaiAddRecord.add(identifier='124', partname='oai_dc', lxmlNode=parseLxml(header % 2))))
         results = self.jazz.oaiSelect(sets=['1'], prefix='oai_dc')
         self.assertEquals(1, len(list(results)))
         results = self.jazz.oaiSelect(sets=['2'], prefix='oai_dc')
@@ -427,10 +427,10 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['id:1'], list(result))
 
     def testAddPartWithUniqueNumbersAndSorting(self):
-        list(compose(self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<oai_dc/>'))))
-        list(compose(self.oaiAddRecord.add('124', 'lom', parseLxml('<lom/>'))))
-        list(compose(self.oaiAddRecord.add('121', 'lom', parseLxml('<lom/>'))))
-        list(compose(self.oaiAddRecord.add('122', 'lom', parseLxml('<lom/>'))))
+        list(compose(self.oaiAddRecord.add(identifier='123', partname='oai_dc', lxmlNode=parseLxml('<oai_dc/>'))))
+        list(compose(self.oaiAddRecord.add(identifier='124', partname='lom', lxmlNode=parseLxml('<lom/>'))))
+        list(compose(self.oaiAddRecord.add(identifier='121', partname='lom', lxmlNode=parseLxml('<lom/>'))))
+        list(compose(self.oaiAddRecord.add(identifier='122', partname='lom', lxmlNode=parseLxml('<lom/>'))))
         results = self.jazz.oaiSelect(prefix='oai_dc')
         self.assertEquals(1, len(list(results)))
         results = self.jazz.oaiSelect(prefix='lom')
@@ -519,29 +519,29 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(set([]), set(self.jazz.getPrefixes('doesNotExist')))
 
     def testPreserveRicherPrefixInfo(self):
-        list(compose(self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+        list(compose(self.oaiAddRecord.add(identifier='457', partname='oai_dc', lxmlNode=parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
              xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
-        list(compose(self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc/>'))))
+        list(compose(self.oaiAddRecord.add(identifier='457', partname='oai_dc', lxmlNode=parseLxml('<oai_dc/>'))))
         metadataFormats = set(self.jazz.getAllMetadataFormats())
         self.assertEquals(set([('oai_dc', 'http://oai_dc/dc.xsd', 'http://oai_dc')]), metadataFormats)
 
     def testIncompletePrefixInfo(self):
-        list(compose(self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc/>'))))
+        list(compose(self.oaiAddRecord.add(identifier='457', partname='dc2', lxmlNode=parseLxml('<oai_dc/>'))))
         metadataFormats = set(self.jazz.getAllMetadataFormats())
         self.assertEquals(set([('dc2', '', '')]), metadataFormats)
 
     def testMetadataPrefixesOnly(self):
-        list(compose(self.oaiAddRecord.add('456', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+        list(compose(self.oaiAddRecord.add(identifier='456', partname='oai_dc', lxmlNode=parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
              xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
         prefixes = set(self.jazz.getAllPrefixes())
         self.assertEquals(set(['oai_dc']), prefixes)
-        list(compose(self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))))
+        list(compose(self.oaiAddRecord.add(identifier='457', partname='dc2', lxmlNode=parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))))
         prefixes = set(self.jazz.getAllPrefixes())
         self.assertEquals(set(['oai_dc', 'dc2']), prefixes)
         
     def testGetPrefixes(self):
-        list(compose(self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<dc/>'))))
-        list(compose(self.oaiAddRecord.add('123', 'lom', parseLxml('<lom/>'))))
+        list(compose(self.oaiAddRecord.add(identifier='123', partname='oai_dc', lxmlNode=parseLxml('<dc/>'))))
+        list(compose(self.oaiAddRecord.add(identifier='123', partname='lom', lxmlNode=parseLxml('<lom/>'))))
         parts = set(self.jazz.getPrefixes('123'))
         self.assertEquals(set(['oai_dc', 'lom']), parts)
         self.assertEquals(['123'], list(self.jazz.oaiSelect(prefix='lom')))

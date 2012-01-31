@@ -9,6 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -60,9 +61,6 @@ class OaiIdentifierRename(Transparent):
 
     def getDatestamp(self, identifier):
         return self.call.getDatestamp(self._strip(identifier))
-    
-    def isAvailable(self, id, partName):
-        return self.call.isAvailable(self._strip(id), partName)
     
     def getPrefixes(self, identifier):
         return self.call.getPrefixes(self._strip(identifier))
