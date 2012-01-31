@@ -1,0 +1,2398 @@
+Changeset created on Tue Jan 31 12:52:07 UTC 2012 by Seecr (Seek You Too B.V.)
+
+Description: Meresco 4 compatability
+
+    Meresco 4 compatability
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/4.0-beta2-Seecr/version_0
+
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/bin/convert_oai_v1_to_v2 /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/bin/convert_oai_v1_to_v2
+--- version_0/bin/convert_oai_v1_to_v2	2012-01-24 14:43:57.000000000 +0100
++++ version_1/bin/convert_oai_v1_to_v2	2012-01-31 13:52:02.000000000 +0100
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.5
++#!/usr/bin/env python
+ # -*- coding: utf-8 -*-
+ ## begin license ##
+ #
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/fields2oairecord.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/fields2oairecord.py
+--- version_0/meresco/oai/fields2oairecord.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/fields2oairecord.py	2012-01-31 13:52:02.000000000 +0100
+@@ -28,22 +28,32 @@
+ #
+ ## end license ##
+ 
+-class Fields2OaiRecordTx(object):
+-    def __init__(self, resourceManager):
+-        self.resourceManager = resourceManager
+-        self._sets = set()
+-        self._metadataFormats = set()
+-
+-    def addField(self, name, value):
+-        if name == 'set':
+-            self._sets.add(value)
+-        elif name == 'metadataFormat':
+-            self._metadataFormats.add(value)
+-
+-    def commit(self):
+-        if self._metadataFormats:
+-            identifier = self.resourceManager.ctx.tx.locals['id']
+-            self.resourceManager.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats = self._metadataFormats)
++from meresco.core import Observable, asyncreturn
++
++class Fields2OaiRecord(Observable):
++    @asyncreturn
++    def beginTransaction(self):
++        return Fields2OaiRecord.Fields2OaiRecordTx(self)
++
++    class Fields2OaiRecordTx(object):
++        def __init__(self, resource):
++            self._sets = set()
++            self._metadataFormats = set()
++            self._resource = resource
++
++        def addField(self, name, value):
++            if name == 'set':
++                self._sets.add(value)
++            elif name == 'metadataFormat':
++                self._metadataFormats.add(value)
++
++        @asyncreturn
++        def commit(self):
++            if self._metadataFormats:
++                identifier = self._resource.ctx.tx.locals['id']
++                self._resource.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats=self._metadataFormats)
++
++        @asyncreturn
++        def rollback(self):
++            pass
+ 
+-    def rollback(self):
+-        pass
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/__init__.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/__init__.py
+--- version_0/meresco/oai/__init__.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/__init__.py	2012-01-31 13:52:02.000000000 +0100
+@@ -34,9 +34,9 @@
+ from oaiprovenance import OaiProvenance
+ from oaisetselect import OaiSetSelect
+ from oaiidentifierrename import OaiIdentifierRename
+-from fields2oairecord import Fields2OaiRecordTx
++from fields2oairecord import Fields2OaiRecord
+ from oaijazz import OaiJazz
+ from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
+ from oaidownloadprocessor import OaiDownloadProcessor
+-from updateadapter import UpdateAdapterFromOaiDownloadProcessor, UpdateAdapterFromOaiHarvester
++from updateadapter import UpdateAdapterFromOaiDownloadProcessor
+ from oaibranding import OaiBranding
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaiaddrecord.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oaiaddrecord.py
+--- version_0/meresco/oai/oaiaddrecord.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oaiaddrecord.py	2012-01-31 13:52:02.000000000 +0100
+@@ -29,7 +29,7 @@
+ # 
+ ## end license ##
+ 
+-from meresco.core import Transparant
++from meresco.core import Transparent, asyncreturn
+ from lxml.etree import iselement
+ 
+ namespaces = {
+@@ -37,7 +37,9 @@
+     'xsi': "http://www.w3.org/2001/XMLSchema-instance",
+ }
+ 
+-class OaiAddRecord(Transparant):
++class OaiAddRecord(Transparent):
++
++    @asyncreturn
+     def add(self, identifier, partname, lxmlNode):
+         record = lxmlNode if iselement(lxmlNode) else lxmlNode.getroot()
+         setSpecs = record.xpath('//oai:header/oai:setSpec/text()', namespaces=namespaces)
+@@ -54,17 +56,18 @@
+ 
+     def _magicSchemaNamespace(self, prefix, name, schema, namespace):
+         searchForPrefix = prefix or name
+-        for oldprefix, oldschema, oldnamespace in self.any.getAllMetadataFormats():
++        for oldprefix, oldschema, oldnamespace in self.call.getAllMetadataFormats():
+             if searchForPrefix == oldprefix:
+                 return schema or oldschema, namespace or oldnamespace
+         return schema, namespace
+ 
+-class OaiAddRecordWithDefaults(Transparant):
++class OaiAddRecordWithDefaults(Transparent):
+     def __init__(self, metadataFormats=None, sets=None):
+-        Transparant.__init__(self)
++        Transparent.__init__(self)
+         self._metadataFormats = metadataFormats if metadataFormats else []
+         self._sets = sets if sets else []
+-        
++
++    @asyncreturn
+     def add(self, identifier, partname, lxmlNode):
+         self.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats=self._metadataFormats)
+ 
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaidownloadprocessor.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oaidownloadprocessor.py
+--- version_0/meresco/oai/oaidownloadprocessor.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oaidownloadprocessor.py	2012-01-31 13:52:02.000000000 +0100
+@@ -5,7 +5,7 @@
+ # 
+ # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
+ # Copyright (C) 2010 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+@@ -37,12 +37,12 @@
+ 
+ from meresco.core import Observable
+ from meresco.components.http.utils import CRLF
+-from weightless.core import compose
+ 
+ from sys import stderr, stdout
+ from time import time
+ from tempfile import mkstemp
+ 
++
+ namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
+ 
+ class OaiDownloadProcessor(Observable):
+@@ -87,7 +87,7 @@
+                 header = xpath(item, headerXPath)[0]
+                 datestamp = xpath(header, 'oai:datestamp/text()')[0]
+                 identifier = xpath(header, 'oai:identifier/text()')[0]
+-                yield self.asyncdo.add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
++                yield self.all.add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
+                 yield # some room for others
+             self._resumptionToken = head(xpath(verbNode, "oai:resumptionToken/text()"))
+         finally:
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaierror.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oaierror.py
+--- version_0/meresco/oai/oaierror.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oaierror.py	2012-01-31 13:52:02.000000000 +0100
+@@ -28,17 +28,21 @@
+ ## end license ##
+ 
+ from meresco.core import Observable
++from weightless.core import compose
+ from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl, oaiRequestArgs
+ 
+ class OaiError(Observable):
+-    def unknown(self, message, **kwargs):
+-        result = self.all.unknown(message, **kwargs)
++    def all_unknown(self, message, **kwargs):
++        result = compose(self.all.unknown(message, **kwargs))
+         try:
+-            firstResult = result.next()
++            firstDataResult = result.next()
++            while callable(firstDataResult):
++                yield firstDataResult
++                firstDataResult = result.next()
+         except StopIteration:
+             yield self._error(**kwargs)
+             return
+-        yield firstResult
++        yield firstDataResult
+         for remainder in result:
+             yield remainder
+ 
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaigetrecord.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oaigetrecord.py
+--- version_0/meresco/oai/oaigetrecord.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oaigetrecord.py	2012-01-31 13:52:02.000000000 +0100
+@@ -70,11 +70,11 @@
+         yield oaiFooter()
+ 
+     def _validateValues(self, recordId, metadataPrefix):
+-        if not metadataPrefix in set(self.any.getAllPrefixes()):
++        if not metadataPrefix in set(self.call.getAllPrefixes()):
+             raise OaiException('cannotDisseminateFormat')
+ 
+-        isDeleted = self.any.isDeleted(recordId)
+-        hasId, hasPartName = self.any.isAvailable(recordId, metadataPrefix)
++        isDeleted = self.call.isDeleted(recordId)
++        hasId, hasPartName = self.call.isAvailable(recordId, metadataPrefix)
+ 
+         if not hasId:
+             raise OaiException('idDoesNotExist')
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaiidentifierrename.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oaiidentifierrename.py
+--- version_0/meresco/oai/oaiidentifierrename.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oaiidentifierrename.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,41 +1,42 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+-from meresco.core import Observable
+-from oaijazz import RecordId, WrapIterable
++from meresco.core import Transparent
++from oaijazz import RecordId
+ 
+ import re
+ repositoryIdentifierRe = re.compile(r"[a-zA-Z][a-zA-Z0-9\-]*(\.[a-zA-Z][a-zA-Z0-9\-]+)+")
+ 
+-class OaiIdentifierRename(Observable):
++class OaiIdentifierRename(Transparent):
+     def __init__(self, repositoryIdentifier):
+-        Observable.__init__(self)
++        Transparent.__init__(self)
+         if not repositoryIdentifierRe.match(repositoryIdentifier):
+             raise ValueError("Invalid repositoryIdentifier: %s" % repositoryIdentifier)
+ 
+@@ -52,35 +53,32 @@
+ 
+ 
+     def isDeleted(self, identifier):
+-        return self.any.isDeleted(self._strip(identifier))
++        return self.call.isDeleted(self._strip(identifier))
+ 
+     def getUnique(self, identifier):
+-        return self.any.getUnique(self._strip(identifier))
++        return self.call.getUnique(self._strip(identifier))
+ 
+     def getDatestamp(self, identifier):
+-        return self.any.getDatestamp(self._strip(identifier))
++        return self.call.getDatestamp(self._strip(identifier))
+     
+     def isAvailable(self, id, partName):
+-        return self.any.isAvailable(self._strip(id), partName)
++        return self.call.isAvailable(self._strip(id), partName)
+     
+     def getPrefixes(self, identifier):
+-        return self.any.getPrefixes(self._strip(identifier))
++        return self.call.getPrefixes(self._strip(identifier))
+     
+     def getSets(self, identifier):
+-        return self.any.getSets(self._strip(identifier))
++        return self.call.getSets(self._strip(identifier))
+ 
+     def write(self, sink, id, partName):
+-        return self.any.write(sink, self._strip(id), partName)
++        return self.call.write(sink, self._strip(id), partName)
+ 
+     def yieldRecord(self, identifier, partname):
+-        return self.any.yieldRecord(self._strip(identifier), partname)
++        return self.call.yieldRecord(self._strip(identifier), partname)
+ 
+     def getStream(self, id, partName):
+-        return self.any.getStream(self._strip(id), partName)
++        return self.call.getStream(self._strip(id), partName)
+     
+-    def unknown(self, message, *args, **kwargs):
+-        return self.all.unknown(message, *args, **kwargs)
+-
+     def oaiSelect(self, *args, **kwargs):
+-        return WrapIterable((self._append(recordId) for recordId in self.any.oaiSelect(*args, **kwargs)))
++        return (self._append(recordId) for recordId in self.call.oaiSelect(*args, **kwargs))
+             
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaijazz.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oaijazz.py
+--- version_0/meresco/oai/oaijazz.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oaijazz.py	2012-01-31 13:52:02.000000000 +0100
+@@ -10,7 +10,7 @@
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -36,8 +36,9 @@
+ from storage.storage import escapeName, unescapeName
+ from time import time, strftime, gmtime, strptime
+ from calendar import timegm
+-from meresco.components.sorteditertools import OrIterator, AndIterator, WrapIterable
++from meresco.components.sorteditertools import OrIterator, AndIterator
+ from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
++from meresco.core import asyncreturn
+ from sys import maxint
+ from weightless.io import Suspend
+ 
+@@ -86,6 +87,7 @@
+         self._storeMetadataFormats(metadataFormats)
+         self._resume()
+ 
++    @asyncreturn
+     def delete(self, identifier):
+         oldPrefixes, oldSets = self._delete(identifier)
+         if not oldPrefixes and not self._deletePrefixes:
+@@ -108,9 +110,8 @@
+             allStampIdsFromSets = (self._sets.get(setSpec,[]) for setSpec in sets)
+             stampIds = AndIterator(stampIds,
+                 reduce(OrIterator, allStampIdsFromSets))
+-        #WrapIterable to fool Observable's any message
+         idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
+-        return WrapIterable((RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None))
++        return (RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None)
+                 
+     def getDatestamp(self, identifier):
+         stamp = self.getUnique(identifier)
+@@ -131,7 +132,7 @@
+         return stamp in self._tombStones
+ 
+     def getAllMetadataFormats(self):
+-        return WrapIterable(self._getAllMetadataFormats())
++        return self._getAllMetadataFormats()
+ 
+     def getAllPrefixes(self):
+         return self._prefixes.keys()
+@@ -145,7 +146,7 @@
+         stamp = self.getUnique(identifier)
+         if not stamp:
+             return []
+-        return WrapIterable((prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds))
++        return (prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds)
+ 
+     def getAllSets(self):
+         return self._sets.keys()
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oailistmetadataformats.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oailistmetadataformats.py
+--- version_0/meresco/oai/oailistmetadataformats.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oailistmetadataformats.py	2012-01-31 13:52:02.000000000 +0100
+@@ -58,12 +58,12 @@
+ 
+         try:
+             validatedArguments = self._validateArguments(arguments)
+-            metadataFormats = self.any.getAllMetadataFormats()
++            metadataFormats = self.call.getAllMetadataFormats()
+             if 'identifier' in validatedArguments:
+                 identifier = validatedArguments['identifier']
+-                if not self.any.getUnique(identifier):
++                if not self.call.getUnique(identifier):
+                     raise OaiException('idDoesNotExist')
+-                prefixes = set(self.any.getPrefixes(identifier))
++                prefixes = set(self.call.getPrefixes(identifier))
+                 metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in prefixes]
+             displayedMetadataFormats = sorted(metadataFormats)
+         except OaiException, e:
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oailist.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oailist.py
+--- version_0/meresco/oai/oailist.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oailist.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,30 +1,31 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+ from meresco.core.observable import Observable
+@@ -111,7 +112,7 @@
+             except OaiException, e:
+                 if validatedArguments.get("x-wait", 'False') == 'True' and \
+                         e.statusCode in ["noRecordsMatch", "cannotDisseminateFormat"]:
+-                    yield self.all.suspend()
++                    yield self.any.suspend()
+                 else:
+                     yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+                     return
+@@ -174,14 +175,14 @@
+             except ISO8601Exception, e:
+                 raise OaiBadArgumentException('From and/or until arguments are faulty.')
+ 
+-        if not _metadataPrefix in set(self.any.getAllPrefixes()):
++        if not _metadataPrefix in set(self.call.getAllPrefixes()):
+             raise OaiException('cannotDisseminateFormat')
+ 
+         validatedArguments['from'] = _from
+         validatedArguments['until'] = _until
+         validatedArguments['set'] = _set
+         validatedArguments['metadataPrefix'] = _metadataPrefix
+-        result = self.any.oaiSelect(
++        result = self.call.oaiSelect(
+             sets=[_set] if _set else None,
+             prefix=_metadataPrefix,
+             continueAfter=continueAfter,
+@@ -203,7 +204,7 @@
+                 results.next()
+             yield '<resumptionToken>%s</resumptionToken>' % ResumptionToken(
+                 validatedArguments['metadataPrefix'],
+-                self.any.getUnique(recordId),
++                self.call.getUnique(recordId),
+                 validatedArguments['from'],
+                 validatedArguments['until'],
+                 validatedArguments['set'])
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oailistsets.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oailistsets.py
+--- version_0/meresco/oai/oailistsets.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oailistsets.py	2012-01-31 13:52:02.000000000 +0100
+@@ -59,7 +59,7 @@
+             if 'resumptionToken' in validatedArguments:
+                 raise OaiException('badResumptionToken')
+ 
+-            sets = self.any.getAllSets()
++            sets = self.call.getAllSets()
+             if len(sets) == 0:
+                 raise OaiException('noSetHierarchy')
+         except OaiException, e:
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaipmh.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oaipmh.py
+--- version_0/meresco/oai/oaipmh.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oaipmh.py	2012-01-31 13:52:02.000000000 +0100
+@@ -34,7 +34,8 @@
+ 
+ from cgi import parse_qs
+ 
+-from meresco.core import be, Transparant, Observable
++from meresco.core import Transparent, Observable
++from weightless.core import be
+ from oaiidentify import OaiIdentify
+ from oailist import OaiList
+ from oaigetrecord import OaiGetRecord
+@@ -46,7 +47,7 @@
+ 
+ class OaiPmh(object):
+     def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=OaiList.DEFAULT_BATCH_SIZE, supportXWait=False):
+-        outside = Transparant() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
++        outside = Transparent() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
+         self.addObserver = outside.addObserver
+         self.addStrand = outside.addStrand
+         self._internalObserverTree = be(
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaiprovenance.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oaiprovenance.py
+--- version_0/meresco/oai/oaiprovenance.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oaiprovenance.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,31 +1,32 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+ from meresco.components import XmlCompose
+@@ -55,6 +56,6 @@
+             identifier=identifier,
+             datestamp=datestamp)
+ 
+-    def provenance(self, aRecordId):
+-        return self.getRecord(aRecordId)
++    def provenance(self, identifier):
++        yield self.getRecord(identifier=identifier)
+         
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oairecord.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oairecord.py
+--- version_0/meresco/oai/oairecord.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oairecord.py	2012-01-31 13:52:02.000000000 +0100
+@@ -24,14 +24,15 @@
+ ## end license ##
+ 
+ 
+-from meresco.core import Transparant
+-from xml.sax.saxutils import escape as xmlEscape
++from meresco.core import Transparent
+ from meresco.core.generatorutils import decorate
++from weightless.core import compose
++from xml.sax.saxutils import escape as xmlEscape
+ 
+-class OaiRecord(Transparant):
++class OaiRecord(Transparent):
+     def _oaiRecordHeader(self, recordId, isDeleted):
+         isDeletedStr = ' status="deleted"' if isDeleted else ''
+-        datestamp = self.any.getDatestamp(recordId)
++        datestamp = self.call.getDatestamp(recordId)
+         yield '<header%s>' % isDeletedStr
+         yield '<identifier>%s</identifier>' % xmlEscape(recordId.encode('utf-8'))
+         yield '<datestamp>%s</datestamp>' % datestamp
+@@ -39,11 +40,11 @@
+         yield '</header>'
+ 
+     def oaiRecordHeader(self, recordId, **kwargs):
+-        yield self._oaiRecordHeader(recordId, self.any.isDeleted(recordId))
++        yield self._oaiRecordHeader(recordId, self.call.isDeleted(recordId))
+ 
+     def oaiRecord(self, recordId, metadataPrefix):
+         yield '<record>'
+-        isDeleted = self.any.isDeleted(recordId)
++        isDeleted = self.call.isDeleted(recordId)
+         yield self._oaiRecordHeader(recordId, isDeleted)
+ 
+         if not isDeleted:
+@@ -51,14 +52,14 @@
+             yield self.all.yieldRecord(recordId, metadataPrefix)
+             yield '</metadata>'
+             
+-            provenance = self.all.provenance(recordId)
++            provenance = compose(self.all.provenance(recordId))
+             for line in decorate('<about>', provenance, '</about>'):
+                 yield line
+ 
+         yield '</record>'
+ 
+     def _getSetSpecs(self, recordId):
+-        sets = self.any.getSets(recordId)
++        sets = self.call.getSets(recordId)
+         if sets:
+             return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in sets)
+         return ''
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaisetselect.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/oaisetselect.py
+--- version_0/meresco/oai/oaisetselect.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/oaisetselect.py	2012-01-31 13:52:02.000000000 +0100
+@@ -26,15 +26,15 @@
+ #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ #
+ ## end license ##
+-from meresco.core import Transparant
++from meresco.core import Transparent
+ 
+-class OaiSetSelect(Transparant):
++class OaiSetSelect(Transparent):
+     def __init__(self, setsList):
+-        Transparant.__init__(self)
++        Transparent.__init__(self)
+         self._setsList = setsList
+ 
+     def oaiSelect(self, sets=[], *args, **kwargs):
+         if not sets:
+             sets = []
+         sets += self._setsList
+-        return self.any.oaiSelect(sets=sets, *args, **kwargs)
++        return self.call.oaiSelect(sets=sets, *args, **kwargs)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/updateadapter.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/meresco/oai/updateadapter.py
+--- version_0/meresco/oai/updateadapter.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/meresco/oai/updateadapter.py	2012-01-31 13:52:02.000000000 +0100
+@@ -28,23 +28,19 @@
+ from meresco.core import Observable
+ from warnings import warn
+ 
++
+ namespaces = {
+     'oai': 'http://www.openarchives.org/OAI/2.0/'
+ }
+ 
+ class UpdateAdapterFromOaiDownloadProcessor(Observable):
+-
+     def add(self, identifier, lxmlNode, datestamp):
+         __callstack_var_identifier = identifier
+         if xpath(lxmlNode, '/oai:record/oai:header[@status="deleted"]'):
+-            return self.all.delete(identifier=identifier)
++            yield self.all.delete(identifier=identifier)
+         else:
+-            return self.all.add(identifier=identifier, partname='record', lxmlNode=lxmlNode)
++            yield self.all.add(identifier=identifier, partname='record', lxmlNode=lxmlNode)
+ 
+-class UpdateAdapterFromOaiHarvester(UpdateAdapterFromOaiDownloadProcessor):
+-    def __init__(self, *args, **kwargs):
+-        warn("UpdateAdapterFromOaiHarvester is deprecated, please use UpdateAdapterFromOaiDownloadProcessor,", DeprecationWarning)
+-        UpdateAdapterFromOaiDownloadProcessor.__init__(self, *args, **kwargs)
+ 
+ def xpath(node, path):
+     return node.xpath(path, namespaces=namespaces)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/alltests.sh /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/alltests.sh
+--- version_0/test/alltests.sh	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/alltests.sh	2012-01-31 13:52:02.000000000 +0100
+@@ -24,4 +24,5 @@
+ ## end license ##
+ export LANG=en_US.UTF-8
+ export PYTHONPATH=.:"$PYTHONPATH"
+-python2.5 _alltests.py "$@"
++pyversion="$(pyversions --default)"
++${pyversion} _alltests.py "$@"
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/convertoaiv1tov2test.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/convertoaiv1tov2test.py
+--- version_0/test/convertoaiv1tov2test.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/convertoaiv1tov2test.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,32 +1,35 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
++
+ from os import system
+ from os.path import dirname, join, abspath, isdir
+ from shutil import copytree
+ 
+-from cq2utils import CQ2TestCase
++from seecr.test import SeecrTestCase
+ from meresco.components import PersistentSortedIntegerList
+ from meresco.components.facetindex import IntegerList
+ from meresco.oai import OaiJazz
+@@ -36,7 +39,7 @@
+ if not isdir(binDir):
+     binDir = '/usr/bin'
+ 
+-class ConvertOaiV1ToV2Test(CQ2TestCase):
++class ConvertOaiV1ToV2Test(SeecrTestCase):
+     def testConversion(self):
+         datadir = join(self.tempdir, 'oai_conversion_v1_to_v2')
+         copytree(join(mypath, 'data', 'oai_conversion_v1_to_v2'), datadir)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/fields2oairecordtest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/fields2oairecordtest.py
+--- version_0/test/fields2oairecordtest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/fields2oairecordtest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,70 +1,104 @@
+ # -*- coding: utf-8 -*-
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+-from cq2utils import CQ2TestCase, CallTrace
++from seecr.test import SeecrTestCase, CallTrace
+ 
+-from meresco.oai import Fields2OaiRecordTx
++from meresco.core import Observable, TransactionScope, ResourceManager
++from weightless.core import be, compose
++from meresco.oai import Fields2OaiRecord
+ 
+-class Fields2OaiRecordTest(CQ2TestCase):
++class Fields2OaiRecordTest(SeecrTestCase):
+     def testOne(self):
+-        transaction = CallTrace('Transaction')
+-        rm = CallTrace('ResourceManager')
+-        rm.ctx = CallTrace('ctx')
+-        rm.ctx.tx = transaction
+-        rm.do = rm
+-        transaction.locals = {'id':'identifier'}
+-        
+-        tx = Fields2OaiRecordTx(rm)
++        __callstack_var_tx__ = CallTrace('TX')
++        __callstack_var_tx__.locals = {'id': 'identifier'}
++        intercept = CallTrace()
++        fields2OaiRecord = Fields2OaiRecord()
++        fields2OaiRecord.addObserver(intercept)
++        def f():
++            f = yield fields2OaiRecord.beginTransaction()
++            yield f
++        tx = compose(f()).next()
+         
+         tx.addField('set', ('setSpec', 'setName'))
+         tx.addField('metadataFormat', ('prefix', 'schema', 'namespace'))
+-        tx.commit()
++        list(compose(tx.commit()))
+ 
+-        self.assertEquals(1, len(rm.calledMethods))
+-        self.assertEquals('addOaiRecord', rm.calledMethods[0].name)
++        self.assertEquals(1, len(intercept.calledMethods))
++        self.assertEquals('addOaiRecord', intercept.calledMethods[0].name)
+         self.assertEquals({'identifier':'identifier',
+                 'metadataFormats': set([('prefix', 'schema', 'namespace')]),
+                 'sets': set([('setSpec', 'setName')])},
+-            rm.calledMethods[0].kwargs)
++            intercept.calledMethods[0].kwargs)
+ 
+     def testNothing(self):
+-        transaction = CallTrace('Transaction')
+-        rm = CallTrace('ResourceManager')
+-        rm.tx = transaction
+-        rm.do = rm
+-        transaction.locals = {'id':'identifier'}
+-        
+-        tx = Fields2OaiRecordTx(rm)
+-        
++        __callstack_var_tx__ = CallTrace('TX')
++        __callstack_var_tx__.locals = {'id': 'identifier'}
++        intercept = CallTrace()
++        fields2OaiRecord = Fields2OaiRecord()
++        fields2OaiRecord.addObserver(intercept)
++        def f():
++            f = yield fields2OaiRecord.beginTransaction()
++            yield f
++        tx = compose(f()).next()
+         tx.addField('set', ('setSpec', 'setName'))
+         tx.commit()
++        self.assertEquals(0, len(intercept.calledMethods))
+ 
+-        self.assertEquals(0, len(rm.calledMethods))
+-        
++    def testWorksWithRealTransactionScope(self):
++        intercept = CallTrace('Intercept', ignoredAttributes=['begin', 'commit', 'rollback'])
++        class MockVenturi(Observable):
++            def all_unknown(self, message, *args, **kwargs):
++                self.ctx.tx.locals['id'] = 'an:identifier'
++                yield self.all.unknown(message, *args, **kwargs)
++        class MockMultiFielder(Observable):
++            def add(self, *args, **kwargs):
++                self.do.addField('set', ('setSpec', 'setName'))
++                self.do.addField('metadataFormat', ('prefix', 'schema', 'namespace'))
++                yield 'ok'
++        root = be( 
++            (Observable(),
++                (TransactionScope(transactionName="oaiRecord"),
++                    (MockVenturi(),
++                        (MockMultiFielder(),
++                            (ResourceManager("oaiRecord"),
++                                (Fields2OaiRecord(),
++                                    (intercept,),
++                                )   
++                            )   
++                        )   
++                    )   
++                )   
++            )   
++        )
++        list(compose(root.all.add('some', 'arguments')))
++        self.assertEquals(['addOaiRecord'], [m.name for m in intercept.calledMethods])
++        method = intercept.calledMethods[0]
++        self.assertEquals(((), {'identifier': 'an:identifier', 'metadataFormats': set([('prefix', 'schema', 'namespace')]), 'sets': set([('setSpec', 'setName')])}), (method.args, method.kwargs))        
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaiaddrecordtest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oaiaddrecordtest.py
+--- version_0/test/oaiaddrecordtest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oaiaddrecordtest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,51 +1,56 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+-from cq2utils import CQ2TestCase, CallTrace
++
++from seecr.test import SeecrTestCase, CallTrace
+ 
+ from meresco.oai import OaiAddRecord
++
++from weightless.core import compose
++
+ from StringIO import StringIO
+ from lxml.etree import parse
+ 
+ def parseLxml(aString):
+     return parse(StringIO(aString)).getroot()
+ 
+-class OaiAddRecordTest(CQ2TestCase):
++class OaiAddRecordTest(SeecrTestCase):
+     def setUp(self):
+-        CQ2TestCase.setUp(self)
++        SeecrTestCase.setUp(self)
+         self.subject = OaiAddRecord()
+         self.observer = CallTrace('observert')
+         self.observer.getAllMetadataFormats = lambda: []
+         self.subject.addObserver(self.observer)
+ 
+     def testAdd(self):
+-        self.subject.add('id', 'partName', parseLxml('<empty/>'))
++        list(compose(self.subject.add('id', 'partName', parseLxml('<empty/>'))))
+ 
+         self.assertEquals(1,len(self.observer.calledMethods))
+         self.assertEquals('addOaiRecord', self.observer.calledMethods[0].name)
+@@ -56,7 +61,7 @@
+     def testAddSetInfo(self):
+         header = parseLxml('<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>1</setSpec></header>')
+         
+-        self.subject.add('123', 'oai_dc', header)
++        list(compose(self.subject.add('123', 'oai_dc', header)))
+         
+         self.assertEquals(1,len(self.observer.calledMethods))
+         self.assertEquals('addOaiRecord', self.observer.calledMethods[0].name)
+@@ -70,7 +75,7 @@
+             'root':'root',
+             'oai': 'http://www.openarchives.org/OAI/2.0/'})[0]
+         
+-        self.subject.add('123', 'oai_dc', header)
++        list(compose(self.subject.add('123', 'oai_dc', header)))
+         
+         self.assertEquals(1,len(self.observer.calledMethods))
+         self.assertEquals('addOaiRecord', self.observer.calledMethods[0].name)
+@@ -81,7 +86,7 @@
+     def testAddElementTree(self):
+         header = parse(StringIO('<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>1</setSpec></header>'))
+         
+-        self.subject.add('123', 'oai_dc', header)
++        list(compose(self.subject.add('123', 'oai_dc', header)))
+         
+         self.assertEquals(1,len(self.observer.calledMethods))
+         self.assertEquals('addOaiRecord', self.observer.calledMethods[0].name)
+@@ -91,39 +96,39 @@
+ 
+     def testAddRecognizeNamespace(self):
+         header = '<header xmlns="this.is.not.the.right.ns"><setSpec>%s</setSpec></header>'
+-        self.subject.add('123', 'oai_dc', parseLxml(header % 1))
++        list(compose(self.subject.add('123', 'oai_dc', parseLxml(header % 1))))
+         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>%s</setSpec></header>'
+-        self.subject.add('124', 'oai_dc', parseLxml(header % 1))
++        list(compose(self.subject.add('124', 'oai_dc', parseLxml(header % 1))))
+         self.assertEquals([('oai_dc', '', "this.is.not.the.right.ns")], self.observer.calledMethods[0].kwargs['metadataFormats'])
+         self.assertEquals([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[1].kwargs['metadataFormats'])
+ 
+     def testMultipleHierarchicalSets(self):
+         spec = "<setSpec>%s</setSpec>"
+         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/">%s</header>'
+-        self.subject.add('124', 'oai_dc', parseLxml(header % (spec % '2:3' + spec % '3:4')))
++        list(compose(self.subject.add('124', 'oai_dc', parseLxml(header % (spec % '2:3' + spec % '3:4')))))
+         self.assertEquals('124', self.observer.calledMethods[0].kwargs['identifier'])
+         self.assertEquals([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[0].kwargs['metadataFormats'])
+         self.assertEquals(set([('2:3', '2:3'), ('3:4', '3:4')]), self.observer.calledMethods[0].kwargs['sets'])
+     
+     def testMetadataPrefixes(self):
+-        self.subject.add('456', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+-             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))
++        list(compose(self.subject.add('456', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
++             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
+         self.assertEquals([('oai_dc', 'http://oai_dc/dc.xsd', 'http://oai_dc')], self.observer.calledMethods[0].kwargs['metadataFormats'])
+-        self.subject.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))
++        list(compose(self.subject.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))))
+         self.assertEquals([('dc2', '', 'http://dc2')], self.observer.calledMethods[1].kwargs['metadataFormats'])
+ 
+     def testMetadataPrefixesFromRootTag(self):
+-        self.subject.add('456', 'oai_dc', parseLxml('''<oai_dc:dc 
++        list(compose(self.subject.add('456', 'oai_dc', parseLxml('''<oai_dc:dc 
+         xmlns:oai_dc="http://oai_dc" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://other
+                             http://other.com/file.xsd
+                             http://oai_dc 
+                             http://oai_dc/dc.xsd">
+-</oai_dc:dc>'''))
++</oai_dc:dc>'''))))
+         self.assertEquals([('oai_dc', 'http://oai_dc/dc.xsd', 'http://oai_dc')], self.observer.calledMethods[0].kwargs['metadataFormats'])
+ 
+     def testIncompletePrefixInfo(self):
+-        self.subject.add('457', 'dc2', parseLxml('<oai_dc/>'))
++        list(compose(self.subject.add('457', 'dc2', parseLxml('<oai_dc/>'))))
+         self.assertEquals([('dc2', '', '')], self.observer.calledMethods[0].kwargs['metadataFormats'])
+ 
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaibrandingtest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oaibrandingtest.py
+--- version_0/test/oaibrandingtest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oaibrandingtest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,35 +1,36 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2010 Maastricht University Library
+-#        http://www.maastrichtuniversity.nl/web/Library/home.htm
+-#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
++# Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+-from cq2utils import CQ2TestCase
++from seecr.test import SeecrTestCase
+ from meresco.oai import OaiBranding
+ from weightless.core import compose
+ 
+-class OaiBrandingTest(CQ2TestCase):
++class OaiBrandingTest(SeecrTestCase):
+ 
+     def testOne(self):
+         branding = OaiBranding(url="http://example.org/icon.png", link="http://www.example.org", title="Example")
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaidownloadprocessortest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oaidownloadprocessortest.py
+--- version_0/test/oaidownloadprocessortest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oaidownloadprocessortest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -5,7 +5,7 @@
+ # 
+ # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
+ # Copyright (C) 2010 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+@@ -37,16 +37,17 @@
+ from os.path import join
+ from urllib import urlencode
+ 
+-from cq2utils import CQ2TestCase, CallTrace
+-from meresco.core import Observable, be
+-from meresco.components.http.utils import CRLF
+-from meresco.oai import OaiDownloadProcessor
++from seecr.test import SeecrTestCase, CallTrace
+ 
+-from weightless.core import compose
++from weightless.core import be, compose
+ from weightless.io import Suspend
+ 
++from meresco.core import Observable, asyncreturn
++from meresco.components.http.utils import CRLF
++from meresco.oai import OaiDownloadProcessor
++
+ 
+-class OaiDownloadProcessorTest(CQ2TestCase):
++class OaiDownloadProcessorTest(SeecrTestCase):
+     def testRequest(self):
+         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+         self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
+@@ -66,7 +67,7 @@
+         self.assertEquals("""GET /oai?verb=ListRecords&resumptionToken=u%7Cc1286437597991025%7Cmprefix%7Cs%7Cf&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
+ 
+     def testHandle(self): 
+-        observer = CallTrace()
++        observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
+         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+         oaiDownloadProcessor.addObserver(observer)
+         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
+@@ -77,7 +78,7 @@
+         self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
+ 
+     def testListIdentifiersHandle(self): 
+-        observer = CallTrace()
++        observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
+         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, verb='ListIdentifiers')
+         oaiDownloadProcessor.addObserver(observer)
+         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTIDENTIFIERS_RESPONSE)))))
+@@ -88,7 +89,7 @@
+         self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
+ 
+     def testHandleWithTwoRecords(self): 
+-        observer = CallTrace()
++        observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
+         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+         oaiDownloadProcessor.addObserver(observer)
+         secondRecord = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:2</identifier><datestamp>2011-08-22T07:41:00Z</datestamp></header><metadata>ignored</metadata></record>'
+@@ -163,7 +164,10 @@
+         self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
+ 
+     def testHandleYieldsAtLeastOnceAfterEachRecord(self):
+-        observer = CallTrace()
++        @asyncreturn
++        def add(**kwargs):
++            pass
++        observer = CallTrace(methods={'add': add})
+         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+         oaiDownloadProcessor.addObserver(observer)
+         yields = list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaiintegrationtest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oaiintegrationtest.py
+--- version_0/test/oaiintegrationtest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oaiintegrationtest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -5,7 +5,7 @@
+ # 
+ # Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
+ # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -30,22 +30,23 @@
+ from threading import Thread
+ from time import sleep
+ 
+-from meresco.core import be, Observable
++from meresco.core import Observable
+ from meresco.components.http import ObservableHttpServer
+ from meresco.components import StorageComponent, XmlParseLxml, PeriodicDownload
+ from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
+ 
+-from cq2utils import CQ2TestCase, CallTrace
++from seecr.test import SeecrTestCase, CallTrace
+ from weightless.io import Reactor
++from weightless.core import be, compose
+ 
+ from lxml.etree import tostring
+ 
+-class OaiIntegrationTest(CQ2TestCase):
+ 
++class OaiIntegrationTest(SeecrTestCase):
+     def testNearRealtimeOai(self):
+         self.run = True
+         portNumber = randint(50000, 60000)
+-        observer = CallTrace("observer", ignoredAttributes=["observer_init"])
++        observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
+         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+         storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+         self._addOaiRecords(storageComponent, oaiJazz, 3)
+@@ -65,7 +66,7 @@
+         self.assertEquals(1, len(oaiJazz._suspended))
+ 
+         requests += 1
+-        storageComponent.add("id3", "prefix", "<a>a3</a>")
++        list(compose(storageComponent.add("id3", "prefix", "<a>a3</a>")))
+         oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
+         sleep(0.1)
+ 
+@@ -81,7 +82,7 @@
+         harvestThread.join()
+ 
+     def testNearRealtimeOaiSavesState(self):
+-        observer = CallTrace("observer", ignoredAttributes=["observer_init"])
++        observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
+         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+         storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+         self._addOaiRecords(storageComponent, oaiJazz, 1)
+@@ -114,7 +115,7 @@
+         self.assertTrue("id0" in kwarg, kwarg)
+         stop()
+ 
+-        storageComponent.add("id1", "prefix", "<a>a1</a>")
++        list(compose(storageComponent.add("id1", "prefix", "<a>a1</a>")))
+         oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
+ 
+         start()
+@@ -139,7 +140,7 @@
+                 )
+             )
+         )
+-        server.once.observer_init()
++        list(compose(server.once.observer_init()))
+         self._loopReactor(reactor)
+ 
+     def startOaiPmh(self, portNumber, oaiJazz, storageComponent):
+@@ -154,12 +155,12 @@
+                 )
+             )
+         )
+-        server.once.observer_init()
++        list(compose(server.once.observer_init()))
+         self._loopReactor(reactor)
+ 
+     def _addOaiRecords(self, storageComponent, oaiJazz, count):
+         for i in range(count):            
+-            storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)
++            list(compose(storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)))
+             oaiJazz.addOaiRecord(identifier="id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
+ 
+     def _loopReactor(self, reactor):
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaijazztest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oaijazztest.py
+--- version_0/test/oaijazztest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oaijazztest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -10,7 +10,7 @@
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -30,7 +30,7 @@
+ # 
+ ## end license ##
+ 
+-from cq2utils import CQ2TestCase, CallTrace
++from seecr.test import SeecrTestCase, CallTrace
+ 
+ from os import listdir, remove
+ from os.path import isfile, join
+@@ -43,16 +43,16 @@
+ from meresco.oai.oailist import OaiList
+ from StringIO import StringIO
+ from lxml.etree import parse
+-from meresco.core import Observable, be, Transparant
+-from weightless.core import compose
++from meresco.core import Observable, Transparent
++from weightless.core import be, compose
+ from weightless.io import Suspend
+ 
+ parseLxml = lambda s: parse(StringIO(s)).getroot()
+ 
+ 
+-class OaiJazzTest(CQ2TestCase):
++class OaiJazzTest(SeecrTestCase):
+     def setUp(self):
+-        CQ2TestCase.setUp(self)
++        SeecrTestCase.setUp(self)
+         self.jazz = OaiJazz(self.tempdir)
+         self.stampNumber = self.orginalStampNumber = int((timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1))+.123456)*1000000)
+         def stamp():
+@@ -131,23 +131,23 @@
+ 
+     def testDeleteNonExistingRecords(self):
+         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
+-        self.jazz.delete('notExisting')
++        list(compose(self.jazz.delete('notExisting')))
+         jazz2 = OaiJazz(self.tempdir)
+         self.assertEquals(None, jazz2.getUnique('notExisting'))
+ 
+     def testMarkDeleteOfNonExistingRecordInGivenPrefixes(self):
+         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
+         jazz = OaiJazz(self.tempdir, alwaysDeleteInPrefixes=["aprefix"])
+-        jazz.delete('notExisting')
++        list(compose(jazz.delete('notExisting')))
+         self.assertEquals(['notExisting'], list(jazz.oaiSelect(prefix='aprefix')))
+         self.assertEquals(['existing'], list(jazz.oaiSelect(prefix='prefix')))
+-        jazz.delete('existing')
++        list(compose(jazz.delete('existing')))
+         self.assertEquals(['notExisting', 'existing'], list(jazz.oaiSelect(prefix='aprefix')))
+ 
+     def testDoNotPerformSuperfluousDeletes(self):
+         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
+         self.jazz._stamp2identifier = CallTrace('mockdict', returnValues={'getKeysFor': None, '__delitem__':None})
+-        self.jazz.delete('notExisting')
++        list(compose(self.jazz.delete('notExisting')))
+         self.assertFalse("__delitem__" in str(self.jazz._stamp2identifier.calledMethods))
+ 
+     # What happens if you do addOaiRecord('id1', prefix='aap') and afterwards
+@@ -157,7 +157,7 @@
+ 
+     def testDeleteIsPersistent(self):
+         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
+-        self.jazz.delete('42')
++        list(compose(self.jazz.delete('42')))
+         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
+         jazz2 = OaiJazz(self.tempdir)
+         self.assertTrue(jazz2.isDeleted('42'))
+@@ -184,7 +184,7 @@
+         stamp = self.jazz.getDatestamp('23')
+         unique = self.jazz.getUnique('23')
+         self.stampNumber += 1234567890 # increaseTime
+-        self.jazz.delete('23')
++        list(compose(self.jazz.delete('23')))
+         self.assertNotEqual(stamp, self.jazz.getDatestamp('23'))
+         self.assertNotEquals(unique, int(self.jazz.getUnique('23')))
+ 
+@@ -216,12 +216,12 @@
+     def testWithObservablesAndUseOfAnyBreaksStuff(self):
+         self.jazz.addOaiRecord('23', metadataFormats=[('one','schema1', 'namespace1'), ('two','schema2', 'namespace2')])
+         server = be((Observable(),
+-            (Transparant(),
++            (Transparent(),
+                 (self.jazz,)
+             )
+         ))
+         server.once.observer_init()
+-        mf = list(server.any.getAllMetadataFormats())
++        mf = list(server.call.getAllMetadataFormats())
+         self.assertEquals(2, len(mf))
+         self.assertEquals(set(['one', 'two']), set(prefix for prefix, schema, namespace in mf))
+ 
+@@ -240,7 +240,7 @@
+         self.assertEquals(0, self.jazz.getNrOfRecords('anotherPrefix'))
+         self.jazz.addOaiRecord('id2', metadataFormats=[('aPrefix', 'schema', 'namespace')])
+         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
+-        self.jazz.delete('id1')
++        list(compose(self.jazz.delete('id1')))
+         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
+ 
+     def testGetLastStampId(self):
+@@ -355,8 +355,8 @@
+     
+     def testAddSetInfo(self):
+         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>%s</setSpec></header>'
+-        self.oaiAddRecord.add('123', 'oai_dc', parseLxml(header % 1))
+-        self.oaiAddRecord.add('124', 'oai_dc', parseLxml(header % 2))
++        list(compose(self.oaiAddRecord.add('123', 'oai_dc', parseLxml(header % 1))))
++        list(compose(self.oaiAddRecord.add('124', 'oai_dc', parseLxml(header % 2))))
+         results = self.jazz.oaiSelect(sets=['1'], prefix='oai_dc')
+         self.assertEquals(1, len(list(results)))
+         results = self.jazz.oaiSelect(sets=['2'], prefix='oai_dc')
+@@ -419,10 +419,10 @@
+         self.assertEquals(['id:1'], list(result))
+ 
+     def testAddPartWithUniqueNumbersAndSorting(self):
+-        self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<oai_dc/>'))
+-        self.oaiAddRecord.add('124', 'lom', parseLxml('<lom/>'))
+-        self.oaiAddRecord.add('121', 'lom', parseLxml('<lom/>'))
+-        self.oaiAddRecord.add('122', 'lom', parseLxml('<lom/>'))
++        list(compose(self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<oai_dc/>'))))
++        list(compose(self.oaiAddRecord.add('124', 'lom', parseLxml('<lom/>'))))
++        list(compose(self.oaiAddRecord.add('121', 'lom', parseLxml('<lom/>'))))
++        list(compose(self.oaiAddRecord.add('122', 'lom', parseLxml('<lom/>'))))
+         results = self.jazz.oaiSelect(prefix='oai_dc')
+         self.assertEquals(1, len(list(results)))
+         results = self.jazz.oaiSelect(prefix='lom')
+@@ -445,13 +445,13 @@
+         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
+         self.assertFalse(self.jazz.isDeleted('42'))
+         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
+-        self.jazz.delete('42')
++        list(compose(self.jazz.delete('42')))
+         self.assertTrue(self.jazz.isDeleted('42'))
+         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
+ 
+     def testDeleteKeepsSetsAndPrefixes(self):
+         self.jazz.addOaiRecord('42', sets=[('setSpec1', 'setName1'),('setSpec2', 'setName2')], metadataFormats=[('prefix1','schema', 'namespace'), ('prefix2','schema', 'namespace')])
+-        self.jazz.delete('42')
++        list(compose(self.jazz.delete('42')))
+         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix1')))
+         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix2')))
+         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix1', sets=['setSpec1'])))
+@@ -461,7 +461,7 @@
+     
+     def testDeleteAndReadd(self):
+         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
+-        self.jazz.delete('42')
++        list(compose(self.jazz.delete('42')))
+         self.assertTrue(self.jazz.isDeleted('42'))
+         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
+         self.assertFalse(self.jazz.isDeleted('42'))
+@@ -511,29 +511,29 @@
+         self.assertEquals(set([]), set(self.jazz.getPrefixes('doesNotExist')))
+ 
+     def testPreserveRicherPrefixInfo(self):
+-        self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+-             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))
+-        self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc/>'))
++        list(compose(self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
++             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
++        list(compose(self.oaiAddRecord.add('457', 'oai_dc', parseLxml('<oai_dc/>'))))
+         metadataFormats = set(self.jazz.getAllMetadataFormats())
+         self.assertEquals(set([('oai_dc', 'http://oai_dc/dc.xsd', 'http://oai_dc')]), metadataFormats)
+ 
+     def testIncompletePrefixInfo(self):
+-        self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc/>'))
++        list(compose(self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc/>'))))
+         metadataFormats = set(self.jazz.getAllMetadataFormats())
+         self.assertEquals(set([('dc2', '', '')]), metadataFormats)
+ 
+     def testMetadataPrefixesOnly(self):
+-        self.oaiAddRecord.add('456', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+-             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))
++        list(compose(self.oaiAddRecord.add('456', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
++             xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
+         prefixes = set(self.jazz.getAllPrefixes())
+         self.assertEquals(set(['oai_dc']), prefixes)
+-        self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))
++        list(compose(self.oaiAddRecord.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))))
+         prefixes = set(self.jazz.getAllPrefixes())
+         self.assertEquals(set(['oai_dc', 'dc2']), prefixes)
+         
+     def testGetPrefixes(self):
+-        self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<dc/>'))
+-        self.oaiAddRecord.add('123', 'lom', parseLxml('<lom/>'))
++        list(compose(self.oaiAddRecord.add('123', 'oai_dc', parseLxml('<dc/>'))))
++        list(compose(self.oaiAddRecord.add('123', 'lom', parseLxml('<lom/>'))))
+         parts = set(self.jazz.getPrefixes('123'))
+         self.assertEquals(set(['oai_dc', 'lom']), parts)
+         self.assertEquals(['123'], list(self.jazz.oaiSelect(prefix='lom')))
+@@ -562,7 +562,7 @@
+         resumed = []
+         suspend(reactor, lambda: resumed.append(True))
+ 
+-        self.jazz.delete(identifier='identifier')
++        list(compose(self.jazz.delete(identifier='identifier')))
+ 
+         self.assertEquals([True], resumed)
+         self.assertEquals([], self.jazz._suspended)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oailisttest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oailisttest.py
+--- version_0/test/oailisttest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oailisttest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,63 +1,63 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+-from lxml.etree import parse, tostring
+-from StringIO import StringIO
+ 
+-from amara.binderytools import bind_string
+-from cq2utils import CQ2TestCase, CallTrace
+ from itertools import imap
++from StringIO import StringIO
++from xml.sax.saxutils import escape as escapeXml
++from lxml.etree import parse, tostring
++from amara.binderytools import bind_string
+ 
+-from mockoaijazz import MockOaiJazz
++from seecr.test import SeecrTestCase, CallTrace
+ 
++from weightless.core import compose
+ from meresco.components.http.utils import CRLF
+-from meresco.core import ObserverFunction
++
+ from meresco.oai.oailist import OaiList
+ from meresco.oai.oairecord import OaiRecord
+ from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionToken
+-
+ from meresco.oai.oaiutils import OaiException
+-from meresco.oai.oaijazz import WrapIterable
+ 
+-from weightless.core import compose
+-from xml.sax.saxutils import escape as escapeXml
++from mockoaijazz import MockOaiJazz
++
+ 
+-class OaiListTest(CQ2TestCase):
++class OaiListTest(SeecrTestCase):
+     def setUp(self):
+-        CQ2TestCase.setUp(self)
++        SeecrTestCase.setUp(self)
+         self.oaiList = OaiList(batchSize=2)
+         self.observer = CallTrace('observer')
+         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
+-        self.observer.returnValues['oaiSelect'] = (f for f in [])
+-        self.observer.returnValues['suspend'] = 'SUSPEND'
++        self.observer.methods['oaiSelect'] = lambda **kwargs: (i for i in [])
++        self.observer.methods['suspend'] = lambda: (s for s in ['SUSPEND'])
+         def oaiRecord(recordId, metadataPrefix):
+-            return '<mock:record xmlns:mock="uri:mock">%s/%s</mock:record>' % (escapeXml(recordId), escapeXml(metadataPrefix))
++            yield '<mock:record xmlns:mock="uri:mock">%s/%s</mock:record>' % (escapeXml(recordId), escapeXml(metadataPrefix))
+         self.observer.methods['oaiRecord'] = oaiRecord
+         self.observer.methods['oaiRecordHeader'] = oaiRecord
+         self.oaiList.addObserver(self.observer)
+@@ -68,7 +68,7 @@
+         }
+ 
+     def testListRecords(self):
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:0&0', 'id:1&1'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:0&0', 'id:1&1'])
+ 
+         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))).split(CRLF*2)
+         oai = parse(StringIO(body))
+@@ -83,7 +83,7 @@
+         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, recordMethods[1].kwargs)
+ 
+     def testListIdentifiers(self):
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:0&0', 'id:1&1'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:0&0', 'id:1&1'])
+ 
+         header, body = ''.join(compose(self.oaiList.listIdentifiers(arguments={'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))).split(CRLF*2)
+         oai = parse(StringIO(body))
+@@ -99,7 +99,7 @@
+ 
+     def testListRecordsProducesResumptionToken(self):
+         self.observer.returnValues['getUnique'] = 'unique_for_id'
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:0&0', 'id:1&1', 'id:2&2'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:0&0', 'id:1&1', 'id:2&2'])
+ 
+         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2012-01-01T00:00:00Z'], 'set': ['set0']}, **self.httpkwargs))).split(CRLF*2)
+         oai = parse(StringIO(body))
+@@ -115,7 +115,7 @@
+         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, recordMethods[1].kwargs)
+ 
+     def testListRecordsWithResumptionToken(self):
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:2&2'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:2&2'])
+ 
+         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken':['u2012-01-01T00:00:00Z|cunique_for_id|moai_dc|sset0|f2000-01-01T00:00:00Z']}, **self.httpkwargs))).split(CRLF*2)
+         oai = parse(StringIO(body))
+@@ -129,7 +129,7 @@
+         self.assertEquals({'recordId':'id:2&2', 'metadataPrefix':'oai_dc'}, recordMethods[0].kwargs)
+ 
+     def testListRecordsEmptyFinalResumptionToken(self):
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:2&2', 'id:3&3'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:2&2', 'id:3&3'])
+ 
+         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken':['u2012-01-01T00:00:00Z|cunique_for_id|moai_dc|sset0|f2000-01-01T00:00:00Z']}, **self.httpkwargs))).split(CRLF*2)
+         oai = parse(StringIO(body))
+@@ -146,7 +146,7 @@
+         self.assertEquals({'recordId':'id:3&3', 'metadataPrefix':'oai_dc'}, recordMethods[1].kwargs)
+ 
+     def testNoRecordsMatch(self):
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in [])
++        self.observer.returnValues['oaiSelect'] = (f for f in [])
+         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix':['oai_dc']}, **self.httpkwargs))).split(CRLF*2)
+         oai = parse(StringIO(body))
+ 
+@@ -155,12 +155,12 @@
+     def testListRecordsUsingXWait(self):
+         self.oaiList = OaiList(batchSize=2, supportXWait=True)
+         self.oaiList.addObserver(self.observer)
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in [])
++        self.observer.returnValues['oaiSelect'] = (f for f in [])
+ 
+         result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
+         suspend = result.next()
+         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'suspend'], [m.name for m in self.observer.calledMethods])
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1&1'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:1&1'])
+         del self.observer.calledMethods[:]
+ 
+         header, body = ''.join(compose(result)).split(CRLF*2)
+@@ -183,7 +183,7 @@
+         self.assertEquals(['getAllPrefixes', 'suspend'], [m.name for m in self.observer.calledMethods])
+         self.observer.returnValues['getAllPrefixes'] = ['other_prefix']
+         suspend = result.next() 
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1&1'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:1&1'])
+         del self.observer.calledMethods[:]
+ 
+         header, body = ''.join(compose(result)).split(CRLF*2)
+@@ -198,7 +198,7 @@
+         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'other_prefix'}, recordMethods[0].kwargs)
+ 
+     def testNotSupportedXWait(self):
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1', 'id:2'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:1', 'id:2'])
+         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))).split(CRLF*2)
+         oai = parse(StringIO(body))
+ 
+@@ -207,7 +207,7 @@
+     def testNotSupportedValueXWait(self):
+         self.oaiList = OaiList(batchSize=2, supportXWait=True)
+         self.oaiList.addObserver(self.observer)
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1', 'id:2'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:1', 'id:2'])
+         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['YesPlease']}, **self.httpkwargs))).split(CRLF*2)
+         oai = parse(StringIO(body))
+ 
+@@ -216,7 +216,7 @@
+ 
+     def testFromAndUntil(self):
+         def selectArguments(oaiFrom, oaiUntil):
+-            self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:3&3'])
++            self.observer.returnValues['oaiSelect'] = (f for f in ['id:3&3'])
+             del self.observer.calledMethods[:]
+             arguments = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+             if oaiFrom:
+@@ -238,7 +238,7 @@
+ 
+     def testFromAndUntilErrors(self):
+         def getError(oaiFrom, oaiUntil):
+-            self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:3&3'])
++            self.observer.returnValues['oaiSelect'] = (f for f in ['id:3&3'])
+             del self.observer.calledMethods[:]
+             arguments = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
+             if oaiFrom:
+@@ -258,7 +258,7 @@
+     def testConcurrentListRequestsDontInterfere(self):
+         self.oaiList = OaiList(batchSize=2, supportXWait=True)
+         self.oaiList.addObserver(self.observer)
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in [])
++        self.observer.returnValues['oaiSelect'] = (f for f in [])
+ 
+         # ListRecords request
+         resultListRecords = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
+@@ -269,7 +269,7 @@
+         resultListIdentifiers.next()
+ 
+         # resume ListRecords
+-        self.observer.returnValues['oaiSelect'] = WrapIterable(f for f in ['id:1&1'])
++        self.observer.returnValues['oaiSelect'] = (f for f in ['id:1&1'])
+         header, body = ''.join(compose(resultListRecords)).split(CRLF*2)
+         self.assertFalse('</ListIdentifiers>' in body, body)
+         self.assertTrue('</ListRecords>' in body, body)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaipmhtest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oaipmhtest.py
+--- version_0/test/oaipmhtest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oaipmhtest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,50 +1,51 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-#    Copyright (C) 2011 Seecr http://seecr.nl
+-#    Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid
+-#        http://instituut.beeldengeluid.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
++# Copyright (C) 2011 Seecr http://seecr.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+-from cq2utils import CQ2TestCase, CallTrace
++from seecr.test import SeecrTestCase, CallTrace
+ from oaischema import assertValidOai
+ 
+ from meresco.oai import OaiPmh, OaiJazz, OaiBranding
+-from meresco.core import Observable, be
++from meresco.core import Observable
+ from meresco.components.http.utils import CRLF
+ from meresco.components import StorageComponent
+ from os.path import join
+ from urllib import urlencode
+ from lxml.etree import parse, tostring
+ from StringIO import StringIO
+-from weightless.core import compose
++from weightless.core import be, compose
+ from socket import gethostname
+ 
+ BATCHSIZE = 10
+ HOSTNAME = gethostname()
+-class _OaiPmhTest(CQ2TestCase):
++class _OaiPmhTest(SeecrTestCase):
+     def setUp(self):
+-        CQ2TestCase.setUp(self)
++        SeecrTestCase.setUp(self)
+         jazz = OaiJazz(join(self.tempdir, 'jazz'))
+         storage = StorageComponent(join(self.tempdir, 'storage'))
+         self.oaipmh = self.getOaiPmh()
+@@ -57,10 +58,10 @@
+         for i in xrange(20):
+             recordId = 'record:id:%02d' % i
+             metadataFormats = [('oai_dc', 'http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://www.openarchives.org/OAI/2.0/oai_dc/')]
+-            storage.add(identifier=recordId, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)
++            list(compose(storage.add(identifier=recordId, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)))
+             if i >= 10:
+                 metadataFormats.append(('prefix2', 'http://example.org/prefix2/?format=xsd&prefix=2','http://example.org/prefix2/'))
+-                storage.add(identifier=recordId, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)
++                list(compose(storage.add(identifier=recordId, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)))
+             sets = []
+             if i >= 5:
+                 sets.append(('setSpec%s' % ((i//5)*5), 'setName'))
+@@ -70,7 +71,7 @@
+                 sets.append(('hierarchical', 'hierarchical toplevel only'))
+             jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
+             if i % 5 == 0:
+-                jazz.delete(recordId)
++                list(compose(jazz.delete(recordId)))
+ 
+     def _request(self, from_=None, **arguments):
+         httpMethod = getattr(self, 'httpMethod', 'GET')
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaiprovenancetest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oaiprovenancetest.py
+--- version_0/test/oaiprovenancetest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oaiprovenancetest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,41 +1,42 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+-from cq2utils.cq2testcase import CQ2TestCase
+-from cq2utils.calltrace import CallTrace
++from seecr.test import CallTrace, SeecrTestCase
+ from StringIO import StringIO
+ 
++from weightless.core import compose
+ from meresco.core import Observable
+ from meresco.oai.oaiprovenance import OaiProvenance
+ 
+-class OaiProvenanceTest(CQ2TestCase):
+ 
++class OaiProvenanceTest(SeecrTestCase):
+     def testCacheStorageResults(self):
+         observable = Observable()
+         provenance = OaiProvenance(
+@@ -52,10 +53,9 @@
+         provenance.addObserver(observer)
+ 
+         self.assertEquals(0, storage.timesCalled)
+-        result = ''.join(list(observable.any.getRecord("recordId")))
++        result = ''.join(list(compose(observable.any.provenance("recordId"))))
+         self.assertEquals(2, storage.timesCalled)
+ 
+-
+     def testProvenance(self):
+         observable = Observable()
+         provenance = OaiProvenance(
+@@ -70,7 +70,7 @@
+         observer = MockStorage()
+         provenance.addObserver(observer)
+ 
+-        result = ''.join(list(observable.any.getRecord("recordId")))
++        result = ''.join(list(compose(observable.any.provenance("recordId"))))
+         self.assertEqualsWS(result, """<provenance xmlns="http://www.openarchives.org/OAI/2.0/provenance"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/provenance
+@@ -98,7 +98,7 @@
+         observer = MockStorage()
+         provenance.addObserver(observer)
+ 
+-        result = ''.join(list(observable.any.getRecord("recordId")))
++        result = ''.join(list(compose(observable.any.provenance("recordId"))))
+         self.assertEquals('', result)
+ 
+ class MockStorage(object):
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oairecordtest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oairecordtest.py
+--- version_0/test/oairecordtest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oairecordtest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,44 +1,46 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
++
+ from lxml.etree import parse, tostring
+ from StringIO import StringIO
+ 
+-from cq2utils import CQ2TestCase, CallTrace
++from seecr.test import SeecrTestCase, CallTrace
+ 
+ from meresco.oai.oairecord import OaiRecord
+ 
+ from weightless.core import compose
+ 
+-class OaiRecordTest(CQ2TestCase):
++class OaiRecordTest(SeecrTestCase):
+     def setUp(self):
+-        CQ2TestCase.setUp(self)
++        SeecrTestCase.setUp(self)
+         self.oaiRecord = OaiRecord()
+         self.observer = CallTrace('Observer')
+         self.oaiRecord.addObserver(self.observer)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaisetselecttest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oaisetselecttest.py
+--- version_0/test/oaisetselecttest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oaisetselecttest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,39 +1,42 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+-from cq2utils import CQ2TestCase, CallTrace
+ 
+-from meresco.core import be, Observable
++from seecr.test import SeecrTestCase, CallTrace
++
++from meresco.core import Observable
+ from meresco.oai import OaiSetSelect
++from weightless.core import be, compose
+ 
+-class OaiSetSelectTest(CQ2TestCase):
++class OaiSetSelectTest(SeecrTestCase):
+     def setUp(self):
+-        CQ2TestCase.setUp(self)
++        SeecrTestCase.setUp(self)
+         self.observer = CallTrace()
+ 
+         self.dna = be(
+@@ -45,19 +48,20 @@
+         )
+ 
+     def testOne(self):
+-        list(self.dna.all.oaiSelect())
++        self.dna.call.oaiSelect()
+         self.assertEquals(1, len(self.observer.calledMethods))
+         methodCalled = self.observer.calledMethods[0]
+         self.assertTrue('sets' in methodCalled.kwargs, methodCalled)
+         self.assertEquals(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
+ 
+     def testOtherMethodsArePassed(self):
+-        list(self.dna.all.getAllMetadataFormats())
++        self.observer.methods['getAllMetadataFormats'] = lambda *a, **kw: (x for x in [])
++        list(compose(self.dna.all.getAllMetadataFormats()))
+         self.assertEquals(1, len(self.observer.calledMethods))
+         self.assertEquals('getAllMetadataFormats', self.observer.calledMethods[0].name)
+ 
+     def testSetsIsNone(self):
+-        list(self.dna.all.oaiSelect(sets=None))
++        self.dna.call.oaiSelect(sets=None)
+         self.assertEquals(1, len(self.observer.calledMethods))
+         methodCalled = self.observer.calledMethods[0]
+         self.assertTrue('sets' in methodCalled.kwargs, methodCalled)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaitooltest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/oaitooltest.py
+--- version_0/test/oaitooltest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/oaitooltest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -8,7 +8,7 @@
+ # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+@@ -31,9 +31,9 @@
+ 
+ from meresco.oai.oaitool import ISO8601Exception, ISO8601
+ from meresco.oai.oaiutils import oaiRequestArgs, validSetSpecName
+-from cq2utils import CQ2TestCase, CallTrace
++from seecr.test import SeecrTestCase, CallTrace
+ 
+-class OaiToolTest(CQ2TestCase):
++class OaiToolTest(SeecrTestCase):
+     
+     def testWriteRequestArgs(self):
+         result = ''.join(oaiRequestArgs({'identifier': ['with a "']}, Headers={'Host':'localhost'}, port=8000, path='/oai'))
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/resumptiontokentest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/resumptiontokentest.py
+--- version_0/test/resumptiontokentest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/resumptiontokentest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -1,37 +1,38 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
+-#    Copyright (C) 2007-2009 Stichting Kennisnet Ict op school.
+-#       http://www.kennisnetictopschool.nl
+-#    Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+-#    Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-#    Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
++# Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
++# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
++# Copyright (C) 2009 Tilburg University http://www.uvt.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+ from meresco.oai.resumptiontoken import ResumptionToken, resumptionTokenFromString
+-from cq2utils.cq2testcase import CQ2TestCase
+-from cq2utils.calltrace import CallTrace
++from seecr.test import CallTrace, SeecrTestCase
+ 
+-class ResumptionTokenTest(CQ2TestCase):
++
++class ResumptionTokenTest(SeecrTestCase):
+     def assertResumptionToken(self, token):
+         aTokenString = str(token)
+         token2 = resumptionTokenFromString(aTokenString)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/updateadaptertest.py /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/test/updateadaptertest.py
+--- version_0/test/updateadaptertest.py	2012-01-24 14:43:57.000000000 +0100
++++ version_1/test/updateadaptertest.py	2012-01-31 13:52:02.000000000 +0100
+@@ -5,7 +5,7 @@
+ # 
+ # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
+ # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -25,31 +25,40 @@
+ # 
+ ## end license ##
+ 
+-from cq2utils import CQ2TestCase, CallTrace
++from seecr.test import SeecrTestCase, CallTrace
+ 
+ from lxml.etree import parse
+ from StringIO import StringIO
+ 
+-from meresco.oai import UpdateAdapterFromOaiHarvester, UpdateAdapterFromOaiDownloadProcessor
++from meresco.oai import UpdateAdapterFromOaiDownloadProcessor
++from weightless.core import compose
+ 
+-class UpdateAdapterTest(CQ2TestCase):
++def addMock(identifier, partname, lxmlNode):
++    return
++    yield
++
++def deleteMock(identifier):
++    return
++    yield
++
++class UpdateAdapterTest(SeecrTestCase):
+     def testDelete(self):
+         adapter = UpdateAdapterFromOaiDownloadProcessor()
+-        observer = CallTrace('observer')
++        observer = CallTrace('observer', methods={'delete': deleteMock})
+         adapter.addObserver(observer)
+ 
+-        list(adapter.add(identifier='oai:test:identifier', lxmlNode=parse(StringIO(OAI_DELETED_RECORD)), datestamp="2010-10-19T09:57:32Z"))
++        list(compose(adapter.add(identifier='oai:test:identifier', lxmlNode=parse(StringIO(OAI_DELETED_RECORD)), datestamp="2010-10-19T09:57:32Z")))
+ 
+         self.assertEquals(['delete'], [m.name for m in observer.calledMethods])
+         self.assertEquals({'identifier':'oai:test:identifier'}, observer.calledMethods[0].kwargs)
+ 
+     def testAdd(self):
+         adapter = UpdateAdapterFromOaiDownloadProcessor()
+-        observer = CallTrace('observer')
++        observer = CallTrace('observer', methods={'add': addMock})
+         adapter.addObserver(observer)
+ 
+         recordNode = parse(StringIO(OAI_RECORD))
+-        list(adapter.add(identifier='oai:test:identifier', lxmlNode=recordNode, datestamp="2010-10-19T09:57:32Z"))
++        list(compose(adapter.add(identifier='oai:test:identifier', lxmlNode=recordNode, datestamp="2010-10-19T09:57:32Z")))
+ 
+         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+         kwargs = observer.calledMethods[0].kwargs
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/testsetup.sh /home/weightless/development/meresco-oai/workingsets/4.0-beta2-Seecr/version_1/testsetup.sh
+--- version_0/testsetup.sh	2012-01-24 14:43:57.000000000 +0100
++++ version_1/testsetup.sh	2012-01-31 13:52:02.000000000 +0100
+@@ -2,19 +2,27 @@
+ set -e
+ mydir=$(cd $(dirname $0); pwd)
+ 
++fullPythonVersion=python2.6
++
++VERSION="x.y.z"
++
+ rm -rf tmp build
+-python2.5 setup.py install --root tmp
++${fullPythonVersion} setup.py install --root tmp
+ 
+-cp meresco/__init__.py tmp/usr/lib/python2.5/site-packages/meresco
+-export PYTHONPATH=`pwd`/tmp/usr/lib/python2.5/site-packages
+ cp -r test tmp/test
+-find tmp -type f -exec sed -e \
++find tmp -type f -exec sed -r -e \
+     "/DO_NOT_DISTRIBUTE/d;
+-    s,^binDir.*$,binDir='$mydir/tmp/usr/bin'," -i {} \;
++    s,^binDir.*$,binDir='$mydir/tmp/usr/local/bin',;
++    s/\\\$Version:[^\\\$]*\\\$/\\\$Version: ${VERSION}\\\$/" -i {} \;
++
++cp meresco/__init__.py tmp/usr/local/lib/${fullPythonVersion}/dist-packages/meresco
++export PYTHONPATH=`pwd`/tmp/usr/local/lib/${fullPythonVersion}/dist-packages:${PYTHONPATH}
+ 
++set +o errexit
+ (
+ cd tmp/test
+ ./alltests.sh
+ )
++set -o errexit
+ 
+ rm -rf tmp build
