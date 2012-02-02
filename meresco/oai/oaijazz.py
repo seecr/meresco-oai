@@ -33,7 +33,7 @@
 from __future__ import with_statement
 from os.path import isdir, join, isfile
 from os import makedirs, listdir, rename
-from storage.storage import escapeName, unescapeName
+from escaping import escapeFilename, unescapeFilename
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from meresco.components.sorteditertools import OrIterator, AndIterator
@@ -201,19 +201,19 @@ class OaiJazz(object):
 
     def _getAllMetadataFormats(self):
         for prefix in self._prefixes.keys():
-            schema = open(join(self._directory, 'prefixesInfo', '%s.schema' % escapeName(prefix))).read()
-            namespace = open(join(self._directory, 'prefixesInfo', '%s.namespace' % escapeName(prefix))).read()
+            schema = open(join(self._directory, 'prefixesInfo', '%s.schema' % escapeFilename(prefix))).read()
+            namespace = open(join(self._directory, 'prefixesInfo', '%s.namespace' % escapeFilename(prefix))).read()
             yield (prefix, schema, namespace)
 
     def _getSetList(self, setSpec):
         if setSpec not in self._sets:
-            filename = join(self._directory, 'sets', '%s.list' % escapeName(setSpec))
+            filename = join(self._directory, 'sets', '%s.list' % escapeFilename(setSpec))
             self._sets[setSpec] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
         return self._sets[setSpec]
 
     def _getPrefixList(self, prefix):
         if prefix not in self._prefixes:
-            filename = join(self._directory, 'prefixes', '%s.list' % escapeName(prefix))
+            filename = join(self._directory, 'prefixes', '%s.list' % escapeFilename(prefix))
             self._prefixes[prefix] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
         return self._prefixes[prefix]
 
@@ -264,15 +264,15 @@ class OaiJazz(object):
         return oldPrefixes, oldSets
 
     def _read(self):
-        for prefix in (unescapeName(name[:-len('.list')]) for name in listdir(join(self._directory, 'prefixes')) if name.endswith('.list')):
+        for prefix in (unescapeFilename(name[:-len('.list')]) for name in listdir(join(self._directory, 'prefixes')) if name.endswith('.list')):
             self._getPrefixList(prefix)
-        for setSpec in (unescapeName(name[:-len('.list')]) for name in listdir(join(self._directory, 'sets')) if name.endswith('.list')):
+        for setSpec in (unescapeFilename(name[:-len('.list')]) for name in listdir(join(self._directory, 'sets')) if name.endswith('.list')):
             self._getSetList(setSpec)
 
     def _storeMetadataFormats(self, metadataFormats):
         for prefix, schema, namespace in metadataFormats:
-            _write(join(self._directory, 'prefixesInfo', '%s.schema' % escapeName(prefix)), schema)
-            _write(join(self._directory, 'prefixesInfo', '%s.namespace' % escapeName(prefix)), namespace)
+            _write(join(self._directory, 'prefixesInfo', '%s.schema' % escapeFilename(prefix)), schema)
+            _write(join(self._directory, 'prefixesInfo', '%s.namespace' % escapeFilename(prefix)), namespace)
 
     def _stamp(self):
         """time in microseconds"""
