@@ -24,5 +24,4 @@
 ## end license ##
 export LANG=en_US.UTF-8
 export PYTHONPATH=.:"$PYTHONPATH"
-pyversion="$(pyversions --default)"
-${pyversion} _alltests.py "$@"
+python2.6 _alltests.py "$@"
