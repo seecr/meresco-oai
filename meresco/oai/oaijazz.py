@@ -9,8 +9,8 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2010-2012 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -47,6 +47,7 @@ MERGE_TRIGGER = 1000
 SETSPEC_SEPARATOR = ','
 DATESTAMP_FACTOR, DATESTAMP_FACTOR_FLOAT = 1000000, 1000000.0
 
+
 class OaiJazz(object):
 
     version = '2'
@@ -78,7 +79,7 @@ class OaiJazz(object):
         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
         for setSpec, setName in sets:
             assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
-        oldPrefixes, oldSets = self._delete(identifier)
+        oldPrefixes, oldSets = self.purge(identifier)
         stamp = self._stamp()
         prefixes = set(prefix for prefix, schema, namespace in metadataFormats)
         prefixes.update(oldPrefixes)
@@ -91,7 +92,7 @@ class OaiJazz(object):
     def delete(self, identifier):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        oldPrefixes, oldSets = self._delete(identifier)
+        oldPrefixes, oldSets = self.purge(identifier)
         if not oldPrefixes and not self._deletePrefixes:
             return
         stamp = self._stamp()
@@ -244,7 +245,7 @@ class OaiJazz(object):
             result = int(result)
         return result
 
-    def _delete(self, identifier):
+    def purge(self, identifier):
         stamp = self.getUnique(identifier)
         stamp in self._tombStones and self._tombStones.remove(stamp)
         oldPrefixes = []

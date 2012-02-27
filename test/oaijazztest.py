@@ -9,8 +9,8 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2010-2012 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -157,6 +157,19 @@ class OaiJazzTest(CQ2TestCase):
         self.jazz._stamp2identifier = CallTrace('mockdict', returnValues={'getKeysFor': None, '__delitem__':None})
         self.jazz.delete('notExisting')
         self.assertFalse("__delitem__" in str(self.jazz._stamp2identifier.calledMethods))
+
+    def testPurgeRecord(self):
+        self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
+        stampId = self.jazz.getUnique('existing')
+        self.jazz.purge('existing')
+        jazz2 = OaiJazz(self.tempdir)
+        self.assertEquals(None, jazz2.getUnique('existing'))
+        self.assertTrue(stampId not in jazz2._tombStones)
+        for prefix, stampIds in jazz2._prefixes.items():
+            self.assertTrue(stampId not in stampIds)
+        for set, stampIds in jazz2._sets.items():
+            self.assertTrue(stampId not in stampIds)
+        self.assertTrue('existing' not in jazz2._identifier2setSpecs)
 
     # What happens if you do addOaiRecord('id1', prefix='aap') and afterwards
     #   addOaiRecord('id1', prefix='noot')
