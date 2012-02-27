@@ -10,8 +10,8 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -92,7 +92,7 @@ The response may include multiple instances of the following optional elements:
             'repositoryName': escapeXml(self._repositoryName),
             'baseURL': escapeXml(requestUrl(**httpkwargs)),
             'adminEmails': ''.join([ADMIN_EMAIL % escapeXml(email) for email in [self._adminEmail]]),
-            'deletedRecord': 'persistent',
+            'deletedRecord': self.any.getDeletedRecordType(),
         }
         values.update(hardcoded_values)
         yield oaiHeader(self)

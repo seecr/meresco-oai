@@ -159,6 +159,7 @@ class OaiJazzTest(CQ2TestCase):
         self.assertFalse("__delitem__" in str(self.jazz._stamp2identifier.calledMethods))
 
     def testPurgeRecord(self):
+        self.jazz = OaiJazz(self.tempdir, persistentDelete=False)
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         stampId = self.jazz.getUnique('existing')
         self.jazz.purge('existing')
@@ -170,6 +171,14 @@ class OaiJazzTest(CQ2TestCase):
         for set, stampIds in jazz2._sets.items():
             self.assertTrue(stampId not in stampIds)
         self.assertTrue('existing' not in jazz2._identifier2setSpecs)
+
+    def testPurgeNotAllowedIfDeletesArePersistent(self):
+        self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
+        try:
+            self.jazz.purge('existing')
+            self.fail("Should fail on purging because deletes are persistent")
+        except KeyError, e:
+            self.assertEquals("'Purging of records is not allowed with persistent deletes.'", str(e))
 
     # What happens if you do addOaiRecord('id1', prefix='aap') and afterwards
     #   addOaiRecord('id1', prefix='noot')
