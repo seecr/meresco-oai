@@ -1,0 +1,230 @@
+Changeset created on Mon Feb 27 15:31:49 UTC 2012 by Seecr (Seek You Too B.V.)
+
+Description: Purge records on oaiJazz
+
+    Records can be purged on oaiJazz if persistentDelete=False. When
+    persistentDelete=False oaiIdentify shows a transient deleteRecordType.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.18-Edurep/version_0
+
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaiidentify.py /home/hendrik/development/meresco/meresco-oai/workingsets/3.6.18-Edurep/version_1/meresco/oai/oaiidentify.py
+--- version_0/meresco/oai/oaiidentify.py	2012-02-23 09:26:05.000000000 +0100
++++ version_1/meresco/oai/oaiidentify.py	2012-02-27 16:31:46.000000000 +0100
+@@ -10,8 +10,8 @@
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
+-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -92,7 +92,7 @@
+             'repositoryName': escapeXml(self._repositoryName),
+             'baseURL': escapeXml(requestUrl(**httpkwargs)),
+             'adminEmails': ''.join([ADMIN_EMAIL % escapeXml(email) for email in [self._adminEmail]]),
+-            'deletedRecord': 'persistent',
++            'deletedRecord': self.any.getDeletedRecordType(),
+         }
+         values.update(hardcoded_values)
+         yield oaiHeader(self)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaijazz.py /home/hendrik/development/meresco/meresco-oai/workingsets/3.6.18-Edurep/version_1/meresco/oai/oaijazz.py
+--- version_0/meresco/oai/oaijazz.py	2012-02-23 09:26:05.000000000 +0100
++++ version_1/meresco/oai/oaijazz.py	2012-02-27 16:31:46.000000000 +0100
+@@ -9,8 +9,8 @@
+ # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2010-2012 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -47,11 +47,12 @@
+ SETSPEC_SEPARATOR = ','
+ DATESTAMP_FACTOR, DATESTAMP_FACTOR_FLOAT = 1000000, 1000000.0
+ 
++
+ class OaiJazz(object):
+ 
+     version = '2'
+ 
+-    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False):
++    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True):
+         self._directory = aDirectory
+         isdir(aDirectory) or makedirs(aDirectory)
+         self._versionFormatCheck()
+@@ -69,6 +70,7 @@
+         self._suspended = []
+         self._deletePrefixes = alwaysDeleteInPrefixes or []
+         self._preciseDatestamp = preciseDatestamp
++        self._persitentDelete = persistentDelete
+ 
+     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
+         if not identifier:
+@@ -78,7 +80,7 @@
+         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
+         for setSpec, setName in sets:
+             assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
+-        oldPrefixes, oldSets = self._delete(identifier)
++        oldPrefixes, oldSets = self._purge(identifier)
+         stamp = self._stamp()
+         prefixes = set(prefix for prefix, schema, namespace in metadataFormats)
+         prefixes.update(oldPrefixes)
+@@ -91,7 +93,7 @@
+     def delete(self, identifier):
+         if not identifier:
+             raise ValueError("Empty identifier not allowed.")
+-        oldPrefixes, oldSets = self._delete(identifier)
++        oldPrefixes, oldSets = self._purge(identifier)
+         if not oldPrefixes and not self._deletePrefixes:
+             return
+         stamp = self._stamp()
+@@ -164,6 +166,9 @@
+     def getLastStampId(self, prefix='oai_dc'):
+         return self._prefixes.get(prefix, [None])[-1]
+ 
++    def getDeletedRecordType(self):
++        return "persistent" if self._persitentDelete else "transient"
++
+     def suspend(self):
+         suspend = Suspend()
+         self._suspended.append(suspend) 
+@@ -244,7 +249,12 @@
+             result = int(result)
+         return result
+ 
+-    def _delete(self, identifier):
++    def purge(self, identifier):
++        if self._persitentDelete:
++            raise KeyError("Purging of records is not allowed with persistent deletes.")
++        self._purge(identifier)
++
++    def _purge(self, identifier):
+         stamp = self.getUnique(identifier)
+         stamp in self._tombStones and self._tombStones.remove(stamp)
+         oldPrefixes = []
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaijazztest.py /home/hendrik/development/meresco/meresco-oai/workingsets/3.6.18-Edurep/version_1/test/oaijazztest.py
+--- version_0/test/oaijazztest.py	2012-02-23 09:26:05.000000000 +0100
++++ version_1/test/oaijazztest.py	2012-02-27 16:31:46.000000000 +0100
+@@ -9,8 +9,8 @@
+ # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2010-2012 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -158,6 +158,28 @@
+         self.jazz.delete('notExisting')
+         self.assertFalse("__delitem__" in str(self.jazz._stamp2identifier.calledMethods))
+ 
++    def testPurgeRecord(self):
++        self.jazz = OaiJazz(self.tempdir, persistentDelete=False)
++        self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
++        stampId = self.jazz.getUnique('existing')
++        self.jazz.purge('existing')
++        jazz2 = OaiJazz(self.tempdir)
++        self.assertEquals(None, jazz2.getUnique('existing'))
++        self.assertTrue(stampId not in jazz2._tombStones)
++        for prefix, stampIds in jazz2._prefixes.items():
++            self.assertTrue(stampId not in stampIds)
++        for set, stampIds in jazz2._sets.items():
++            self.assertTrue(stampId not in stampIds)
++        self.assertTrue('existing' not in jazz2._identifier2setSpecs)
++
++    def testPurgeNotAllowedIfDeletesArePersistent(self):
++        self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
++        try:
++            self.jazz.purge('existing')
++            self.fail("Should fail on purging because deletes are persistent")
++        except KeyError, e:
++            self.assertEquals("'Purging of records is not allowed with persistent deletes.'", str(e))
++
+     # What happens if you do addOaiRecord('id1', prefix='aap') and afterwards
+     #   addOaiRecord('id1', prefix='noot')
+     # According to the specification:
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaipmhtest.py /home/hendrik/development/meresco/meresco-oai/workingsets/3.6.18-Edurep/version_1/test/oaipmhtest.py
+--- version_0/test/oaipmhtest.py	2012-02-23 09:26:05.000000000 +0100
++++ version_1/test/oaipmhtest.py	2012-02-27 16:31:46.000000000 +0100
+@@ -1,29 +1,30 @@
+ ## begin license ##
+-#
+-#    Meresco Oai are components to build Oai repositories, based on Meresco
+-#    Core and Meresco Components.
+-#    Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
+-#    Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
+-#    Copyright (C) 2011 Seecr http://seecr.nl
+-#    Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid
+-#        http://instituut.beeldengeluid.nl
+-#
+-#    This file is part of Meresco Oai.
+-#
+-#    Meresco Oai is free software; you can redistribute it and/or modify
+-#    it under the terms of the GNU General Public License as published by
+-#    the Free Software Foundation; either version 2 of the License, or
+-#    (at your option) any later version.
+-#
+-#    Meresco Oai is distributed in the hope that it will be useful,
+-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-#    GNU General Public License for more details.
+-#
+-#    You should have received a copy of the GNU General Public License
+-#    along with Meresco Oai; if not, write to the Free Software
+-#    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-#
++# 
++# "Meresco Oai" are components to build Oai repositories, based on
++# "Meresco Core" and "Meresco Components". 
++# 
++# Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
++# Copyright (C) 2010-2012 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
++# Copyright (C) 2011 Seecr http://seecr.nl
++# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# 
++# This file is part of "Meresco Oai"
++# 
++# "Meresco Oai" is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++# 
++# "Meresco Oai" is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++# 
++# You should have received a copy of the GNU General Public License
++# along with "Meresco Oai"; if not, write to the Free Software
++# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++# 
+ ## end license ##
+ 
+ from cq2utils import CQ2TestCase, CallTrace
+@@ -213,6 +214,17 @@
+             self.assertEquals(1, len(descriptions))
+         self.assertEquals(['Meresco'], xpath(descriptions[-1], 'toolkit:toolkit/toolkit:title/text()'))
+ 
++    def testIdentifyWithTransientDeleteRecord(self):
++        jazz = OaiJazz(join(self.tempdir, 'otherjazz'), persistentDelete=False)
++        self.oaipmh = self.getOaiPmh()
++        self.root = be((Observable(),
++            (self.oaipmh,
++                (jazz,),
++            )
++        ))
++        header, body = self._request(verb=['Identify'])
++        self.assertEquals(['transient'], xpath(body, '/oai:OAI-PMH/oai:Identify/oai:deletedRecord/text()'))
++        
+     def testIdentifyWithDescription(self):
+         self.oaipmh.addObserver(OaiBranding('http://meresco.org/files/images/meresco-logo-small.png', 'http://www.meresco.org/', 'Meresco'))
+         header, body = self._request(verb=['Identify'])
