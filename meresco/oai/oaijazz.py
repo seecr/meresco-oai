@@ -48,11 +48,12 @@ MERGE_TRIGGER = 1000
 SETSPEC_SEPARATOR = ','
 DATESTAMP_FACTOR, DATESTAMP_FACTOR_FLOAT = 1000000, 1000000.0
 
+
 class OaiJazz(object):
 
     version = '2'
 
-    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False):
+    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True):
         self._directory = aDirectory
         isdir(aDirectory) or makedirs(aDirectory)
         self._versionFormatCheck()
@@ -70,6 +71,7 @@ class OaiJazz(object):
         self._suspended = []
         self._deletePrefixes = alwaysDeleteInPrefixes or []
         self._preciseDatestamp = preciseDatestamp
+        self._persitentDelete = persistentDelete
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
         if not identifier:
@@ -79,7 +81,7 @@ class OaiJazz(object):
         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
         for setSpec, setName in sets:
             assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
-        oldPrefixes, oldSets = self._delete(identifier)
+        oldPrefixes, oldSets = self._purge(identifier)
         stamp = self._stamp()
         prefixes = set(prefix for prefix, schema, namespace in metadataFormats)
         prefixes.update(oldPrefixes)
@@ -93,7 +95,7 @@ class OaiJazz(object):
     def delete(self, identifier):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        oldPrefixes, oldSets = self._delete(identifier)
+        oldPrefixes, oldSets = self._purge(identifier)
         if not oldPrefixes and not self._deletePrefixes:
             return
         stamp = self._stamp()
@@ -164,6 +166,9 @@ class OaiJazz(object):
 
     def getLastStampId(self, prefix='oai_dc'):
         return self._prefixes.get(prefix, [None])[-1]
+
+    def getDeletedRecordType(self):
+        return "persistent" if self._persitentDelete else "transient"
 
     def suspend(self):
         suspend = Suspend()
@@ -245,7 +250,12 @@ class OaiJazz(object):
             result = int(result)
         return result
 
-    def _delete(self, identifier):
+    def purge(self, identifier):
+        if self._persitentDelete:
+            raise KeyError("Purging of records is not allowed with persistent deletes.")
+        self._purge(identifier)
+
+    def _purge(self, identifier):
         stamp = self.getUnique(identifier)
         stamp in self._tombStones and self._tombStones.remove(stamp)
         oldPrefixes = []

@@ -92,7 +92,7 @@ The response may include multiple instances of the following optional elements:
             'repositoryName': escapeXml(self._repositoryName),
             'baseURL': escapeXml(requestUrl(**httpkwargs)),
             'adminEmails': ''.join([ADMIN_EMAIL % escapeXml(email) for email in [self._adminEmail]]),
-            'deletedRecord': 'persistent',
+            'deletedRecord': self.call.getDeletedRecordType(),
         }
         values.update(hardcoded_values)
         yield oaiHeader(self)
