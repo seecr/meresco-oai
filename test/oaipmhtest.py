@@ -317,6 +317,16 @@ class _OaiPmhTest(CQ2TestCase):
     def testIllegalArgumentsListMetadataFormats(self):
         self.assertOaiError({'verb': ['ListMetadataFormats'], 'somethingElse': ['illegal']}, errorCode='badArgument')
 
+    def testObserverInit(self):
+        observer = CallTrace()
+        root = be((Observable(),
+            (OaiPmh(repositoryName='Repository', adminEmail='admin@cq2.nl', batchSize=BATCHSIZE),
+                (observer,),
+            )
+        ))
+        root.once.observer_init()
+        self.assertEquals(['observer_init'], [m.name for m in observer.calledMethods])
+
     def assertOaiError(self, arguments, errorCode, additionalMessage = ''):
         header, body = self._request(**arguments)
 

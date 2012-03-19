@@ -75,6 +75,9 @@ class OaiPmh(object):
             )
         )
 
+    def observer_init(self):
+        self._internalObserverTree.once.observer_init()
+
     def handleRequest(self, Method, arguments, Body=None, **kwargs):
         if Method == 'POST':
             arguments.update(parse_qs(Body))
