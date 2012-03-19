@@ -1,0 +1,41 @@
+Changeset created on Mon Mar 19 15:55:22 UTC 2012 by Seecr (Seek You Too B.V.)
+
+Description: Added observer_init to OaiPmh
+
+    OaiPmh needs to pass observer_init to its _internalObserverTree.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/3.6.19-Edurep/version_0
+
+diff --unidirectional-new-file --recursive --unified --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied version_0/meresco/oai/oaipmh.py /vol/extra_disk/development/meresco-oai/workingsets/3.6.19-Edurep/version_1/meresco/oai/oaipmh.py
+--- version_0/meresco/oai/oaipmh.py	2012-03-19 16:40:25.000000000 +0100
++++ version_1/meresco/oai/oaipmh.py	2012-03-19 16:55:13.000000000 +0100
+@@ -75,6 +75,9 @@
+             )
+         )
+ 
++    def observer_init(self):
++        self._internalObserverTree.once.observer_init()
++
+     def handleRequest(self, Method, arguments, Body=None, **kwargs):
+         if Method == 'POST':
+             arguments.update(parse_qs(Body))
+diff --unidirectional-new-file --recursive --unified --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude=deps.d --exclude=applied version_0/test/oaipmhtest.py /vol/extra_disk/development/meresco-oai/workingsets/3.6.19-Edurep/version_1/test/oaipmhtest.py
+--- version_0/test/oaipmhtest.py	2012-03-19 16:40:25.000000000 +0100
++++ version_1/test/oaipmhtest.py	2012-03-19 16:55:13.000000000 +0100
+@@ -317,6 +317,16 @@
+     def testIllegalArgumentsListMetadataFormats(self):
+         self.assertOaiError({'verb': ['ListMetadataFormats'], 'somethingElse': ['illegal']}, errorCode='badArgument')
+ 
++    def testObserverInit(self):
++        observer = CallTrace()
++        root = be((Observable(),
++            (OaiPmh(repositoryName='Repository', adminEmail='admin@cq2.nl', batchSize=BATCHSIZE),
++                (observer,),
++            )
++        ))
++        root.once.observer_init()
++        self.assertEquals(['observer_init'], [m.name for m in observer.calledMethods])
++
+     def assertOaiError(self, arguments, errorCode, additionalMessage = ''):
+         header, body = self._request(**arguments)
+ 
