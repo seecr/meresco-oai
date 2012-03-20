@@ -33,7 +33,7 @@
 from cgi import parse_qs
 
 from meresco.core import Transparent, Observable
-from weightless.core import be
+from weightless.core import be, compose
 from oaiidentify import OaiIdentify
 from oailist import OaiList
 from oaigetrecord import OaiGetRecord
@@ -73,6 +73,9 @@ class OaiPmh(object):
                 )
             )
         )
+
+    def observer_init(self):
+        list(compose(self._internalObserverTree.once.observer_init()))
 
     def handleRequest(self, Method, arguments, Body=None, **kwargs):
         if Method == 'POST':
