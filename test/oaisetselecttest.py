@@ -47,12 +47,24 @@ class OaiSetSelectTest(SeecrTestCase):
             )
         )
 
-    def testOne(self):
+    def testOaiSelect(self):
         self.dna.call.oaiSelect()
         self.assertEquals(1, len(self.observer.calledMethods))
         methodCalled = self.observer.calledMethods[0]
         self.assertTrue('sets' in methodCalled.kwargs, methodCalled)
         self.assertEquals(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
+
+    def testGetUniqueInSet(self):
+        self.observer.returnValues['getSets'] = ['set1']
+        self.dna.call.getUnique('xyz')
+        self.assertEquals(['getSets', 'getUnique'], [m.name for m in self.observer.calledMethods])
+        getUniqueCall = self.observer.calledMethods[1]
+        self.assertEquals(('xyz',), getUniqueCall.args)
+
+    def testGetUniqueNotInSet(self):
+        self.observer.returnValues['getSets'] = ['set4']
+        self.dna.call.getUnique('xyz')
+        self.assertEquals(['getSets'], [m.name for m in self.observer.calledMethods])
 
     def testOtherMethodsArePassed(self):
         self.observer.methods['getAllMetadataFormats'] = lambda *a, **kw: (x for x in [])

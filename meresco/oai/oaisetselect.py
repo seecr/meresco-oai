@@ -40,3 +40,9 @@ class OaiSetSelect(Transparent):
             sets = []
         sets += self._setsList
         return self.call.oaiSelect(sets=sets, *args, **kwargs)
+
+    def getUnique(self, identifier):
+        sets = self.call.getSets(identifier)
+        intersection = set(sets).intersection(self._setsList)
+        return self.call.getUnique(identifier) if intersection else None
+
