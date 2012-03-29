@@ -274,6 +274,9 @@ class OaiJazzTest(CQ2TestCase):
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
 
     def testGetLastStampId(self):
+        stampFunction = self.jazz._stamp
+        self.jazz = OaiJazz(self.tempdir, persistentDelete=False)
+        self.jazz._stamp = stampFunction
         self.assertEquals(None, self.jazz.getLastStampId('aPrefix'))
         newStamp = self.stampNumber
         self.jazz.addOaiRecord('id1', metadataFormats=[('aPrefix', 'schema', 'namespace')])
@@ -281,6 +284,9 @@ class OaiJazzTest(CQ2TestCase):
         newStamp = self.stampNumber
         self.jazz.addOaiRecord('id2', metadataFormats=[('aPrefix', 'schema', 'namespace')])
         self.assertEquals(newStamp, self.jazz.getLastStampId('aPrefix'))
+        self.jazz.purge('id2')
+        self.jazz.purge('id1')
+        self.assertEquals(None, self.jazz.getLastStampId('aPrefix'))
 
     def testIllegalSetRaisesException(self):
         # XSD: http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd

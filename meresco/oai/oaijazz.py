@@ -164,7 +164,9 @@ class OaiJazz(object):
         return len(self._prefixes.get(prefix, []))
 
     def getLastStampId(self, prefix='oai_dc'):
-        return self._prefixes.get(prefix, [None])[-1]
+        if prefix in self._prefixes and self._prefixes[prefix]:
+            stampIds = self._prefixes[prefix]
+            return stampIds[-1] if stampIds else None
 
     def getDeletedRecordType(self):
         return "persistent" if self._persitentDelete else "transient"
