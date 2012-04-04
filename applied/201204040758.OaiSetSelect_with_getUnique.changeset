@@ -1,0 +1,51 @@
+Changeset created on Wed Apr 04 07:58:15 UTC 2012 by Seecr (Seek You Too B.V.)
+
+Description: OaiSetSelect also filtering getUnique call for given sets
+
+    In the situation that some OAI-PMH interface should only expose OAI records from one or more given sets in the complete repository, a 'GetRecord' request for an identifier not in those sets would still yield the supposedly hidden record. This is now fixed by also filtering getUnique calls in the OaiSetSelect component.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/4.0.2-beeld-en-geluid/version_0
+
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaisetselect.py /home/jurjanpaul/development/sf/meresco-oai/workingsets/4.0.2-beeld-en-geluid/version_1/meresco/oai/oaisetselect.py
+--- version_0/meresco/oai/oaisetselect.py	2012-03-21 16:45:56.000000000 +0100
++++ version_1/meresco/oai/oaisetselect.py	2012-04-04 09:57:50.000000000 +0200
+@@ -40,3 +40,9 @@
+             sets = []
+         sets += self._setsList
+         return self.call.oaiSelect(sets=sets, *args, **kwargs)
++
++    def getUnique(self, identifier):
++        sets = self.call.getSets(identifier)
++        intersection = set(sets).intersection(self._setsList)
++        return self.call.getUnique(identifier) if intersection else None
++
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/test/oaisetselecttest.py /home/jurjanpaul/development/sf/meresco-oai/workingsets/4.0.2-beeld-en-geluid/version_1/test/oaisetselecttest.py
+--- version_0/test/oaisetselecttest.py	2012-03-21 16:45:56.000000000 +0100
++++ version_1/test/oaisetselecttest.py	2012-04-04 09:57:50.000000000 +0200
+@@ -47,13 +47,25 @@
+             )
+         )
+ 
+-    def testOne(self):
++    def testOaiSelect(self):
+         self.dna.call.oaiSelect()
+         self.assertEquals(1, len(self.observer.calledMethods))
+         methodCalled = self.observer.calledMethods[0]
+         self.assertTrue('sets' in methodCalled.kwargs, methodCalled)
+         self.assertEquals(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
+ 
++    def testGetUniqueInSet(self):
++        self.observer.returnValues['getSets'] = ['set1']
++        self.dna.call.getUnique('xyz')
++        self.assertEquals(['getSets', 'getUnique'], [m.name for m in self.observer.calledMethods])
++        getUniqueCall = self.observer.calledMethods[1]
++        self.assertEquals(('xyz',), getUniqueCall.args)
++
++    def testGetUniqueNotInSet(self):
++        self.observer.returnValues['getSets'] = ['set4']
++        self.dna.call.getUnique('xyz')
++        self.assertEquals(['getSets'], [m.name for m in self.observer.calledMethods])
++
+     def testOtherMethodsArePassed(self):
+         self.observer.methods['getAllMetadataFormats'] = lambda *a, **kw: (x for x in [])
+         list(compose(self.dna.all.getAllMetadataFormats()))
