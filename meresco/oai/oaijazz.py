@@ -53,7 +53,7 @@ class OaiJazz(object):
 
     version = '2'
 
-    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True):
+    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, name=None):
         self._directory = aDirectory
         isdir(aDirectory) or makedirs(aDirectory)
         self._versionFormatCheck()
@@ -72,6 +72,11 @@ class OaiJazz(object):
         self._deletePrefixes = alwaysDeleteInPrefixes or []
         self._preciseDatestamp = preciseDatestamp
         self._persitentDelete = persistentDelete
+
+        self._name = name
+
+    def observable_name(self):
+        return self._name
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
         if not identifier:

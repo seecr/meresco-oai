@@ -63,6 +63,16 @@ class OaiJazzTest(SeecrTestCase):
         self.oaiAddRecord = OaiAddRecord()
         self.oaiAddRecord.addObserver(self.jazz)
 
+    def testObservableName(self):
+        jazz = OaiJazz(self.tempdir, name='someName')
+        observable = Observable()
+        observable.addObserver(jazz)
+
+        self.assertEquals('someName', jazz.observable_name())
+
+        result = observable.call['someName'].getNrOfRecords()
+        self.assertEquals(0, result)
+
     def testOriginalStamp(self):
         jazz = OaiJazz(self.tempdir)
         stamp0 = jazz._stamp()
