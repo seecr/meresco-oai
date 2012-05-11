@@ -33,7 +33,7 @@
 
 from xml.sax.saxutils import escape as escapeXml
 from meresco.core import Observable
-from oaiutils import oaiHeader, oaiFooter, requestUrl, oaiRequestArgs
+from oaiutils import oaiHeader, oaiFooter, requestUrl, oaiRequestArgs, zuluTime
 from oaierror import oaiError
 
 class OaiIdentify(Observable):
@@ -78,6 +78,7 @@ The response may include multiple instances of the following optional elements:
         self._repositoryIdentifier = repositoryIdentifier
 
     def identify(self, arguments, **httpkwargs):
+        responseDate = zuluTime()
         if arguments.keys() != ['verb']:
             additionalMessage = 'Argument(s) %s is/are illegal.' % ", ".join('"%s"' % key for key in arguments.keys() if key != 'verb')
             yield oaiError('badArgument',
@@ -95,7 +96,7 @@ The response may include multiple instances of the following optional elements:
             'deletedRecord': self.any.getDeletedRecordType(),
         }
         values.update(hardcoded_values)
-        yield oaiHeader(self)
+        yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<Identify>'
         yield IDENTIFY % values

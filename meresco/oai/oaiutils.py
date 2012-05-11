@@ -3,8 +3,8 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components". 
 # 
-# Copyright (C) 2011 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -48,12 +48,13 @@ def requestUrl(Headers, path, port, **kwargs):
     hostname = Headers.get('Host', HOSTNAME).split(':')[0]
     return 'http://%s:%s%s' % (hostname, port, path)
 
-def oaiHeader(observable=None):
+def oaiHeader(observable=None, responseDate=None):
+    responseDate = zuluTime() if responseDate is None else responseDate
     yield okXml
     yield OAIHEADER
     if observable:
         yield observable.all.oaiWatermark()
-    yield RESPONSE_DATE % zuluTime()
+    yield RESPONSE_DATE % responseDate
 
 def oaiFooter():
     yield OAIFOOTER
