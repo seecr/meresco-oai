@@ -9,6 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -28,7 +29,7 @@
 # 
 ## end license ##
 
-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
 from meresco.core import Observable
 from xml.sax.saxutils import escape as xmlEscape
@@ -53,6 +54,7 @@ Error and Exception Conditions
         Observable.__init__(self)
 
     def listMetadataFormats(self, arguments, **httpkwargs):
+        responseDate = zuluTime()
         verb = arguments.get('verb', [None])[0]
         if not verb == 'ListMetadataFormats':
             return
@@ -71,7 +73,7 @@ Error and Exception Conditions
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
 
-        yield oaiHeader(self)
+        yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
         for metadataPrefix, schema, metadataNamespace in displayedMetadataFormats:

@@ -9,6 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -33,7 +34,7 @@ from meresco.core.observable import Observable
 from resumptiontoken import resumptionTokenFromString, ResumptionToken
 from oaitool import ISO8601, ISO8601Exception
 from itertools import chain, islice
-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
 
 
@@ -107,6 +108,7 @@ Error and Exception Conditions
 
         while True:
             try:
+                responseDate = zuluTime()
                 results = self._preProcess(validatedArguments, **httpkwargs)
                 break
             except OaiException, e:
@@ -117,7 +119,7 @@ Error and Exception Conditions
                     yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
                     return
         
-        yield oaiHeader(self)
+        yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
         yield self._process(verb, results, validatedArguments, **httpkwargs)

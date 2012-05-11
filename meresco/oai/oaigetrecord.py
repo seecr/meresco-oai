@@ -30,7 +30,7 @@
 ## end license ##
 
 from meresco.core.observable import Observable
-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
+from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
 
 class OaiGetRecord(Observable):
@@ -51,6 +51,7 @@ Error and Exception Conditions
     * idDoesNotExist - The value of the identifier argument is unknown or illegal in this repository.
 """
     def getRecord(self, arguments, **httpkwargs):
+        responseDate = zuluTime()
         verb = arguments.get('verb', [None])[0]
         if not verb == 'GetRecord':
             return
@@ -64,7 +65,7 @@ Error and Exception Conditions
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
 
-        yield oaiHeader(self)
+        yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
         yield self.all.oaiRecord(recordId=recordId, metadataPrefix=metadataPrefix)

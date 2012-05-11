@@ -9,6 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -30,7 +31,7 @@
 
 from meresco.core import Observable
 from weightless.core import compose
-from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl, oaiRequestArgs
+from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl, oaiRequestArgs, zuluTime
 
 class OaiError(Observable):
     def all_unknown(self, message, **kwargs):
@@ -58,10 +59,11 @@ class OaiError(Observable):
 
 
 def oaiError(statusCode, additionalMessage, arguments, **httpkwargs):
+    responseDate = zuluTime()
     space = additionalMessage and ' ' or ''
     message = ERROR_CODES[statusCode] + space + additionalMessage
 
-    yield oaiHeader()
+    yield oaiHeader(responseDate=responseDate)
     if statusCode in ["badArgument", "badResumptionToken", "badVerb"]:
         """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the response will not validate either"""
         yield oaiRequestArgs({}, **httpkwargs)
