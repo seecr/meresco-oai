@@ -1,0 +1,250 @@
+Changeset created on Fri May 11 11:44:16 UTC 2012 by Seecr (Seek You Too B.V.)
+
+Description: Determine ResponseDate at start
+
+    The datestamp in the responseDate tag in OAIPMH response is now determined
+    at the start of creating the response. For ListRecords calls this means that
+    new records inserted at the same time will be after the responsedate. Incremental
+    harvesting will now not miss a record.
+
+Baseline version: https://meresco.svn.sourceforge.net/svnroot/meresco/meresco-oai/workingsets/4.0.5-Edurep/version_0
+
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaierror.py /home/thijs/development/sf/meresco-oai/workingsets/4.0.5-Edurep/version_1/meresco/oai/oaierror.py
+--- version_0/meresco/oai/oaierror.py	2012-05-11 13:38:08.000000000 +0200
++++ version_1/meresco/oai/oaierror.py	2012-05-11 13:41:46.000000000 +0200
+@@ -9,6 +9,7 @@
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -30,7 +31,7 @@
+ 
+ from meresco.core import Observable
+ from weightless.core import compose
+-from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl, oaiRequestArgs
++from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl, oaiRequestArgs, zuluTime
+ 
+ class OaiError(Observable):
+     def all_unknown(self, message, **kwargs):
+@@ -58,10 +59,11 @@
+ 
+ 
+ def oaiError(statusCode, additionalMessage, arguments, **httpkwargs):
++    responseDate = zuluTime()
+     space = additionalMessage and ' ' or ''
+     message = ERROR_CODES[statusCode] + space + additionalMessage
+ 
+-    yield oaiHeader()
++    yield oaiHeader(responseDate=responseDate)
+     if statusCode in ["badArgument", "badResumptionToken", "badVerb"]:
+         """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the response will not validate either"""
+         yield oaiRequestArgs({}, **httpkwargs)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaigetrecord.py /home/thijs/development/sf/meresco-oai/workingsets/4.0.5-Edurep/version_1/meresco/oai/oaigetrecord.py
+--- version_0/meresco/oai/oaigetrecord.py	2012-05-11 13:38:08.000000000 +0200
++++ version_1/meresco/oai/oaigetrecord.py	2012-05-11 13:41:46.000000000 +0200
+@@ -30,7 +30,7 @@
+ ## end license ##
+ 
+ from meresco.core.observable import Observable
+-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
++from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
+ from oaierror import oaiError
+ 
+ class OaiGetRecord(Observable):
+@@ -51,6 +51,7 @@
+     * idDoesNotExist - The value of the identifier argument is unknown or illegal in this repository.
+ """
+     def getRecord(self, arguments, **httpkwargs):
++        responseDate = zuluTime()
+         verb = arguments.get('verb', [None])[0]
+         if not verb == 'GetRecord':
+             return
+@@ -64,7 +65,7 @@
+             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+             return
+ 
+-        yield oaiHeader(self)
++        yield oaiHeader(self, responseDate)
+         yield oaiRequestArgs(arguments, **httpkwargs)
+         yield '<%s>' % verb
+         yield self.all.oaiRecord(recordId=recordId, metadataPrefix=metadataPrefix)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaiidentify.py /home/thijs/development/sf/meresco-oai/workingsets/4.0.5-Edurep/version_1/meresco/oai/oaiidentify.py
+--- version_0/meresco/oai/oaiidentify.py	2012-05-11 13:38:08.000000000 +0200
++++ version_1/meresco/oai/oaiidentify.py	2012-05-11 13:41:46.000000000 +0200
+@@ -11,7 +11,7 @@
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
+ # Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -33,7 +33,7 @@
+ 
+ from xml.sax.saxutils import escape as escapeXml
+ from meresco.core import Observable
+-from oaiutils import oaiHeader, oaiFooter, requestUrl, oaiRequestArgs
++from oaiutils import oaiHeader, oaiFooter, requestUrl, oaiRequestArgs, zuluTime
+ from oaierror import oaiError
+ 
+ class OaiIdentify(Observable):
+@@ -78,6 +78,7 @@
+         self._repositoryIdentifier = repositoryIdentifier
+ 
+     def identify(self, arguments, **httpkwargs):
++        responseDate = zuluTime()
+         if arguments.keys() != ['verb']:
+             additionalMessage = 'Argument(s) %s is/are illegal.' % ", ".join('"%s"' % key for key in arguments.keys() if key != 'verb')
+             yield oaiError('badArgument',
+@@ -95,7 +96,7 @@
+             'deletedRecord': self.call.getDeletedRecordType(),
+         }
+         values.update(hardcoded_values)
+-        yield oaiHeader(self)
++        yield oaiHeader(self, responseDate)
+         yield oaiRequestArgs(arguments, **httpkwargs)
+         yield '<Identify>'
+         yield IDENTIFY % values
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oailistmetadataformats.py /home/thijs/development/sf/meresco-oai/workingsets/4.0.5-Edurep/version_1/meresco/oai/oailistmetadataformats.py
+--- version_0/meresco/oai/oailistmetadataformats.py	2012-05-11 13:38:08.000000000 +0200
++++ version_1/meresco/oai/oailistmetadataformats.py	2012-05-11 13:41:46.000000000 +0200
+@@ -9,6 +9,7 @@
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -28,7 +29,7 @@
+ # 
+ ## end license ##
+ 
+-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
++from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
+ from oaierror import oaiError
+ from meresco.core import Observable
+ from xml.sax.saxutils import escape as xmlEscape
+@@ -53,6 +54,7 @@
+         Observable.__init__(self)
+ 
+     def listMetadataFormats(self, arguments, **httpkwargs):
++        responseDate = zuluTime()
+         verb = arguments.get('verb', [None])[0]
+         if not verb == 'ListMetadataFormats':
+             return
+@@ -71,7 +73,7 @@
+             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+             return
+ 
+-        yield oaiHeader(self)
++        yield oaiHeader(self, responseDate)
+         yield oaiRequestArgs(arguments, **httpkwargs)
+         yield '<%s>' % verb
+         for metadataPrefix, schema, metadataNamespace in displayedMetadataFormats:
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oailist.py /home/thijs/development/sf/meresco-oai/workingsets/4.0.5-Edurep/version_1/meresco/oai/oailist.py
+--- version_0/meresco/oai/oailist.py	2012-05-11 13:38:08.000000000 +0200
++++ version_1/meresco/oai/oailist.py	2012-05-11 13:41:46.000000000 +0200
+@@ -9,6 +9,7 @@
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -33,7 +34,7 @@
+ from resumptiontoken import resumptionTokenFromString, ResumptionToken
+ from oaitool import ISO8601, ISO8601Exception
+ from itertools import chain, islice
+-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
++from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
+ from oaierror import oaiError
+ 
+ 
+@@ -107,6 +108,7 @@
+ 
+         while True:
+             try:
++                responseDate = zuluTime()
+                 results = self._preProcess(validatedArguments, **httpkwargs)
+                 break
+             except OaiException, e:
+@@ -117,7 +119,7 @@
+                     yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+                     return
+         
+-        yield oaiHeader(self)
++        yield oaiHeader(self, responseDate)
+         yield oaiRequestArgs(arguments, **httpkwargs)
+         yield '<%s>' % verb
+         yield self._process(verb, results, validatedArguments, **httpkwargs)
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oailistsets.py /home/thijs/development/sf/meresco-oai/workingsets/4.0.5-Edurep/version_1/meresco/oai/oailistsets.py
+--- version_0/meresco/oai/oailistsets.py	2012-05-11 13:38:08.000000000 +0200
++++ version_1/meresco/oai/oailistsets.py	2012-05-11 13:41:46.000000000 +0200
+@@ -9,6 +9,7 @@
+ # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
+ # Copyright (C) 2009 Tilburg University http://www.uvt.nl
+ # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
++# Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -28,7 +29,7 @@
+ # 
+ ## end license ##
+ 
+-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException
++from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
+ from oaierror import oaiError
+ from meresco.core.observable import Observable
+ 
+@@ -51,6 +52,7 @@
+         Observable.__init__(self)
+ 
+     def listSets(self, arguments, **httpkwargs):
++        responseDate = zuluTime()
+         verb = arguments.get('verb', [None])[0]
+         if not verb == 'ListSets':
+             return
+@@ -67,7 +69,7 @@
+             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+             return
+ 
+-        yield oaiHeader(self)
++        yield oaiHeader(self, responseDate)
+         yield oaiRequestArgs(arguments, **httpkwargs)
+         yield '<%s>' % verb
+         for setSpec in sets:
+diff --unidirectional-new-file --recursive --unified '--exclude=*.so' '--exclude=*.o' '--exclude=.svn' '--exclude=*.pyc' '--exclude=deps.d' '--exclude=applied' version_0/meresco/oai/oaiutils.py /home/thijs/development/sf/meresco-oai/workingsets/4.0.5-Edurep/version_1/meresco/oai/oaiutils.py
+--- version_0/meresco/oai/oaiutils.py	2012-05-11 13:38:08.000000000 +0200
++++ version_1/meresco/oai/oaiutils.py	2012-05-11 13:41:46.000000000 +0200
+@@ -4,7 +4,7 @@
+ # "Meresco Core" and "Meresco Components". 
+ # 
+ # Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
++# Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
+ # 
+ # This file is part of "Meresco Oai"
+ # 
+@@ -48,12 +48,13 @@
+     hostname = Headers.get('Host', HOSTNAME).split(':')[0]
+     return 'http://%s:%s%s' % (hostname, port, path)
+ 
+-def oaiHeader(observable=None):
++def oaiHeader(observable=None, responseDate=None):
++    responseDate = zuluTime() if responseDate is None else responseDate
+     yield okXml
+     yield OAIHEADER
+     if observable:
+         yield observable.all.oaiWatermark()
+-    yield RESPONSE_DATE % zuluTime()
++    yield RESPONSE_DATE % responseDate
+ 
+ def oaiFooter():
+     yield OAIFOOTER
