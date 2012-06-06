@@ -31,18 +31,20 @@
 from meresco.core import Transparent
 
 class OaiSetSelect(Transparent):
-    def __init__(self, setsList):
-        Transparent.__init__(self)
-        self._setsList = setsList
+    """A setsMask needs to be specified as a list or set of setSpecs. 
+If more than one setSpec is specified, the mask takes the form of the intersection of these setSpecs."""
 
-    def oaiSelect(self, sets=[], *args, **kwargs):
-        if not sets:
-            sets = []
-        sets += self._setsList
-        return self.call.oaiSelect(sets=sets, *args, **kwargs)
+    def __init__(self, setsMask):
+        Transparent.__init__(self)
+        self._setsMask = setsMask
+
+    def oaiSelect(self, setsMask=None, *args, **kwargs):
+        setsMask = list(set((setsMask or []) + self._setsMask))
+        return self.call.oaiSelect(setsMask=setsMask, *args, **kwargs)
 
     def getUnique(self, identifier):
+        raise Exception("TODO: intersect values in self._setsMask")
         sets = self.call.getSets(identifier)
-        intersection = set(sets).intersection(self._setsList)
+        intersection = set(sets).intersection(self._setsMask)
         return self.call.getUnique(identifier) if intersection else None
 

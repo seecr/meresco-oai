@@ -108,18 +108,21 @@ class OaiJazz(object):
         self._tombStones.append(stamp)
         self._resume()
 
-    def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None):
-        sets = [] if sets == None else sets
+    def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
+        setsMask = setsMask or []
+        sets = sets or []
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
         stop = self._untilTime(oaiUntil)
         stampIds = self._sliceStampIds(self._prefixes.get(prefix, []), start, stop)
-        if sets:
-            allStampIdsFromSets = (
-                self._sliceStampIds(self._sets.get(setSpec, []), start, stop)
-                for setSpec in sets
-            )
+        setsStampIds = {}
+        for setSpec in set(setsMask + sets):
+            setsStampIds[setSpec] = self._sliceStampIds(self._sets.get(setSpec, []), start, stop)
+        if setsMask:
             stampIds = AndIterator(stampIds,
-                reduce(OrIterator, allStampIdsFromSets))
+                reduce(AndIterator, (setsStampIds[setSpec] for setSpec in setsMask))) 
+        if sets:
+            stampIds = AndIterator(stampIds,
+                reduce(OrIterator, (setsStampIds[setSpec] for setSpec in sets)))
         idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
         return (RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None)
 
