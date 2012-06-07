@@ -31,8 +31,8 @@ class OaiSetMask(Transparent):
 If more than one setSpec is specified (in a single instance or by chaining), 
 the mask takes the form of the intersection of these setSpecs."""
 
-    def __init__(self, setsMask):
-        Transparent.__init__(self)
+    def __init__(self, setsMask, name=None):
+        Transparent.__init__(self, name=name)
         self._setsMask = set(setsMask)
 
     def oaiSelect(self, setsMask=None, *args, **kwargs):

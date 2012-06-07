@@ -41,7 +41,7 @@ class OaiSetMaskTest(SeecrTestCase):
 
         self.dna = be(
             (Observable(),
-                (OaiSetMask(['set1', 'set2']),
+                (OaiSetMask(['set1', 'set2'], name="set1|set2 mask"),
                     (self.observer,)
                 )
             )
