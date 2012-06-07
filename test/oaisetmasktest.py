@@ -31,17 +31,17 @@
 from seecr.test import SeecrTestCase, CallTrace
 
 from meresco.core import Observable
-from meresco.oai import OaiSetSelect
+from meresco.oai import OaiSetMask
 from weightless.core import be, compose
 
-class OaiSetSelectTest(SeecrTestCase):
+class OaiSetMaskTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
         self.observer = CallTrace()
 
         self.dna = be(
             (Observable(),
-                (OaiSetSelect(['set1', 'set2']),
+                (OaiSetMask(['set1', 'set2']),
                     (self.observer,)
                 )
             )
@@ -51,19 +51,36 @@ class OaiSetSelectTest(SeecrTestCase):
         self.dna.call.oaiSelect()
         self.assertEquals(1, len(self.observer.calledMethods))
         methodCalled = self.observer.calledMethods[0]
-        self.assertTrue('sets' in methodCalled.kwargs, methodCalled)
-        self.assertEquals(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
+        self.assertEquals(set(['set1', 'set2']), self.observer.calledMethods[0].kwargs['setsMask'])
 
-    def testGetUniqueInSet(self):
-        self.observer.returnValues['getSets'] = ['set1']
+    def testOaiSelectWithSetsMask(self):
+        self.dna.call.oaiSelect(setsMask=['set3'])
+        self.assertEquals(1, len(self.observer.calledMethods))
+        methodCalled = self.observer.calledMethods[0]
+        self.assertEquals(set(['set1', 'set2', 'set3']), self.observer.calledMethods[0].kwargs['setsMask'])
+
+    def testGetUniqueInSets(self):
+        self.observer.returnValues['getSets'] = ['set1', 'set2', 'set3']
         self.dna.call.getUnique('xyz')
         self.assertEquals(['getSets', 'getUnique'], [m.name for m in self.observer.calledMethods])
         getUniqueCall = self.observer.calledMethods[1]
         self.assertEquals(('xyz',), getUniqueCall.args)
 
-    def testGetUniqueNotInSet(self):
-        self.observer.returnValues['getSets'] = ['set4']
+    def testGetUniqueNotInSets(self):
+        self.observer.returnValues['getSets'] = ['set1']
         self.dna.call.getUnique('xyz')
+        self.assertEquals(['getSets'], [m.name for m in self.observer.calledMethods])
+
+    def testGetUniqueWithSetsMask(self):
+        self.observer.returnValues['getSets'] = ['set1', 'set2', 'set3']
+        self.dna.call.getUnique('xyz', setsMask=['set3'])
+        self.assertEquals(['getSets', 'getUnique'], [m.name for m in self.observer.calledMethods])
+        getUniqueCall = self.observer.calledMethods[1]
+        self.assertEquals(('xyz',), getUniqueCall.args)
+
+        self.observer.calledMethods.reset()
+        self.observer.returnValues['getSets'] = ['set1', 'set2']
+        self.dna.call.getUnique('xyz', setsMask=['set3'])
         self.assertEquals(['getSets'], [m.name for m in self.observer.calledMethods])
 
     def testOtherMethodsArePassed(self):
@@ -72,10 +89,3 @@ class OaiSetSelectTest(SeecrTestCase):
         self.assertEquals(1, len(self.observer.calledMethods))
         self.assertEquals('getAllMetadataFormats', self.observer.calledMethods[0].name)
 
-    def testSetsIsNone(self):
-        self.dna.call.oaiSelect(sets=None)
-        self.assertEquals(1, len(self.observer.calledMethods))
-        methodCalled = self.observer.calledMethods[0]
-        self.assertTrue('sets' in methodCalled.kwargs, methodCalled)
-        self.assertEquals(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
-        

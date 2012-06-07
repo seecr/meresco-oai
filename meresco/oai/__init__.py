@@ -32,7 +32,8 @@
 
 from oaipmh import OaiPmh
 from oaiprovenance import OaiProvenance
-from oaisetselect import OaiSetSelect
+from oaisetmask import OaiSetMask
+from oaisetselect import OaiSetSelect # deprecated
 from oaiidentifierrename import OaiIdentifierRename
 from fields2oairecord import Fields2OaiRecord
 from oaijazz import OaiJazz

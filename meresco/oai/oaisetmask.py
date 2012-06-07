@@ -3,12 +3,8 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components". 
 # 
-# Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
-# Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
-# Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
-# Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
-# Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Nederlands Instituut voor Beeld en Geluid  http://www.beeldengeluid.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -28,23 +24,26 @@
 # 
 ## end license ##
 
-from warnings import warn
 from meresco.core import Transparent
 
-class OaiSetSelect(Transparent):
-    def __init__(self, setsList):
-        warn("OaiSetSelect is deprecated; you probably need OaiSetMask instead.", DeprecationWarning)
+class OaiSetMask(Transparent):
+    """A setsMask needs to be specified as a list or set of setSpecs. 
+If more than one setSpec is specified (in a single instance or by chaining), 
+the mask takes the form of the intersection of these setSpecs."""
+
+    def __init__(self, setsMask):
         Transparent.__init__(self)
-        self._setsList = setsList
+        self._setsMask = set(setsMask)
 
-    def oaiSelect(self, sets=[], *args, **kwargs):
-        if not sets:
-            sets = []
-        sets += self._setsList
-        return self.call.oaiSelect(sets=sets, *args, **kwargs)
+    def oaiSelect(self, setsMask=None, *args, **kwargs):
+        return self.call.oaiSelect(setsMask=self._combinedSetsMask(setsMask), *args, **kwargs)
 
-    def getUnique(self, identifier):
+    def getUnique(self, identifier, setsMask=None):
         sets = self.call.getSets(identifier)
-        intersection = set(sets).intersection(self._setsList)
-        return self.call.getUnique(identifier) if intersection else None
+        if self._combinedSetsMask(setsMask).issubset(sets):
+            return self.call.getUnique(identifier)
+        return None
+
+    def _combinedSetsMask(self, setsMask):
+        return self._setsMask.union(setsMask or [])
 
