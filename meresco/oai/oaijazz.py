@@ -114,9 +114,10 @@ class OaiJazz(object):
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
         stop = self._untilTime(oaiUntil)
         stampIds = self._sliceStampIds(self._prefixes.get(prefix, []), start, stop)
-        setsStampIds = {}
-        for setSpec in set(setsMask + sets):
-            setsStampIds[setSpec] = self._sliceStampIds(self._sets.get(setSpec, []), start, stop)
+        setsStampIds = dict(
+            (setSpec, self._sliceStampIds(self._sets.get(setSpec, []), start, stop))
+            for setSpec in set(setsMask).union(sets)
+        )
         if setsMask:
             stampIds = AndIterator(stampIds,
                 reduce(AndIterator, (setsStampIds[setSpec] for setSpec in setsMask))) 

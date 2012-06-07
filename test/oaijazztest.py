@@ -399,8 +399,8 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('id1', sets=[('set1', 'set1name'), ('set3', 'set3name'), ('set4', 'set4name')], metadataFormats=[('prefix','schema', 'namespace')])
         self.jazz.addOaiRecord('id2', sets=[('set2', 'set2name'), ('set3', 'set3name')], metadataFormats=[('prefix','schema', 'namespace')])
         self.jazz.addOaiRecord('id2.1', sets=[('set2', 'set2name')], metadataFormats=[('prefix','schema', 'namespace')])
-        self.assertEquals(['id1', 'id2'], list(self.jazz.oaiSelect(sets=['set1', 'set2'], prefix='prefix', setsMask=['set3'])))
-        self.assertEquals(['id1'], list(self.jazz.oaiSelect(sets=['set1', 'set2'], prefix='prefix', setsMask=['set3', 'set4'])))
+        self.assertEquals(['id1', 'id2'], list(self.jazz.oaiSelect(sets=['set1', 'set2'], prefix='prefix', setsMask=set(['set3']))))
+        self.assertEquals(['id1'], list(self.jazz.oaiSelect(sets=['set1', 'set2'], prefix='prefix', setsMask=set(['set3', 'set4']))))
 
 
     def testListRecordsNoResults(self):
