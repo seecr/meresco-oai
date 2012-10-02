@@ -11,6 +11,7 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -207,6 +208,23 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
         jazz2 = OaiJazz(self.tempdir)
         self.assertEquals(['42'], list(jazz2.oaiSelect(prefix='prefix', sets=['setSpec'])))
+
+    def testUnicodeIdentifier(self):
+        self.jazz.addOaiRecord(u'ë', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
+        jazz2 = OaiJazz(self.tempdir)
+        self.assertEquals(['ë'], list(jazz2.oaiSelect(prefix='prefix', sets=['setSpec'])))
+        self.assertFalse(jazz2.isDeleted(u'ë'))
+        list(compose(jazz2.delete(u'ë')))
+        self.assertTrue(jazz2.isDeleted('ë'))
+        self.assertTrue(jazz2.isDeleted(u'ë'))
+        self.assertNotEquals(None, jazz2.getDatestamp(u'ë'))
+        self.assertNotEquals(None, jazz2.getUnique(u'ë'))
+        self.assertEquals(['setSpec'], jazz2.getSets(u'ë'))
+        self.assertEquals(['prefix'], list(jazz2.getPrefixes(u'ë')))
+
+        jazz3 = OaiJazz(self.tempdir, persistentDelete=False)
+        jazz3.purge(u'ë')
+        self.assertEquals([], list(jazz3.oaiSelect(prefix='prefix', sets=['setSpec'])))
 
     def testWeirdSetOrPrefixNamesDoNotMatter(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('/%^!@#$   \n\t','schema', 'namespace')], sets=[('set%2Spec\n\n', 'setName')])

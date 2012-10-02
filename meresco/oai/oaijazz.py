@@ -11,6 +11,7 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -81,6 +82,7 @@ class OaiJazz(object):
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
+        identifier = safeString(identifier)
         sets = sets or []
         metadataFormats = metadataFormats or []
         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
@@ -100,6 +102,7 @@ class OaiJazz(object):
     def delete(self, identifier):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
+        identifier = safeString(identifier)
         oldPrefixes, oldSets = self._purge(identifier)
         if not oldPrefixes and not self._deletePrefixes:
             return
@@ -157,6 +160,7 @@ class OaiJazz(object):
         return self._prefixes.keys()
 
     def getSets(self, identifier):
+        identifier = safeString(identifier)
         if identifier not in self._identifier2setSpecs:
             return []
         return self._identifier2setSpecs[identifier].split(SETSPEC_SEPARATOR)
@@ -256,7 +260,7 @@ class OaiJazz(object):
         return self._stamp2identifier.get(str(stamp), None)
 
     def _getStamp(self, identifier):
-        result = self._stamp2identifier.getKeyFor(identifier)
+        result = self._stamp2identifier.getKeyFor(safeString(identifier))
         if result != None:
             result = int(result)
         return result
@@ -264,7 +268,7 @@ class OaiJazz(object):
     def purge(self, identifier):
         if self._persitentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
-        self._purge(identifier)
+        self._purge(safeString(identifier))
 
     def _purge(self, identifier):
         stamp = self.getUnique(identifier)
@@ -342,3 +346,5 @@ def _flattenSetHierarchy(sets):
             result.add(':'.join(parts[:i]))
     return result
 
+def safeString(aString):
+    return str(aString) if type(aString) is unicode else aString
