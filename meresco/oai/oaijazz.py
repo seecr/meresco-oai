@@ -72,7 +72,7 @@ class OaiJazz(object):
         self._suspended = []
         self._deletePrefixes = alwaysDeleteInPrefixes or []
         self._preciseDatestamp = preciseDatestamp
-        self._persitentDelete = persistentDelete
+        self._persistentDelete = persistentDelete
 
         self._name = name
 
@@ -183,7 +183,7 @@ class OaiJazz(object):
             return stampIds[-1] if stampIds else None
 
     def getDeletedRecordType(self):
-        return "persistent" if self._persitentDelete else "transient"
+        return "persistent" if self._persistentDelete else "transient"
 
     def suspend(self):
         suspend = Suspend()
@@ -266,7 +266,7 @@ class OaiJazz(object):
         return result
 
     def purge(self, identifier):
-        if self._persitentDelete:
+        if self._persistentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
         self._purge(safeString(identifier))
 
