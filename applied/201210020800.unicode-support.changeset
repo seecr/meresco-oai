@@ -83,7 +83,7 @@ diff --unidirectional-new-file --recursive --unified --exclude='*.so' --exclude=
      return result
  
 +def safeString(aString):
-+    return str(aString) if type(aString) is unicode else aString
++    return str(aString) if isinstance(aString, unicode) else aString
 diff --unidirectional-new-file --recursive --unified --exclude='*.so' --exclude='*.o' --exclude=.svn --exclude='*.pyc' --exclude='*.swp' --exclude=deps.d --exclude=applied version_0/test/oaijazztest.py /home/zp/development/meresco-oai/workingsets/4.0.7-BNL/version_1/test/oaijazztest.py
 --- version_0/test/oaijazztest.py	2012-10-02 08:10:29.000000000 +0100
 +++ version_1/test/oaijazztest.py	2012-10-02 09:00:35.000000000 +0100

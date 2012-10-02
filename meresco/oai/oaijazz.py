@@ -347,4 +347,5 @@ def _flattenSetHierarchy(sets):
     return result
 
 def safeString(aString):
-    return str(aString) if type(aString) is unicode else aString
+    return str(aString) if isinstance(aString, unicode) else aString
+
