@@ -7,6 +7,7 @@
 # Copyright (C) 2010 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -28,7 +29,7 @@
 
 from socket import socket, error as SocketError, SHUT_WR, SHUT_RD, SOL_SOCKET, SO_ERROR
 from errno import EINPROGRESS, ECONNREFUSED
-from lxml.etree import parse, ElementTree
+from lxml.etree import parse, ElementTree, tostring
 from StringIO import StringIO
 from traceback import format_exc
 from os import makedirs, close, remove
@@ -87,7 +88,13 @@ class OaiDownloadProcessor(Observable):
                 header = xpath(item, headerXPath)[0]
                 datestamp = xpath(header, 'oai:datestamp/text()')[0]
                 identifier = xpath(header, 'oai:identifier/text()')[0]
-                yield self.all.add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
+                try:
+                    yield self.all.add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
+                except:
+                    self._logError(format_exc())
+                    self._logError("While processing:")
+                    self._logError(tostring(item))
+                    raise
                 yield # some room for others
             self._resumptionToken = head(xpath(verbNode, "oai:resumptionToken/text()"))
         finally:

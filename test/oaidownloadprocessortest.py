@@ -7,6 +7,7 @@
 # Copyright (C) 2010 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -26,7 +27,6 @@
 # 
 ## end license ##
 
-from __future__ import with_statement
 from contextlib import contextmanager
 from random import randint
 from threading import Event, Thread
@@ -160,7 +160,9 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
         self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))))
         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
-        self.assertEquals("", oaiDownloadProcessor._err.getvalue())
+        errorOutput = oaiDownloadProcessor._err.getvalue()
+        self.assertTrue(errorOutput.startswith('Traceback'), errorOutput)
+        self.assertTrue(errorOutput.endswith('Exception: Could be anything\nWhile processing:\n<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>%s\n  \n'), errorOutput)
         self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
 
     def testHandleYieldsAtLeastOnceAfterEachRecord(self):
