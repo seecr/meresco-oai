@@ -42,6 +42,7 @@ from meresco.components.http.utils import CRLF
 from sys import stderr, stdout
 from time import time
 from tempfile import mkstemp
+from simplejson import dump, loads
 
 
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
@@ -51,6 +52,7 @@ class OaiDownloadProcessor(Observable):
         Observable.__init__(self)
         self._metadataPrefix = metadataPrefix
         self._resumptionToken = None
+        self._errorState = None
         self._set = set
         self._xWait = xWait
         self._path = path
@@ -77,7 +79,8 @@ class OaiDownloadProcessor(Observable):
         errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
         if len(errors) > 0:
             for error in errors:
-                self._logError("%s: %s" % (error.get("code"), error.text))
+                self._errorState = "%s: %s" % (error.get("code"), error.text)
+                self._logError(self._errorState)
             self._resumptionToken = None
             self._writeState()                
             return
@@ -90,25 +93,40 @@ class OaiDownloadProcessor(Observable):
                 identifier = xpath(header, 'oai:identifier/text()')[0]
                 try:
                     yield self.all.add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
-                except:
+                except Exception, e:
                     self._logError(format_exc())
                     self._logError("While processing:")
                     self._logError(tostring(item))
+                    self._errorState = "ERROR while processing '%s': %s" % (identifier, str(e))
                     raise
+                self._errorState = None
                 yield # some room for others
             self._resumptionToken = head(xpath(verbNode, "oai:resumptionToken/text()"))
         finally:
             self._writeState()
 
     def _writeState(self):
-        open(self._stateFilePath, 'w').write("%s%s" % (RESUMPTIONTOKEN_STATE, self._resumptionToken))
+        with open(self._stateFilePath, 'w') as f:
+            dump({
+                'resumptionToken': self._resumptionToken,
+                'errorState': self._errorState,
+            },f)
 
     def _readState(self):
         self._resumptionToken = ''
+        self._errorState = None
         if isfile(self._stateFilePath):
             state = open(self._stateFilePath).read()
-            if RESUMPTIONTOKEN_STATE in state:
-                self._resumptionToken = state.split(RESUMPTIONTOKEN_STATE)[-1].strip()
+            if not state.startswith('{'):
+                if RESUMPTIONTOKEN_STATE in state:
+                    self._resumptionToken = state.split(RESUMPTIONTOKEN_STATE)[-1].strip()
+                self._writeState()
+                return
+            d = loads(state)
+            self._resumptionToken = d['resumptionToken']
+            self._errorState = d['errorState']
+
+
 
     def _logError(self, message):
         self._err.write(message)
@@ -122,6 +140,10 @@ class OaiDownloadProcessor(Observable):
 class HarvestStateView(object):
     def __init__(self, oaiDownloadProcessor):
         self._processor = oaiDownloadProcessor
+
+    @property
+    def errorState(self):
+        return self._processor._errorState
 
     @property
     def resumptionToken(self):

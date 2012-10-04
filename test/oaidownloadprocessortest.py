@@ -130,7 +130,6 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.addObserver(observer)
         list(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))
         self.assertEquals('x?y&z', oaiDownloadProcessor._resumptionToken)
-        self.assertEquals('Resumptiontoken: x?y&z', open(oaiDownloadProcessor._stateFilePath).read())
         self.assertEquals('GET /oai?verb=ListRecords&resumptionToken=x%3Fy%26z&x-wait=True HTTP/1.0\r\n\r\n', oaiDownloadProcessor.buildRequest())
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         self.assertEquals('x?y&z', oaiDownloadProcessor._resumptionToken)
@@ -193,8 +192,31 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         oaiDownloadProcessor.addObserver(observer)
         list(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))
-        self.assertEquals("x?y&z", oaiDownloadProcessor.getState().resumptionToken)
+        state = oaiDownloadProcessor.getState()
+        self.assertEquals("x?y&z", state.resumptionToken)
+        self.assertEquals(None, state.errorState)
 
+        oaiDownloadProcessor2 = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
+        state2 = oaiDownloadProcessor2.getState()
+        self.assertEquals("x?y&z", state2.resumptionToken)
+        self.assertEquals(None, state2.errorState)
+
+    def testHarvesterStateWithError(self):
+        resumptionToken = "u|c1286437597991025|mprefix|s|f"
+        open(join(self.tempdir, 'harvester.state'), 'w').write("Resumptiontoken: %s\n" % resumptionToken)
+        observer = CallTrace()
+        observer.exceptions={'add': Exception("Could be anything")}
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
+        oaiDownloadProcessor.addObserver(observer)
+        self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))))
+        state = oaiDownloadProcessor.getState()
+        self.assertEquals(resumptionToken, state.resumptionToken)
+        self.assertEquals("ERROR while processing 'oai:identifier:1': Could be anything", state.errorState)
+
+        oaiDownloadProcessor2 = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
+        state2 = oaiDownloadProcessor2.getState()
+        self.assertEquals(resumptionToken, state2.resumptionToken)
+        self.assertEquals("ERROR while processing 'oai:identifier:1': Could be anything", state2.errorState)
 
 ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>'
 
