@@ -9,6 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -40,7 +41,13 @@ class ResumptionTokenTest(SeecrTestCase):
     
     def testResumptionToken(self):
         self.assertResumptionToken(ResumptionToken())
-        self.assertResumptionToken(ResumptionToken('oai:dc', '100', '2002-06-01T19:20:30Z', '2002-06-01T19:20:39Z', 'some:set:name'))
-        self.assertResumptionToken(ResumptionToken(_set=None))
+        resumptionToken = ResumptionToken(metadataPrefix='oai:dc', continueAfter='100', from_='2002-06-01T19:20:30Z', until='2002-06-01T19:20:39Z', set_='some:set:name')
+        self.assertResumptionToken(resumptionToken)
+        self.assertEquals('oai:dc', resumptionToken.metadataPrefix)
+        self.assertEquals('100', resumptionToken.continueAfter)
+        self.assertEquals('2002-06-01T19:20:30Z', resumptionToken.from_)
+        self.assertEquals('2002-06-01T19:20:39Z', resumptionToken.until)
+        self.assertEquals('some:set:name', resumptionToken.set_)
+        self.assertResumptionToken(ResumptionToken(set_=None))
 
     

@@ -188,6 +188,13 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         yields = list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
         self.assertEquals([suspend, None], yields)
 
+    def testHarvesterState(self):
+        observer = CallTrace()
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
+        oaiDownloadProcessor.addObserver(observer)
+        list(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))
+        self.assertEquals("x?y&z", oaiDownloadProcessor.getState().resumptionToken)
+
 
 ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>'
 

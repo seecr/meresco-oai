@@ -137,10 +137,9 @@ class OaiJazz(object):
                 
     def getDatestamp(self, identifier):
         stamp = self.getUnique(identifier)
-        if stamp == None:
+        if stamp is None:
             return None
-        microseconds = ".%s" % (stamp % DATESTAMP_FACTOR) if self._preciseDatestamp else ""
-        return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp/DATESTAMP_FACTOR_FLOAT)), microseconds)
+        return _stamp2zulutime(stamp=stamp, preciseDatestamp=self._preciseDatestamp)
 
     def getUnique(self, identifier):
         if hasattr(identifier, 'stamp'):
@@ -149,7 +148,7 @@ class OaiJazz(object):
 
     def isDeleted(self, identifier):
         stamp = self.getUnique(identifier)
-        if stamp == None:
+        if stamp is None:
             return False
         return stamp in self._tombStones
 
@@ -349,3 +348,11 @@ def _flattenSetHierarchy(sets):
 def safeString(aString):
     return str(aString) if isinstance(aString, unicode) else aString
 
+def stamp2zulutime(stamp):
+    if stamp is None:
+        return ''
+    return _stamp2zulutime(int(stamp))
+
+def _stamp2zulutime(stamp, preciseDatestamp=False):
+    microseconds = ".%s" % (stamp % DATESTAMP_FACTOR) if preciseDatestamp else ""
+    return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp/DATESTAMP_FACTOR_FLOAT)), microseconds)

@@ -9,6 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # 
 # This file is part of "Meresco Oai"
@@ -152,44 +153,44 @@ Error and Exception Conditions
             token = resumptionTokenFromString(validatedArguments['resumptionToken'])
             if not token:
                 raise OaiException("badResumptionToken")
-            continueAfter = token._continueAfter
-            _from = token._from
-            _until = token._until
-            _set = token._set
-            _metadataPrefix = token._metadataPrefix
+            continueAfter = token.continueAfter
+            from_ = token.from_
+            until = token.until
+            set_ = token.set_
+            metadataPrefix = token.metadataPrefix
         else:
             continueAfter = '0'
-            _from = validatedArguments.get('from', None)
-            _until = validatedArguments.get('until', None)
-            _set = validatedArguments.get('set', None)
-            _metadataPrefix = validatedArguments.get('metadataPrefix', None)
+            from_ = validatedArguments.get('from', None)
+            until = validatedArguments.get('until', None)
+            set_ = validatedArguments.get('set', None)
+            metadataPrefix = validatedArguments.get('metadataPrefix', None)
 
             try:
-                _from = _from and ISO8601(_from)
-                _until = _until and ISO8601(_until) 
-                if _from and _until:
-                    if _from.isShort() != _until.isShort():
+                from_ = from_ and ISO8601(from_)
+                until = until and ISO8601(until) 
+                if from_ and until:
+                    if from_.isShort() != until.isShort():
                         raise OaiBadArgumentException('From and/or until arguments must match in length.')
-                    if str(_from) > str(_until):
+                    if str(from_) > str(until):
                         raise OaiBadArgumentException('From argument must be smaller than until argument.')
-                _from = _from and _from.floor()
-                _until = _until and _until.ceil()
+                from_ = from_ and from_.floor()
+                until = until and until.ceil()
             except ISO8601Exception, e:
                 raise OaiBadArgumentException('From and/or until arguments are faulty.')
 
-        if not _metadataPrefix in set(self.call.getAllPrefixes()):
+        if not metadataPrefix in set(self.call.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
 
-        validatedArguments['from'] = _from
-        validatedArguments['until'] = _until
-        validatedArguments['set'] = _set
-        validatedArguments['metadataPrefix'] = _metadataPrefix
+        validatedArguments['from'] = from_
+        validatedArguments['until'] = until
+        validatedArguments['set'] = set_
+        validatedArguments['metadataPrefix'] = metadataPrefix
         result = self.call.oaiSelect(
-            sets=[_set] if _set else None,
-            prefix=_metadataPrefix,
+            sets=[set_] if set_ else None,
+            prefix=metadataPrefix,
             continueAfter=continueAfter,
-            oaiFrom=_from,
-            oaiUntil=_until)
+            oaiFrom=from_,
+            oaiUntil=until)
         try:
             firstRecord = result.next()
             return chain(iter([firstRecord]), result)
@@ -205,11 +206,12 @@ Error and Exception Conditions
             if not 'x-wait' in validatedArguments:
                 results.next()
             yield '<resumptionToken>%s</resumptionToken>' % ResumptionToken(
-                validatedArguments['metadataPrefix'],
-                self.call.getUnique(recordId),
-                validatedArguments['from'],
-                validatedArguments['until'],
-                validatedArguments['set'])
+                    metadataPrefix=validatedArguments['metadataPrefix'],
+                    continueAfter=self.call.getUnique(recordId),
+                    from_=validatedArguments['from'],
+                    until=validatedArguments['until'],
+                    set_=validatedArguments['set']
+                )
             return
         except StopIteration:
             pass

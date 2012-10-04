@@ -11,6 +11,7 @@
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -36,7 +37,7 @@ from oaisetmask import OaiSetMask
 from oaisetselect import OaiSetSelect # deprecated
 from oaiidentifierrename import OaiIdentifierRename
 from fields2oairecord import Fields2OaiRecord
-from oaijazz import OaiJazz
+from oaijazz import OaiJazz, stamp2zulutime
 from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
 from oaidownloadprocessor import OaiDownloadProcessor
 from updateadapter import UpdateAdapterFromOaiDownloadProcessor

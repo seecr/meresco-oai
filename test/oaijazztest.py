@@ -39,7 +39,7 @@ from shutil import rmtree
 from time import time, strptime, sleep
 from calendar import timegm
 
-from meresco.oai import OaiJazz, OaiAddRecord
+from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
 from meresco.oai.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATOR
 from meresco.oai.oailist import OaiList
 from StringIO import StringIO
@@ -638,4 +638,10 @@ class OaiJazzTest(SeecrTestCase):
 
         self.assertEquals([True], resumed)
         self.assertEquals([], self.jazz._suspended)
+
+    def testStamp2Zulutime(self):
+        self.assertEquals("2012-10-04T09:21:04Z", stamp2zulutime("1349342464630008"))
+        self.assertEquals("", stamp2zulutime(None))
+        self.assertRaises(Exception, stamp2zulutime, "not-a-stamp")
+
 

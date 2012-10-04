@@ -116,6 +116,18 @@ class OaiDownloadProcessor(Observable):
             self._err.write('\n')
         self._err.flush()
 
+    def getState(self):
+        return HarvestStateView(self)
+
+class HarvestStateView(object):
+    def __init__(self, oaiDownloadProcessor):
+        self._processor = oaiDownloadProcessor
+
+    @property
+    def resumptionToken(self):
+        return self._processor._resumptionToken
+
+
 def head(l):
     return l[0] if l else ""
 

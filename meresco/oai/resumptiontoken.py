@@ -9,6 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -31,9 +32,7 @@
 
 def resumptionTokenFromString(s):
     try:
-        result = ResumptionToken()
-        result.loadString(s)
-        return result
+        return ResumptionToken.fromString(s)
     except ResumptionTokenException, e:
         return None
 
@@ -43,27 +42,22 @@ class ResumptionTokenException(Exception):
 class ResumptionToken:
 
     SHORT = {
-        'm': '_metadataPrefix',
-        'c': '_continueAfter',
-        'f': '_from',
-        'u': '_until',
-        's': '_set'}
+        'm': 'metadataPrefix',
+        'c': 'continueAfter',
+        'f': 'from_',
+        'u': 'until',
+        's': 'set_'
+    }
 
-    def __init__(self,
-        _metadataPrefix = '',
-        _continueAfter = '0',
-        _from = '',
-        _until = '',
-        _set = ''):
-        self._metadataPrefix = _metadataPrefix
-        self._continueAfter = _continueAfter
-        self._from = _from or '' #blank out "None"
-        self._until = _until or ''
-        self._set = _set or ''
+    def __init__(self, metadataPrefix='', continueAfter='0', from_='', until='', set_=''):
+        self.metadataPrefix = metadataPrefix
+        self.continueAfter = continueAfter
+        self.from_ = from_ or '' #blank out "None"
+        self.until = until or ''
+        self.set_ = set_ or ''
 
     def __str__(self):
-        short = ResumptionToken.SHORT
-        return '|'.join(map(lambda k: "%s%s" %(k, self.__dict__[short[k]]), short.keys()))
+        return '|'.join("%s%s" % (key, getattr(self, attr)) for key, attr in self.SHORT.items())
 
     def __repr__(self):
         return repr(str(self))
@@ -71,15 +65,15 @@ class ResumptionToken:
     def __eq__(self, other):
         return \
             ResumptionToken == other.__class__ and \
-            self._metadataPrefix == other._metadataPrefix and \
-            self._continueAfter == other._continueAfter and \
-            self._from == other._from and \
-            self._until == other._until and \
-            self._set == other._set
+            self.metadataPrefix == other.metadataPrefix and \
+            self.continueAfter == other.continueAfter and \
+            self.from_ == other.from_ and \
+            self.until == other.until and \
+            self.set_ == other.set_
 
-    def loadString(self, s):
+    @classmethod
+    def fromString(cls, s):
         resumptDict = dict(((part[0], part[1:]) for part in s.split('|') if part))
-        if set(ResumptionToken.SHORT.keys()) != set(resumptDict.keys()):
+        if set(cls.SHORT.keys()) != set(resumptDict.keys()):
             raise ResumptionTokenException()
-        for k,v in resumptDict.items():
-            setattr(self, ResumptionToken.SHORT[k], v)
+        return cls(**dict((cls.SHORT[k],v) for k,v in resumptDict.items()))
