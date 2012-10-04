@@ -48,8 +48,8 @@ from simplejson import dump, loads
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiDownloadProcessor(Observable):
-    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None):
-        Observable.__init__(self)
+    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, name=None):
+        Observable.__init__(self, name=name)
         self._metadataPrefix = metadataPrefix
         self._resumptionToken = None
         self._errorState = None
@@ -140,6 +140,7 @@ class OaiDownloadProcessor(Observable):
 class HarvestStateView(object):
     def __init__(self, oaiDownloadProcessor):
         self._processor = oaiDownloadProcessor
+        self.name = oaiDownloadProcessor.observable_name()
 
     @property
     def errorState(self):
@@ -148,7 +149,6 @@ class HarvestStateView(object):
     @property
     def resumptionToken(self):
         return self._processor._resumptionToken
-
 
 def head(l):
     return l[0] if l else ""

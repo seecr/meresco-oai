@@ -206,12 +206,13 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         open(join(self.tempdir, 'harvester.state'), 'w').write("Resumptiontoken: %s\n" % resumptionToken)
         observer = CallTrace()
         observer.exceptions={'add': Exception("Could be anything")}
-        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO(), name="Name")
         oaiDownloadProcessor.addObserver(observer)
         self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))))
         state = oaiDownloadProcessor.getState()
         self.assertEquals(resumptionToken, state.resumptionToken)
         self.assertEquals("ERROR while processing 'oai:identifier:1': Could be anything", state.errorState)
+        self.assertEquals("Name", state.name)
 
         oaiDownloadProcessor2 = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         state2 = oaiDownloadProcessor2.getState()
