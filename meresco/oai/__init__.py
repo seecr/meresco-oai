@@ -42,3 +42,4 @@ from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
 from oaidownloadprocessor import OaiDownloadProcessor
 from updateadapter import UpdateAdapterFromOaiDownloadProcessor
 from oaibranding import OaiBranding
+from resumptiontoken import ResumptionToken
