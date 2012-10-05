@@ -38,10 +38,11 @@ from bisect import bisect_left
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from json import dumps, load as jsonLoad
+from bsddb import btopen
 
 from escaping import escapeFilename, unescapeFilename
 from meresco.components.sorteditertools import OrIterator, AndIterator
-from meresco.components import PersistentSortedIntegerList, DoubleUniqueBerkeleyDict, BerkeleyDict
+from meresco.components import PersistentSortedIntegerList
 from meresco.core import asyncreturn
 from weightless.io import Suspend
 
@@ -64,14 +65,12 @@ class OaiJazz(object):
         self._name = name
         self._suspended = []
 
-        self._stamp2identifier = DoubleUniqueBerkeleyDict(
-            _ensureDir(join(aDirectory, 'stamp2identifier')))
+        self._stamp2identifier = btopen(join(aDirectory, 'stamp2identifier.bd'))
         self._tombStones = PersistentSortedIntegerList(
             join(self._directory, 'tombStones.list'), 
             use64bits=True, 
             mergeTrigger=MERGE_TRIGGER)
-        self._identifier2setSpecs = BerkeleyDict(
-            _ensureDir(join(self._directory, 'identifier2setSpecs')))
+        self._identifier2setSpecs = btopen(join(self._directory, 'identifier2setSpecs.bd'))
         self._prefixesInfoDir = _ensureDir(join(aDirectory, 'prefixesInfo'))
         self._prefixesDir = _ensureDir(join(aDirectory, 'prefixes'))
         self._prefixes = {}
@@ -272,11 +271,19 @@ class OaiJazz(object):
             self._add(identifier, newStamp, prefixes, setSpecs)
             if delete:
                 self._tombStones.append(newStamp)
+        self._stamp2identifier.sync()
+        self._identifier2setSpecs.sync()
 
     def _purge(self, identifier, oldStamp):        
+        # TODO: cleanup ugliness
         _removeIfInList(oldStamp, self._tombStones)
         try:
             del self._stamp2identifier[str(oldStamp)]
+        except KeyError:
+            # already done apparently
+            pass
+        try:
+            del self._stamp2identifier["id:" + identifier]
         except KeyError:
             # already done apparently
             pass
@@ -301,6 +308,7 @@ class OaiJazz(object):
         if setSpecs:
             self._identifier2setSpecs[identifier] = SETSPEC_SEPARATOR.join(setSpecs) 
         self._stamp2identifier[str(newStamp)] = identifier
+        self._stamp2identifier["id:" + identifier] = str(newStamp)
         
     def _getAllMetadataFormats(self):
         for prefix in self._prefixes.keys():
@@ -331,12 +339,11 @@ class OaiJazz(object):
         except (ValueError, OverflowError):
             return maxint * DATESTAMP_FACTOR
 
-
     def _getIdentifier(self, stamp):
         return self._stamp2identifier.get(str(stamp), None)
 
     def _getStamp(self, identifier):
-        result = self._stamp2identifier.getKeyFor(safeString(identifier))
+        result = self._stamp2identifier.get("id:" + safeString(identifier), None)
         if result != None:
             result = int(result)
         return result
@@ -355,10 +362,10 @@ class OaiJazz(object):
 
     def _versionFormatCheck(self):
         if isdir(join(self._directory, 'sets')):
-            assert isdir(join(self._directory, 'identifier2setSpecs')), "This is an old OaiJazz data storage which doesn't have the identifier2setSpecs directory. Please convert manually or rebuild complete data storage."
+            assert isfile(join(self._directory, 'identifier2setSpecs.bd')), "This is an old OaiJazz data storage which doesn't have the identifier2setSpecs.bd file. Please convert manually or rebuild complete data storage."
 
         self._versionFile = join(self._directory, "oai.version")
-        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI index at %s need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-oai/bin)" % self._directory
+        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI index at %s need to be converted to the current version (with 'convert_oai_v2_to_v3.py' in meresco-oai/bin)" % self._directory
         with open(join(self._directory, "oai.version"), 'w') as f:
             f.write(self.version)
 

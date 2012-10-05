@@ -35,7 +35,6 @@ from seecr.test import SeecrTestCase, CallTrace
 
 from os import listdir, remove
 from os.path import isfile, join
-from shutil import rmtree
 from time import time, strptime, sleep
 from calendar import timegm
 
@@ -326,7 +325,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testConversionNeeded(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
-        rmtree(join(self.tempdir, 'identifier2setSpecs'))
+        remove(join(self.tempdir, 'identifier2setSpecs.bd'))
         self.assertRaises(AssertionError, lambda: OaiJazz(self.tempdir))
 
     def testVersionWritten(self):
@@ -341,7 +340,7 @@ class OaiJazzTest(SeecrTestCase):
             oaiJazz = OaiJazz(self.tempdir)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-oai/bin)" % self.tempdir, str(e))
+            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v2_to_v3.py' in meresco-oai/bin)" % self.tempdir, str(e))
 
     def testRefuseInitWithDifferentVersionFile(self):
         self.oaiJazz = None
@@ -351,7 +350,7 @@ class OaiJazzTest(SeecrTestCase):
             oaiJazz = OaiJazz(self.tempdir)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v1_to_v2.py' in meresco-oai/bin)" % self.tempdir, str(e))
+            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v2_to_v3.py' in meresco-oai/bin)" % self.tempdir, str(e))
 
     def addDocuments(self, size):
         for id in range(1,size+1):
