@@ -52,29 +52,34 @@ DATESTAMP_FACTOR, DATESTAMP_FACTOR_FLOAT = 1000000, 1000000.0
 
 class OaiJazz(object):
 
-    version = '2'
+    version = '3'
 
     def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, name=None):
-        self._directory = aDirectory
-        isdir(aDirectory) or makedirs(aDirectory)
+        self._directory = _ensureDir(aDirectory)
         self._versionFormatCheck()
-        isdir(join(aDirectory, 'stamp2identifier')) or makedirs(join(aDirectory,'stamp2identifier'))
-        isdir(join(aDirectory, 'identifier2setSpecs')) or makedirs(join(aDirectory,'identifier2setSpecs'))
-        isdir(join(aDirectory, 'sets')) or makedirs(join(aDirectory,'sets'))
-        isdir(join(aDirectory, 'prefixes')) or makedirs(join(aDirectory,'prefixes'))
-        isdir(join(aDirectory, 'prefixesInfo')) or makedirs(join(aDirectory,'prefixesInfo'))
-        self._prefixes = {}
-        self._sets = {}
-        self._stamp2identifier = DoubleUniqueBerkeleyDict(join(self._directory, 'stamp2identifier'))
-        self._tombStones = PersistentSortedIntegerList(join(self._directory, 'tombStones.list'), use64bits=True, mergeTrigger=MERGE_TRIGGER)
-        self._identifier2setSpecs = BerkeleyDict(join(self._directory, 'identifier2setSpecs'))
-        self._read()
-        self._suspended = []
+
         self._deletePrefixes = alwaysDeleteInPrefixes or []
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
-
         self._name = name
+        self._suspended = []
+
+        self._stamp2identifier = DoubleUniqueBerkeleyDict(
+            _ensureDir(join(aDirectory, 'stamp2identifier'))
+        )
+        self._tombStones = PersistentSortedIntegerList(
+            join(self._directory, 'tombStones.list'), 
+            use64bits=True, 
+            mergeTrigger=MERGE_TRIGGER)
+        self._identifier2setSpecs = BerkeleyDict(
+            _ensureDir(join(self._directory, 'identifier2setSpecs')))
+
+        self._sets = {}
+        _ensureDir(join(aDirectory, 'sets'))
+        self._prefixes = {}
+        _ensureDir(join(aDirectory, 'prefixes'))
+        _ensureDir(join(aDirectory, 'prefixesInfo'))
+        self._read()
 
     def observable_name(self):
         return self._name
@@ -88,12 +93,17 @@ class OaiJazz(object):
         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
         for setSpec, setName in sets:
             assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
+
+        #(oldStamp, oldPrefixes, oldSets) = self._lookupExisting(identifier)
+        #newStamp = self._newStamp()
+
         oldPrefixes, oldSets = self._purge(identifier)
-        stamp = self._stamp()
+        stamp = self._newStamp()
         prefixes = set(prefix for prefix, schema, namespace in metadataFormats)
         prefixes.update(oldPrefixes)
         setSpecs = _flattenSetHierarchy((setSpec for setSpec, setName in sets))
         setSpecs.update(oldSets)
+
         self._add(stamp, identifier, setSpecs, prefixes)
         self._storeMetadataFormats(metadataFormats)
         self._resume()
@@ -106,10 +116,15 @@ class OaiJazz(object):
         oldPrefixes, oldSets = self._purge(identifier)
         if not oldPrefixes and not self._deletePrefixes:
             return
-        stamp = self._stamp()
+        stamp = self._newStamp()
         self._add(stamp, identifier, oldSets, set(oldPrefixes + self._deletePrefixes))
         self._tombStones.append(stamp)
         self._resume()
+
+    def purge(self, identifier):
+        if self._persistentDelete:
+            raise KeyError("Purging of records is not allowed with persistent deletes.")
+        self._purge(safeString(identifier))
 
     def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
         setsMask = setsMask or []
@@ -130,11 +145,6 @@ class OaiJazz(object):
         idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
         return (RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None)
 
-    def _sliceStampIds(self, stampIds, start, stop):
-        if stop:
-            return stampIds[bisect_left(stampIds, start):bisect_left(stampIds, stop)]
-        return stampIds[bisect_left(stampIds, start):]
-                
     def getDatestamp(self, identifier):
         stamp = self.getUnique(identifier)
         if stamp is None:
@@ -190,7 +200,58 @@ class OaiJazz(object):
         yield suspend
         suspend.getResult()
 
+
     # private methods
+
+    def _read(self):
+        for prefix in (unescapeFilename(name[:-len('.list')]) for name in listdir(join(self._directory, 'prefixes')) if name.endswith('.list')):
+            self._getPrefixList(prefix)
+        for setSpec in (unescapeFilename(name[:-len('.list')]) for name in listdir(join(self._directory, 'sets')) if name.endswith('.list')):
+            self._getSetList(setSpec)
+
+    def _getSetList(self, setSpec):
+        if setSpec not in self._sets:
+            filename = join(self._directory, 'sets', '%s.list' % escapeFilename(setSpec))
+            self._sets[setSpec] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
+        return self._sets[setSpec]
+
+    def _getPrefixList(self, prefix):
+        if prefix not in self._prefixes:
+            filename = join(self._directory, 'prefixes', '%s.list' % escapeFilename(prefix))
+            self._prefixes[prefix] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
+        return self._prefixes[prefix]
+
+    def _purge(self, identifier):
+        stamp = self.getUnique(identifier)
+        stamp in self._tombStones and self._tombStones.remove(stamp)
+        oldPrefixes = []
+        oldSets = []
+        if stamp != None:
+            del self._stamp2identifier[str(stamp)]
+            for prefix, prefixStamps in self._prefixes.items():
+                if stamp in prefixStamps:
+                    oldPrefixes.append(prefix)
+                    prefixStamps.remove(stamp)
+            if identifier in self._identifier2setSpecs:
+                oldSets = self._identifier2setSpecs[identifier].split(SETSPEC_SEPARATOR)
+                for setSpec in oldSets:
+                    self._sets[setSpec].remove(stamp)
+                del self._identifier2setSpecs[identifier]
+        return oldPrefixes, oldSets
+
+    def _lookupExisting(self, identifier):
+        stamp = self.getUnique(identifier)
+        oldPrefixes = []
+        oldSets = []
+        if not stamp is None:
+            for prefix, prefixStamps in self._prefixes.items():
+                if stamp in prefixStamps:  # Relatively expensive...
+                    oldPrefixes.append(prefix)
+            oldSets = [
+                setSpec 
+                for setSpec in self._identifier2setSpecs.get(identifier, '').split(SETSPEC_SEPARATOR) 
+                if setSpec]
+        return stamp, oldPrefixes, oldSets
 
     def _add(self, stamp, identifier, setSpecs, prefixes):
         try:
@@ -217,25 +278,17 @@ class OaiJazz(object):
             except ValueError:
                 pass #ignored because stamp could not have been added.
 
-
     def _getAllMetadataFormats(self):
         for prefix in self._prefixes.keys():
             schema = open(join(self._directory, 'prefixesInfo', '%s.schema' % escapeFilename(prefix))).read()
             namespace = open(join(self._directory, 'prefixesInfo', '%s.namespace' % escapeFilename(prefix))).read()
             yield (prefix, schema, namespace)
 
-    def _getSetList(self, setSpec):
-        if setSpec not in self._sets:
-            filename = join(self._directory, 'sets', '%s.list' % escapeFilename(setSpec))
-            self._sets[setSpec] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
-        return self._sets[setSpec]
-
-    def _getPrefixList(self, prefix):
-        if prefix not in self._prefixes:
-            filename = join(self._directory, 'prefixes', '%s.list' % escapeFilename(prefix))
-            self._prefixes[prefix] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
-        return self._prefixes[prefix]
-
+    def _sliceStampIds(self, stampIds, start, stop):
+        if stop:
+            return stampIds[bisect_left(stampIds, start):bisect_left(stampIds, stop)]
+        return stampIds[bisect_left(stampIds, start):]
+                
     def _fromTime(self, oaiFrom):
         if not oaiFrom:
             return 0
@@ -264,41 +317,12 @@ class OaiJazz(object):
             result = int(result)
         return result
 
-    def purge(self, identifier):
-        if self._persistentDelete:
-            raise KeyError("Purging of records is not allowed with persistent deletes.")
-        self._purge(safeString(identifier))
-
-    def _purge(self, identifier):
-        stamp = self.getUnique(identifier)
-        stamp in self._tombStones and self._tombStones.remove(stamp)
-        oldPrefixes = []
-        oldSets = []
-        if stamp != None:
-            del self._stamp2identifier[str(stamp)]
-            for prefix, prefixStamps in self._prefixes.items():
-                if stamp in prefixStamps:
-                    oldPrefixes.append(prefix)
-                    prefixStamps.remove(stamp)
-            if identifier in self._identifier2setSpecs:
-                oldSets = self._identifier2setSpecs[identifier].split(SETSPEC_SEPARATOR)
-                for setSpec in oldSets:
-                    self._sets[setSpec].remove(stamp)
-                del self._identifier2setSpecs[identifier]
-        return oldPrefixes, oldSets
-
-    def _read(self):
-        for prefix in (unescapeFilename(name[:-len('.list')]) for name in listdir(join(self._directory, 'prefixes')) if name.endswith('.list')):
-            self._getPrefixList(prefix)
-        for setSpec in (unescapeFilename(name[:-len('.list')]) for name in listdir(join(self._directory, 'sets')) if name.endswith('.list')):
-            self._getSetList(setSpec)
-
     def _storeMetadataFormats(self, metadataFormats):
         for prefix, schema, namespace in metadataFormats:
             _write(join(self._directory, 'prefixesInfo', '%s.schema' % escapeFilename(prefix)), schema)
             _write(join(self._directory, 'prefixesInfo', '%s.namespace' % escapeFilename(prefix)), namespace)
 
-    def _stamp(self):
+    def _newStamp(self):
         """time in microseconds"""
         return int(time()*DATESTAMP_FACTOR_FLOAT)
 
@@ -356,3 +380,8 @@ def stamp2zulutime(stamp):
 def _stamp2zulutime(stamp, preciseDatestamp=False):
     microseconds = ".%s" % (stamp % DATESTAMP_FACTOR) if preciseDatestamp else ""
     return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp/DATESTAMP_FACTOR_FLOAT)), microseconds)
+
+def _ensureDir(directory):
+    isdir(directory) or makedirs(directory) 
+    return directory
+

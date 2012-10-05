@@ -60,7 +60,7 @@ class OaiJazzTest(SeecrTestCase):
             result = self.stampNumber
             self.stampNumber += 1
             return result
-        self.jazz._stamp = stamp
+        self.jazz._newStamp = stamp
         self.oaiAddRecord = OaiAddRecord()
         self.oaiAddRecord.addObserver(self.jazz)
 
@@ -76,9 +76,9 @@ class OaiJazzTest(SeecrTestCase):
 
     def testOriginalStamp(self):
         jazz = OaiJazz(self.tempdir)
-        stamp0 = jazz._stamp()
+        stamp0 = jazz._newStamp()
         sleep(0.0001)
-        stamp1 = jazz._stamp()
+        stamp1 = jazz._newStamp()
         self.assertTrue(stamp0 < stamp1, "Expected %s < %s" % (stamp0, stamp1))
 
     def testResultsStored(self):
@@ -114,7 +114,7 @@ class OaiJazzTest(SeecrTestCase):
         jazz = OaiJazz(self.tempdir)
         t5 = time()
         print t1 - t0, t2 - t1, t3 -t2, t3 -t1, t4 - t3, t5 - t4
-        # a set form 10 million records costs 3.9 seconds (Without any efficiency things applied
+        # a set of 10 million records costs 3.9 seconds (Without any efficiency things applied
         # it costs 0.3 seconds with 1 million records
         # retimed it at 2009-01-13:
         #  1 * 10**6 oaiSelect took 3.7 seconds
@@ -140,7 +140,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testGetPreciseDatestamp(self):
         jazz = OaiJazz(self.tempdir, preciseDatestamp=True)
-        jazz._stamp = self.jazz._stamp
+        jazz._newStamp = self.jazz._newStamp
         jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
         self.assertEquals('2008-07-06T05:04:03.123456Z', jazz.getDatestamp('123'))
 
@@ -302,9 +302,9 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
 
     def testGetLastStampId(self):
-        stampFunction = self.jazz._stamp
+        stampFunction = self.jazz._newStamp
         self.jazz = OaiJazz(self.tempdir, persistentDelete=False)
-        self.jazz._stamp = stampFunction
+        self.jazz._newStamp = stampFunction
         self.assertEquals(None, self.jazz.getLastStampId('aPrefix'))
         newStamp = self.stampNumber
         self.jazz.addOaiRecord('id1', metadataFormats=[('aPrefix', 'schema', 'namespace')])
@@ -542,7 +542,7 @@ class OaiJazzTest(SeecrTestCase):
         
     def testListRecordsWithFromAndUntil(self):
         def setTime(year, month, day):
-            self.jazz._stamp = lambda: int(timegm((year, month, day, 0, 1, 0, 0, 0 ,0))*1000000.0)
+            self.jazz._newStamp = lambda: int(timegm((year, month, day, 0, 1, 0, 0, 0 ,0))*1000000.0)
         setTime(2007, 9, 21)
         self.jazz.addOaiRecord('4', metadataFormats=[('prefix','schema', 'namespace')])
         setTime(2007, 9, 22)
