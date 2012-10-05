@@ -55,6 +55,7 @@ class OaiJazzTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
         self.jazz = OaiJazz(self.tempdir)
+        self._originalNewStamp = self.jazz._newStamp
         self.stampNumber = self.orginalStampNumber = int((timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1))+.123456)*1000000)
         def stamp():
             result = self.stampNumber
@@ -247,20 +248,18 @@ class OaiJazzTest(SeecrTestCase):
         self.assertNotEquals(unique, int(self.jazz.getUnique('23')))
 
     def testTimeUpdateRaisesErrorButLeavesIndexCorrect(self):
+        self.jazz._newStamp = self._originalNewStamp
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
-        self.stampNumber -= 12345 # time corrected by -0.012345 seconds
-        nextStampNumber = self.stampNumber
+        self.jazz._newestStamp += 12345  # time corrected by 0.012345 seconds
         try:
             self.jazz.addOaiRecord('43', sets=[('setSpec', 'setName')], metadataFormats=[('other', 'schema', 'namespace'), ('oai_dc','schema', 'namespace')])
             self.fail()
         except ValueError, e:
-            self.assertEquals('Timestamp error, original message: "list.append(%s): expected value to be greater than %s"' % (nextStampNumber, self.orginalStampNumber), str(e))
+            self.assertTrue(str(e).startswith('Timestamp error: '), str(e))
 
         self.assertEquals(0, len(self.jazz._getSetList('setSpec')))
         self.assertEquals(0, len(self.jazz._getPrefixList('other')))
         self.assertEquals(1, len(self.jazz._getPrefixList('oai_dc')))
-
-
 
     def testFlattenSetHierarchy(self):
         self.assertEquals(['set1', 'set1:set2', 'set1:set2:set3'], sorted(_flattenSetHierarchy(['set1:set2:set3'])))

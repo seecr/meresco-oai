@@ -55,31 +55,32 @@ class OaiIntegrationTest(SeecrTestCase):
         harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
         oaiPmhThread.start()
         harvestThread.start()
+        
+        try:
+            requests = 3
+            sleep(1.0 + 1.0 * requests)
+           
+            self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
+            ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods]
+            self.assertEquals([['id0'],['id1'],['id2']], ids)
 
-        requests = 3
-        sleep(1.0 + 1.0 * requests)
-       
-        self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
-        ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods]
-        self.assertEquals([['id0'],['id1'],['id2']], ids)
+            self.assertEquals(1, len(oaiJazz._suspended))
 
-        self.assertEquals(1, len(oaiJazz._suspended))
+            requests += 1
+            list(compose(storageComponent.add("id3", "prefix", "<a>a3</a>")))
+            oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
+            sleep(1)
 
-        requests += 1
-        list(compose(storageComponent.add("id3", "prefix", "<a>a3</a>")))
-        oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
-        sleep(0.1)
-
-        self.assertEquals(0, len(oaiJazz._suspended))
-        self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
-        kwarg = tostring(observer.calledMethods[-1].kwargs['lxmlNode'])
-        self.assertTrue("id3" in kwarg, kwarg)
-        sleep(1.0)
-        self.assertEquals(1, len(oaiJazz._suspended))
-
-        self.run = False
-        oaiPmhThread.join()
-        harvestThread.join()
+            self.assertEquals(0, len(oaiJazz._suspended))
+            self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
+            kwarg = tostring(observer.calledMethods[-1].kwargs['lxmlNode'])
+            self.assertTrue("id3" in kwarg, kwarg)
+            sleep(1.0)
+            self.assertEquals(1, len(oaiJazz._suspended))
+        finally: 
+            self.run = False
+            oaiPmhThread.join()
+            harvestThread.join()
 
     def testNearRealtimeOaiSavesState(self):
         observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
