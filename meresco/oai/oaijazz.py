@@ -94,15 +94,21 @@ class OaiJazz(object):
         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
         for setSpec, setName in sets:
             assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
-        self._storeMetadataFormats(metadataFormats)
 
+        newStamp = self._newStamp()
+        self._storeMetadataFormats(metadataFormats)
         oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifier)
         prefixes = set(prefix for prefix, schema, namespace in metadataFormats)
         prefixes.update(oldPrefixes)
         setSpecs = _flattenSetHierarchy((setSpec for setSpec, setName in sets))
         setSpecs.update(oldSets)
-
-        self._saveForRecoveryAndApply(identifier=identifier, oldStamp=oldStamp, newStamp=self._newStamp(), delete=False, prefixes=list(prefixes), setSpecs=list(setSpecs)) 
+        self._saveForRecoveryAndApply(
+            identifier=identifier, 
+            oldStamp=oldStamp, 
+            newStamp=newStamp, 
+            delete=False, 
+            prefixes=list(prefixes), 
+            setSpecs=list(setSpecs)) 
         self._resume()
 
     @asyncreturn
