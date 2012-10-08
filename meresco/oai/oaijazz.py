@@ -288,10 +288,9 @@ class OaiJazz(object):
         self._stamp2identifier.pop(str("id:" + identifier), None)
         for prefix, prefixStamps in self._prefixes.items():
             _removeIfInList(oldStamp, prefixStamps)
-        oldSets = self._identifier2setSpecs.get(identifier, None)
+        oldSets = self._identifier2setSpecs.get(identifier)
         if not oldSets is None:
-            oldSets = oldSets.split(SETSPEC_SEPARATOR)
-            for setSpec in oldSets:
+            for setSpec in oldSets.split(SETSPEC_SEPARATOR):
                 _removeIfInList(oldStamp, self._sets[setSpec])
             del self._identifier2setSpecs[identifier]
 
