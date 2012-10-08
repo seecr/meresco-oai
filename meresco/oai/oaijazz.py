@@ -143,6 +143,7 @@ class OaiJazz(object):
             newStamp=None) 
 
     def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
+        self._maybeRecover()
         setsMask = setsMask or []
         sets = sets or []
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
@@ -266,41 +267,30 @@ class OaiJazz(object):
             remove(self._actionFile + '.tmp')
             return
         if isfile(self._actionFile):
-            action = jsonLoad(self._actionFile)
+            with open(self._actionFile, 'r') as f:
+                action = jsonLoad(f)
             self._applyAction(**action)
             remove(self._actionFile)
 
     def _applyAction(self, identifier, oldStamp=None, newStamp=None, delete=False, prefixes=None, setSpecs=None):
         if not oldStamp is None:
-            self._purge(identifier, oldStamp)
+            self._purge(safeString(identifier), oldStamp)
         if not newStamp is None:
-            self._add(identifier, newStamp, prefixes, setSpecs)
+            self._add(safeString(identifier), newStamp, prefixes, setSpecs)
             if delete:
                 self._tombStones.append(newStamp)
         self._stamp2identifier.sync()
         self._identifier2setSpecs.sync()
 
     def _purge(self, identifier, oldStamp):        
-        # TODO: cleanup ugliness
         _removeIfInList(oldStamp, self._tombStones)
-        try:
-            del self._stamp2identifier[str(oldStamp)]
-        except KeyError:
-            # already done apparently
-            pass
-        try:
-            del self._stamp2identifier["id:" + identifier]
-        except KeyError:
-            # already done apparently
-            pass
+        self._stamp2identifier.pop(str(oldStamp), None)
+        self._stamp2identifier.pop(str("id:" + identifier), None)
         for prefix, prefixStamps in self._prefixes.items():
             _removeIfInList(oldStamp, prefixStamps)
-        try:
-            oldSets = self._identifier2setSpecs[identifier].split(SETSPEC_SEPARATOR)
-        except KeyError:
-            # already done apparently
-            pass
-        else:
+        oldSets = self._identifier2setSpecs.get(identifier, None)
+        if not oldSets is None:
+            oldSets = oldSets.split(SETSPEC_SEPARATOR)
             for setSpec in oldSets:
                 _removeIfInList(oldStamp, self._sets[setSpec])
             del self._identifier2setSpecs[identifier]
