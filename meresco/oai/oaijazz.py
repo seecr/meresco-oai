@@ -86,7 +86,7 @@ class OaiJazz(object):
         return self._name
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         identifier = safeString(identifier)
@@ -106,15 +106,16 @@ class OaiJazz(object):
         self._saveForRecoveryAndApply(
             identifier=identifier, 
             oldStamp=oldStamp, 
+            oldSets=list(oldSets),
             newStamp=newStamp, 
             delete=False, 
             prefixes=list(prefixes), 
-            setSpecs=list(setSpecs)) 
+            newSets=list(setSpecs)) 
         self._resume()
 
     @asyncreturn
     def delete(self, identifier):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         identifier = safeString(identifier)
@@ -123,15 +124,16 @@ class OaiJazz(object):
             return
         self._saveForRecoveryAndApply(
             identifier=identifier, 
-            oldStamp=oldStamp, 
+            oldStamp=oldStamp,
+            oldSets=list(oldSets), 
             newStamp=self._newStamp(), 
             delete=True, 
             prefixes=list(set(oldPrefixes + self._deletePrefixes)), 
-            setSpecs=list(oldSets))
+            newSets=list(oldSets))
         self._resume()
 
     def purge(self, identifier):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         if self._persistentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
         identifier = safeString(identifier)
@@ -140,11 +142,12 @@ class OaiJazz(object):
             return
         self._saveForRecoveryAndApply(
             identifier=identifier, 
-            oldStamp=oldStamp, 
+            oldStamp=oldStamp,
+            oldSets=list(oldSets), 
             newStamp=None) 
 
     def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         setsMask = setsMask or []
         sets = sets or []
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
@@ -170,7 +173,7 @@ class OaiJazz(object):
         return _stamp2zulutime(stamp=stamp, preciseDatestamp=self._preciseDatestamp)
 
     def getUnique(self, identifier):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         if hasattr(identifier, 'stamp'):
             return identifier.stamp
         return self._getStamp(identifier)
@@ -188,11 +191,11 @@ class OaiJazz(object):
             yield (prefix, schema, namespace)
 
     def getAllPrefixes(self):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         return self._prefixes.keys()
 
     def getSets(self, identifier):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         identifier = safeString(identifier)
         if identifier not in self._identifier2setSpecs:
             return []
@@ -205,15 +208,15 @@ class OaiJazz(object):
         return (prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds)
 
     def getAllSets(self):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         return self._sets.keys()
         
     def getNrOfRecords(self, prefix='oai_dc'):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         return len(self._prefixes.get(prefix, []))
 
     def getLastStampId(self, prefix='oai_dc'):
-        self._maybeFinishChange()
+        self._completeUnfinishedChange()
         if prefix in self._prefixes and self._prefixes[prefix]:
             stampIds = self._prefixes[prefix]
             return stampIds[-1] if stampIds else None
@@ -272,54 +275,56 @@ class OaiJazz(object):
         self._applyChange(**kwargs)
         remove(self._changeFile)
 
-    def _maybeFinishChange(self):
+    def _completeUnfinishedChange(self):
         if self._hasUnfinishedChange:
-            self._maybeRecover()
+            self._recover()
+            self._resume()
 
     def _maybeRecover(self):
         if isfile(self._changeFile + '.tmp'):
             remove(self._changeFile + '.tmp')
-            return
         if isfile(self._changeFile):
-            with open(self._changeFile, 'r') as f:
-                change = jsonLoad(f)
-            self._applyChange(**change)
-            remove(self._changeFile)
+            self._recover()
 
-    def _applyChange(self, identifier, oldStamp=None, newStamp=None, delete=False, prefixes=None, setSpecs=None):
+    def _recover(self):            
+        with open(self._changeFile, 'r') as f:
+            change = jsonLoad(f)
+        self._applyChange(**change)
+        remove(self._changeFile)
+
+    def _applyChange(self, identifier, oldStamp=None, oldSets=None, newStamp=None, delete=False, prefixes=None, newSets=None):
+        identifier = safeString(identifier)
         self._hasUnfinishedChange = True
         if not oldStamp is None:
-            self._purge(safeString(identifier), oldStamp)
+            self._purge(identifier, oldStamp, oldSets)
         if not newStamp is None:
-            self._add(safeString(identifier), newStamp, prefixes, setSpecs)
+            self._add(identifier, newStamp, prefixes, newSets)
             if delete:
-                self._tombStones.append(newStamp)
+                self._appendIfNotYet(newStamp, self._tombStones)
         self._stamp2identifier.sync()
         self._identifier2setSpecs.sync()
         self._hasUnfinishedChange = False
 
-    def _purge(self, identifier, oldStamp):        
-        _removeIfInList(oldStamp, self._tombStones)
+    def _purge(self, identifier, oldStamp, oldSets):
         self._stamp2identifier.pop(str(oldStamp), None)
         self._stamp2identifier.pop(str("id:" + identifier), None)
+        self._removeIfInList(oldStamp, self._tombStones)
         for prefix, prefixStamps in self._prefixes.items():
-            _removeIfInList(oldStamp, prefixStamps)
-        oldSets = self._identifier2setSpecs.get(identifier)
-        if not oldSets is None:
-            for setSpec in oldSets.split(SETSPEC_SEPARATOR):
-                _removeIfInList(oldStamp, self._sets[setSpec])
-            del self._identifier2setSpecs[identifier]
+            self._removeIfInList(oldStamp, prefixStamps)
+        self._identifier2setSpecs.pop(identifier, None)
+        for setSpec in oldSets:
+            self._removeIfInList(oldStamp, self._sets[setSpec])
 
-    def _add(self, identifier, newStamp, prefixes, setSpecs):
+    def _add(self, identifier, newStamp, prefixes, newSets):
         self._newestStamp = newStamp
-        for prefix in prefixes:
-            _appendIfNotYet(newStamp, self._getPrefixList(prefix))
-        for setSpec in setSpecs:
-            _appendIfNotYet(newStamp, self._getSetList(setSpec))
-        if setSpecs:
-            self._identifier2setSpecs[identifier] = SETSPEC_SEPARATOR.join(setSpecs) 
         self._stamp2identifier[str(newStamp)] = identifier
         self._stamp2identifier["id:" + identifier] = str(newStamp)
+        for prefix in prefixes:
+            self._appendIfNotYet(newStamp, self._getPrefixList(prefix))
+        for setSpec in newSets:
+            self._appendIfNotYet(newStamp, self._getSetList(setSpec))
+        if newSets:
+            self._identifier2setSpecs[identifier] = SETSPEC_SEPARATOR.join(newSets)
         
     def _sliceStampIds(self, stampIds, start, stop):
         if stop:
@@ -378,6 +383,17 @@ class OaiJazz(object):
         while len(self._suspended) > 0:
             self._suspended.pop().resume()
 
+    def _removeIfInList(self, item, l):
+        try:
+            l.remove(item)
+        except ValueError:
+            pass
+
+    def _appendIfNotYet(self, item, l):
+        if len(l) == 0 or l[-1] != item:
+            l.append(item)
+
+
 # helper methods
 
 class RecordId(str):
@@ -423,14 +439,4 @@ def _stamp2zulutime(stamp, preciseDatestamp=False):
 def _ensureDir(directory):
     isdir(directory) or makedirs(directory) 
     return directory
-
-def _removeIfInList(item, l):
-    try:
-        l.remove(item)
-    except ValueError:
-        pass
-
-def _appendIfNotYet(item, l):
-    if len(l) == 0 or l[-1] != item:
-        l.append(item)
 
