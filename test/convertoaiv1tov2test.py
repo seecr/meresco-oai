@@ -70,4 +70,4 @@ class ConvertOaiV1ToV2Test(SeecrTestCase):
         convertedAnotherPrefix = PersistentSortedIntegerList(join(datadir, 'prefixes', 'anotherPrefix.list'), use64bits=True)
         self.assertEquals(range(0, 10), list(convertedAnotherPrefix))
 
-        self.assertEquals(OaiJazz.version, open(join(datadir, 'oai.version')).read())
+        self.assertEquals('2', open(join(datadir, 'oai.version')).read())

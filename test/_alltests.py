@@ -47,6 +47,7 @@ sysPath.insert(0,'..')                            #DO_NOT_DISTRIBUTE
 import unittest
 
 from convertoaiv1tov2test import ConvertOaiV1ToV2Test
+from convertoaiv2tov3test import ConvertOaiV2ToV3Test
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest

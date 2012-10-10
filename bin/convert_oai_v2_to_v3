@@ -41,26 +41,9 @@ from meresco.components.facetindex import IntegerList
 from meresco.oai import OaiJazz
 
 def convert(path):
-    iList = IntegerList(0, use64bits=True)
-    iList.extendFrom(path)
-    iListDeleted = IntegerList(0, use64bits=True)
-    if isfile(path + '.deleted'):
-        iListDeleted.extendFrom(path + '.deleted')
-        deleted = sorted(iListDeleted, reverse=True)
-        for position in deleted:
-            del iList[position]
-    iList.save(path + '~', offset=0, append=False)
-    if isfile(path + '.deleted'):
-        remove(path + '.deleted')
-    rename(path + '~', path)
+   pass
+   # TODO
 
-def convertDir(directory):
-    for path in listdir(directory):
-        fullpath = join(directory, path)
-        if path.endswith('.list'):
-            convert(fullpath)
-        if isdir(fullpath):
-            convertDir(fullpath)
 
 def main():
     if len(sys.argv) != 2:
@@ -68,10 +51,11 @@ def main():
         exit(1)
     directory = sys.argv[1]
     versionFile = join(directory, 'oai.version')
-    assert not isfile(versionFile) or open(versionFile).read() == '1'
-    convertDir(directory)
-    open(versionFile, 'w').write('2')
-    print "Finished converting %s to OAI data format v2." % directory
+    version = open(versionFile).read()
+    assert version == '2', repr(version) 
+    convert(directory)
+    open(versionFile, 'w').write('3')
+    print "Finished converting %s to OAI data format v3." % directory
 
 if __name__ == '__main__':
     main()
