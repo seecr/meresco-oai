@@ -39,6 +39,7 @@ from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from json import dumps, load as jsonLoad
 from bsddb import btopen
+from traceback import print_exc
 
 from escaping import escapeFilename, unescapeFilename
 from meresco.components.sorteditertools import OrIterator, AndIterator
@@ -77,7 +78,6 @@ class OaiJazz(object):
         self._setsDir = _ensureDir(join(aDirectory, 'sets'))
         self._sets = {}
         self._newestStamp = 0
-        self._hasUnfinishedChange = False
         self._changeFile = join(self._directory, 'change.json')
         self._read()
         self._maybeRecover()
@@ -86,7 +86,6 @@ class OaiJazz(object):
         return self._name
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
-        self._completeUnfinishedChange()
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         identifier = safeString(identifier)
@@ -115,7 +114,6 @@ class OaiJazz(object):
 
     @asyncreturn
     def delete(self, identifier):
-        self._completeUnfinishedChange()
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         identifier = safeString(identifier)
@@ -133,7 +131,6 @@ class OaiJazz(object):
         self._resume()
 
     def purge(self, identifier):
-        self._completeUnfinishedChange()
         if self._persistentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
         identifier = safeString(identifier)
@@ -147,7 +144,6 @@ class OaiJazz(object):
             newStamp=None) 
 
     def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
-        self._completeUnfinishedChange()
         setsMask = setsMask or []
         sets = sets or []
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
@@ -173,7 +169,6 @@ class OaiJazz(object):
         return _stamp2zulutime(stamp=stamp, preciseDatestamp=self._preciseDatestamp)
 
     def getUnique(self, identifier):
-        self._completeUnfinishedChange()
         if hasattr(identifier, 'stamp'):
             return identifier.stamp
         return self._getStamp(identifier)
@@ -191,11 +186,9 @@ class OaiJazz(object):
             yield (prefix, schema, namespace)
 
     def getAllPrefixes(self):
-        self._completeUnfinishedChange()
         return self._prefixes.keys()
 
     def getSets(self, identifier):
-        self._completeUnfinishedChange()
         identifier = safeString(identifier)
         if identifier not in self._identifier2setSpecs:
             return []
@@ -208,15 +201,12 @@ class OaiJazz(object):
         return (prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds)
 
     def getAllSets(self):
-        self._completeUnfinishedChange()
         return self._sets.keys()
         
     def getNrOfRecords(self, prefix='oai_dc'):
-        self._completeUnfinishedChange()
         return len(self._prefixes.get(prefix, []))
 
     def getLastStampId(self, prefix='oai_dc'):
-        self._completeUnfinishedChange()
         if prefix in self._prefixes and self._prefixes[prefix]:
             stampIds = self._prefixes[prefix]
             return stampIds[-1] if stampIds else None
@@ -275,35 +265,30 @@ class OaiJazz(object):
         self._applyChange(**kwargs)
         remove(self._changeFile)
 
-    def _completeUnfinishedChange(self):
-        if self._hasUnfinishedChange:
-            self._recover()
-            self._resume()
-
     def _maybeRecover(self):
         if isfile(self._changeFile + '.tmp'):
             remove(self._changeFile + '.tmp')
+            return
         if isfile(self._changeFile):
-            self._recover()
-
-    def _recover(self):            
-        with open(self._changeFile, 'r') as f:
-            change = jsonLoad(f)
-        self._applyChange(**change)
-        remove(self._changeFile)
+            with open(self._changeFile, 'r') as f:
+                change = jsonLoad(f)
+            self._applyChange(**change)
+            remove(self._changeFile)
 
     def _applyChange(self, identifier, oldStamp=None, oldSets=None, newStamp=None, delete=False, prefixes=None, newSets=None):
         identifier = safeString(identifier)
-        self._hasUnfinishedChange = True
-        if not oldStamp is None:
-            self._purge(identifier, oldStamp, oldSets)
-        if not newStamp is None:
-            self._add(identifier, newStamp, prefixes, newSets)
-            if delete:
-                self._appendIfNotYet(newStamp, self._tombStones)
-        self._stamp2identifier.sync()
-        self._identifier2setSpecs.sync()
-        self._hasUnfinishedChange = False
+        try:
+            if not oldStamp is None:
+                self._purge(identifier, oldStamp, oldSets)
+            if not newStamp is None:
+                self._add(identifier, newStamp, prefixes, newSets)
+                if delete:
+                    self._appendIfNotYet(newStamp, self._tombStones)
+            self._stamp2identifier.sync()
+            self._identifier2setSpecs.sync()
+        except:
+            print_exc()
+            raise SystemExit()
 
     def _purge(self, identifier, oldStamp, oldSets):
         self._stamp2identifier.pop(str(oldStamp), None)

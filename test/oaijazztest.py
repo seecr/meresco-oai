@@ -32,6 +32,7 @@
 ## end license ##
 
 from seecr.test import SeecrTestCase, CallTrace
+from seecr.test.io import stderr_replaced
 
 from os import listdir, remove
 from os.path import isfile, join
@@ -642,13 +643,53 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals("", stamp2zulutime(None))
         self.assertRaises(Exception, stamp2zulutime, "not-a-stamp")
 
-    def testRecoverFromCrashAtAnyStep(self):
+    def testRecoverFromCrashingAddOaiRecord(self):
         identifier = 'oai://1234?34'
-       
+        def setUp(jazz):
+            jazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
+
+        def modify(jazz):
+            jazz.addOaiRecord(identifier=identifier, sets=[('B', 'set B')], metadataFormats=[('prefix2', 'schema2', 'namespace2')])
+
+        def asserts(jazz):
+            self.assertEquals(['A', 'B'], jazz.getSets(identifier))
+            self.assertEquals(set(['prefix', 'prefix2']), set(jazz.getPrefixes(identifier)))
+
+        self._crashAtDifferentSteps(setUp, modify, asserts)
+
+    def testRecoverFromCrashingDelete(self):
+        identifier = 'oai://1234?34'
+        def setUp(jazz):
+            jazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
+
+        def modify(jazz):
+            list(compose(jazz.delete(identifier)))
+
+        def asserts(jazz):
+            self.assertEquals(['A'], jazz.getSets(identifier))
+            self.assertEquals(set(['prefix']), set(jazz.getPrefixes(identifier)))
+            self.assertTrue(jazz.isDeleted(identifier))
+
+        self._crashAtDifferentSteps(setUp, modify, asserts)
+
+    def testRecoverFromCrashingPurge(self):
+        identifier = 'oai://1234?34'
+        def setUp(jazz):
+            jazz._persistentDelete = False
+            jazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
+
+        def modify(jazz):
+            jazz.purge(identifier)
+
+        def asserts(jazz):
+            self.assertEquals(None, jazz.getUnique(identifier))
+
+        self._crashAtDifferentSteps(setUp, modify, asserts)
+        
+    def _crashAtDifferentSteps(self, setUp, modify, asserts):
         for crashingStep in range(1, 15):
             crashingJazz = OaiJazz(self.tempdir)
-            crashingJazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
-            self.assertFalse(crashingJazz._hasUnfinishedChange)
+            setUp(crashingJazz)
             self.assertFalse(isfile(crashingJazz._changeFile))
 
             stepCount = [0]
@@ -667,54 +708,16 @@ class OaiJazzTest(SeecrTestCase):
             replaceMethodWithCrashAtStep(crashingJazz._identifier2setSpecs, 'sync')
 
             try:
-                crashingJazz.addOaiRecord(identifier=identifier, sets=[('B', 'set B')], metadataFormats=[('prefix2', 'schema2', 'namespace2')])
+                with stderr_replaced():
+                    modify(crashingJazz)
                 # not crashed...
-                self.assertEquals(['A', 'B'], crashingJazz.getSets(identifier))
-                self.assertEquals(set(['prefix', 'prefix2']), set(crashingJazz.getPrefixes(identifier)))
-            except RuntimeError, e:
-                self.assertTrue(crashingJazz._hasUnfinishedChange)
+                asserts(crashingJazz)
+            except SystemExit:
                 self.assertTrue(isfile(crashingJazz._changeFile))
                 crashingJazz = None
 
             # recover
             newJazz = OaiJazz(aDirectory=self.tempdir)
             self.assertFalse(isfile(newJazz._changeFile))
-            self.assertFalse(newJazz._hasUnfinishedChange)
-            self.assertEquals(['A', 'B'], newJazz.getSets(identifier))
-            self.assertEquals(set(['prefix', 'prefix2']), set(newJazz.getPrefixes(identifier)))
-        
-        # Should also test...
-        # combinations of...
-        # * delete
-        # * purge
-        # and recover from:
-        # * oaiAddRecord
-        # * delete
-        # * purge        
-        # * oaiSelect
-        #
-        # + crashing at all possible stages...
-        #
-
-    def testRecoverFromExceptionInApplyChange(self):
-        identifier = 'oai://1234?34'
-        self.jazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
-        self.assertFalse(self.jazz._hasUnfinishedChange)
-        self.assertFalse(isfile(self.jazz._changeFile))
-        def raiseException():
-            raise RuntimeError("some exception")
-        originalSync = self.jazz._stamp2identifier.sync
-        self.jazz._stamp2identifier.sync = raiseException
-        try:
-            self.jazz.addOaiRecord(identifier=identifier, sets=[('B', 'set B')], metadataFormats=[('prefix2', 'schema2', 'namespace2')])
-            assert False
-        except RuntimeError:
-            self.assertTrue(self.jazz._hasUnfinishedChange)
-            self.assertTrue(isfile(self.jazz._changeFile))
-
-        self.jazz._stamp2identifier.sync = originalSync 
-        self.assertEquals(['A', 'B'], self.jazz.getSets(identifier))
-        self.assertFalse(isfile(self.jazz._changeFile))
-        self.assertFalse(self.jazz._hasUnfinishedChange)
-        self.assertEquals(set(['prefix', 'prefix2']), set(self.jazz.getPrefixes(identifier)))
+            asserts(newJazz)
 
