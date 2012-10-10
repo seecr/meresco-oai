@@ -645,7 +645,8 @@ class OaiJazzTest(SeecrTestCase):
     def testRecoverFromCrash(self):
         identifier = 'oai://1234?34'
         self.jazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
-        self.assertFalse(isfile(self.jazz._actionFile))
+        self.assertFalse(self.jazz._hasUnfinishedChange)
+        self.assertFalse(isfile(self.jazz._changeFile))
         def crash():
             raise FullStopException("crashed")
         self.jazz._stamp2identifier.sync = crash
@@ -653,9 +654,11 @@ class OaiJazzTest(SeecrTestCase):
             self.jazz.addOaiRecord(identifier=identifier, sets=[('B', 'set B')], metadataFormats=[('prefix2', 'schema2', 'namespace2')])
             assert False
         except FullStopException:
-            self.assertTrue(isfile(self.jazz._actionFile))
+            self.assertTrue(self.jazz._hasUnfinishedChange)
+            self.assertTrue(isfile(self.jazz._changeFile))
         newJazz = OaiJazz(aDirectory=self.jazz._directory)
-        self.assertFalse(isfile(self.jazz._actionFile))
+        self.assertFalse(isfile(self.jazz._changeFile))
+        self.assertFalse(newJazz._hasUnfinishedChange)
         self.assertEquals(['A', 'B'], newJazz.getSets(identifier))
         self.assertEquals(set(['prefix', 'prefix2']), set(newJazz.getPrefixes(identifier)))
 

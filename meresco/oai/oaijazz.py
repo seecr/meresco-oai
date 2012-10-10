@@ -76,8 +76,9 @@ class OaiJazz(object):
         self._prefixes = {}
         self._setsDir = _ensureDir(join(aDirectory, 'sets'))
         self._sets = {}
-        self._actionFile = join(self._directory, 'action.json')
         self._newestStamp = 0
+        self._hasUnfinishedChange = False
+        self._changeFile = join(self._directory, 'change.json')
         self._read()
         self._maybeRecover()
 
@@ -85,7 +86,7 @@ class OaiJazz(object):
         return self._name
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
-        self._maybeRecover()
+        self._maybeFinishChange()
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         identifier = safeString(identifier)
@@ -113,7 +114,7 @@ class OaiJazz(object):
 
     @asyncreturn
     def delete(self, identifier):
-        self._maybeRecover()
+        self._maybeFinishChange()
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         identifier = safeString(identifier)
@@ -130,7 +131,7 @@ class OaiJazz(object):
         self._resume()
 
     def purge(self, identifier):
-        self._maybeRecover()
+        self._maybeFinishChange()
         if self._persistentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
         identifier = safeString(identifier)
@@ -143,7 +144,7 @@ class OaiJazz(object):
             newStamp=None) 
 
     def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
-        self._maybeRecover()
+        self._maybeFinishChange()
         setsMask = setsMask or []
         sets = sets or []
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
@@ -169,6 +170,7 @@ class OaiJazz(object):
         return _stamp2zulutime(stamp=stamp, preciseDatestamp=self._preciseDatestamp)
 
     def getUnique(self, identifier):
+        self._maybeFinishChange()
         if hasattr(identifier, 'stamp'):
             return identifier.stamp
         return self._getStamp(identifier)
@@ -180,12 +182,17 @@ class OaiJazz(object):
         return stamp in self._tombStones
 
     def getAllMetadataFormats(self):
-        return self._getAllMetadataFormats()
+        for prefix in self._prefixes.keys():
+            schema = open(join(self._prefixesInfoDir, '%s.schema' % escapeFilename(prefix))).read()
+            namespace = open(join(self._prefixesInfoDir, '%s.namespace' % escapeFilename(prefix))).read()
+            yield (prefix, schema, namespace)
 
     def getAllPrefixes(self):
+        self._maybeFinishChange()
         return self._prefixes.keys()
 
     def getSets(self, identifier):
+        self._maybeFinishChange()
         identifier = safeString(identifier)
         if identifier not in self._identifier2setSpecs:
             return []
@@ -198,12 +205,15 @@ class OaiJazz(object):
         return (prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds)
 
     def getAllSets(self):
+        self._maybeFinishChange()
         return self._sets.keys()
         
     def getNrOfRecords(self, prefix='oai_dc'):
+        self._maybeFinishChange()
         return len(self._prefixes.get(prefix, []))
 
     def getLastStampId(self, prefix='oai_dc'):
+        self._maybeFinishChange()
         if prefix in self._prefixes and self._prefixes[prefix]:
             stampIds = self._prefixes[prefix]
             return stampIds[-1] if stampIds else None
@@ -258,21 +268,26 @@ class OaiJazz(object):
         return stamp, oldPrefixes, oldSets
 
     def _saveForRecoveryAndApply(self, **kwargs):
-        _write(self._actionFile, dumps(kwargs))
-        self._applyAction(**kwargs)
-        remove(self._actionFile)
+        _write(self._changeFile, dumps(kwargs))
+        self._applyChange(**kwargs)
+        remove(self._changeFile)
+
+    def _maybeFinishChange(self):
+        if self._hasUnfinishedChange:
+            self._maybeRecover()
 
     def _maybeRecover(self):
-        if isfile(self._actionFile + '.tmp'):
-            remove(self._actionFile + '.tmp')
+        if isfile(self._changeFile + '.tmp'):
+            remove(self._changeFile + '.tmp')
             return
-        if isfile(self._actionFile):
-            with open(self._actionFile, 'r') as f:
-                action = jsonLoad(f)
-            self._applyAction(**action)
-            remove(self._actionFile)
+        if isfile(self._changeFile):
+            with open(self._changeFile, 'r') as f:
+                change = jsonLoad(f)
+            self._applyChange(**change)
+            remove(self._changeFile)
 
-    def _applyAction(self, identifier, oldStamp=None, newStamp=None, delete=False, prefixes=None, setSpecs=None):
+    def _applyChange(self, identifier, oldStamp=None, newStamp=None, delete=False, prefixes=None, setSpecs=None):
+        self._hasUnfinishedChange = True
         if not oldStamp is None:
             self._purge(safeString(identifier), oldStamp)
         if not newStamp is None:
@@ -281,6 +296,7 @@ class OaiJazz(object):
                 self._tombStones.append(newStamp)
         self._stamp2identifier.sync()
         self._identifier2setSpecs.sync()
+        self._hasUnfinishedChange = False
 
     def _purge(self, identifier, oldStamp):        
         _removeIfInList(oldStamp, self._tombStones)
@@ -305,12 +321,6 @@ class OaiJazz(object):
         self._stamp2identifier[str(newStamp)] = identifier
         self._stamp2identifier["id:" + identifier] = str(newStamp)
         
-    def _getAllMetadataFormats(self):
-        for prefix in self._prefixes.keys():
-            schema = open(join(self._prefixesInfoDir, '%s.schema' % escapeFilename(prefix))).read()
-            namespace = open(join(self._prefixesInfoDir, '%s.namespace' % escapeFilename(prefix))).read()
-            yield (prefix, schema, namespace)
-
     def _sliceStampIds(self, stampIds, start, stop):
         if stop:
             return stampIds[bisect_left(stampIds, start):bisect_left(stampIds, stop)]
