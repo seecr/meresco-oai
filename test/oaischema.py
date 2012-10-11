@@ -11,6 +11,7 @@
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -30,7 +31,8 @@
 # 
 ## end license ##
 
-from lxml.etree import parse, XMLSchema, XMLSchemaParseError, tostring
+from lxml.etree import parse, XMLSchema, XMLSchemaParseError
+from meresco.components import lxmltostring
 from StringIO import StringIO
 from os.path import join, dirname, abspath
 from glob import glob
@@ -61,7 +63,7 @@ def getSchema():
 
 def assertValidOai(lxmlTree=None, aXmlString=None):
     schema = getSchema()
-    aXmlString = tostring(lxmlTree, pretty_print=True) if aXmlString == None else aXmlString
+    aXmlString = lxmltostring(lxmlTree, pretty_print=True) if aXmlString == None else aXmlString
     tree = parse(StringIO(aXmlString))
     schema.validate(tree)
     if schema.error_log:

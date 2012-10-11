@@ -10,6 +10,7 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -32,8 +33,7 @@
 from itertools import imap
 from StringIO import StringIO
 from xml.sax.saxutils import escape as escapeXml
-from lxml.etree import parse, tostring
-from amara.binderytools import bind_string
+from lxml.etree import parse
 
 from seecr.test import SeecrTestCase, CallTrace
 

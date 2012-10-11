@@ -29,7 +29,7 @@
 
 from socket import socket, error as SocketError, SHUT_WR, SHUT_RD, SOL_SOCKET, SO_ERROR
 from errno import EINPROGRESS, ECONNREFUSED
-from lxml.etree import parse, ElementTree, tostring
+from lxml.etree import ElementTree
 from StringIO import StringIO
 from traceback import format_exc
 from os import makedirs, close, remove
@@ -38,6 +38,11 @@ from urllib import urlencode
 
 from meresco.core import Observable
 from meresco.components.http.utils import CRLF
+try:
+    from meresco.components import lxmltostring
+except ImportError:
+    from lxml.etree import tostring
+    lxmltostring = lambda x: tostring(x, encoding="UTF-8")
 
 from sys import stderr, stdout
 from time import time
@@ -96,7 +101,7 @@ class OaiDownloadProcessor(Observable):
                 except Exception, e:
                     self._logError(format_exc())
                     self._logError("While processing:")
-                    self._logError(tostring(item))
+                    self._logError(lxmltostring(item))
                     self._errorState = "ERROR while processing '%s': %s" % (identifier, str(e))
                     raise
                 self._errorState = None

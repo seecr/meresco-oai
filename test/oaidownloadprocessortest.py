@@ -32,7 +32,8 @@ from random import randint
 from threading import Event, Thread
 from time import sleep
 from socket import socket, error as SocketError
-from lxml.etree import tostring, parse
+from lxml.etree import parse
+from meresco.components import lxmltostring
 from StringIO import StringIO
 from os.path import join
 from urllib import urlencode
@@ -73,7 +74,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
         self.assertEquals(0, len(observer.calledMethods[0].args))
-        self.assertEqualsWS(ONE_RECORD, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
+        self.assertEqualsWS(ONE_RECORD, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
         self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
         self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
 
@@ -84,7 +85,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTIDENTIFIERS_RESPONSE)))))
         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
         self.assertEquals(0, len(observer.calledMethods[0].args))
-        self.assertEqualsWS(ONE_HEADER, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
+        self.assertEqualsWS(ONE_HEADER, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
         self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
         self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
 
@@ -96,10 +97,10 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % secondRecord)))))
         self.assertEquals(['add', 'add'], [m.name for m in observer.calledMethods])
         self.assertEquals(0, len(observer.calledMethods[0].args))
-        self.assertEqualsWS(ONE_RECORD, tostring(observer.calledMethods[0].kwargs['lxmlNode']))
+        self.assertEqualsWS(ONE_RECORD, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
         self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
         self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
-        self.assertEqualsWS(secondRecord, tostring(observer.calledMethods[1].kwargs['lxmlNode']))
+        self.assertEqualsWS(secondRecord, lxmltostring(observer.calledMethods[1].kwargs['lxmlNode']))
         self.assertEquals('2011-08-22T07:41:00Z', observer.calledMethods[1].kwargs['datestamp'])
         self.assertEquals('oai:identifier:2', observer.calledMethods[1].kwargs['identifier'])
 

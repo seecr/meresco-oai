@@ -10,6 +10,7 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -29,7 +30,7 @@
 # 
 ## end license ##
 
-from lxml.etree import parse, tostring
+from lxml.etree import parse
 from StringIO import StringIO
 
 from seecr.test import SeecrTestCase, CallTrace

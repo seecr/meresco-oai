@@ -6,6 +6,7 @@
 # Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -39,7 +40,7 @@ from seecr.test import SeecrTestCase, CallTrace
 from weightless.io import Reactor
 from weightless.core import be, compose
 
-from lxml.etree import tostring
+from meresco.components import lxmltostring
 
 
 class OaiIntegrationTest(SeecrTestCase):
@@ -73,7 +74,7 @@ class OaiIntegrationTest(SeecrTestCase):
 
             self.assertEquals(0, len(oaiJazz._suspended))
             self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
-            kwarg = tostring(observer.calledMethods[-1].kwargs['lxmlNode'])
+            kwarg = lxmltostring(observer.calledMethods[-1].kwargs['lxmlNode'])
             self.assertTrue("id3" in kwarg, kwarg)
             sleep(1.0)
             self.assertEquals(1, len(oaiJazz._suspended))
@@ -112,7 +113,7 @@ class OaiIntegrationTest(SeecrTestCase):
         requests = 1
         sleep(1.0 + 1.0 * requests)
         self.assertEquals(1, len(observer.calledMethods))
-        kwarg = tostring(observer.calledMethods[0].kwargs['lxmlNode'])
+        kwarg = lxmltostring(observer.calledMethods[0].kwargs['lxmlNode'])
         self.assertTrue("id0" in kwarg, kwarg)
         stop()
 
@@ -123,7 +124,7 @@ class OaiIntegrationTest(SeecrTestCase):
         requests = 1
         sleep(1.0 + 1.0 * requests)
         self.assertEquals(2, len(observer.calledMethods))
-        kwarg = tostring(observer.calledMethods[1].kwargs['lxmlNode'])
+        kwarg = lxmltostring(observer.calledMethods[1].kwargs['lxmlNode'])
         self.assertFalse("id0" in kwarg, kwarg)
         self.assertTrue("id1" in kwarg, kwarg)
         stop()

@@ -4,6 +4,7 @@
 # "Meresco Core" and "Meresco Components". 
 # 
 # Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # 
 # This file is part of "Meresco Oai"
 # 
@@ -24,7 +25,8 @@
 ## end license ##
 
 from unittest import TestCase
-from lxml.etree import XMLParser, TreeBuilder, tostring
+from lxml.etree import XMLParser, TreeBuilder
+from meresco.components import lxmltostring
 
 class Target(object):
 
@@ -59,7 +61,7 @@ class StreamingLxmlTest(TestCase):
         p.feed("<aap>")
         p.feed("noot")
         p.feed("</aap>")
-        self.assertEquals("<aap>noot</aap>", tostring(target.root))
+        self.assertEquals("<aap>noot</aap>", lxmltostring(target.root))
 
     def testFilterTag(self):
         target = Target('mies')
@@ -68,7 +70,7 @@ class StreamingLxmlTest(TestCase):
         p.feed("noot")
         p.feed("</mies>")
         p.feed("</aap>")
-        self.assertEquals("<mies>noot</mies>", tostring(target.root))
+        self.assertEquals("<mies>noot</mies>", lxmltostring(target.root))
 
 
     def testFilterTag(self):
@@ -78,4 +80,4 @@ class StreamingLxmlTest(TestCase):
         p.feed("noot")
         p.feed("</mies>")
         p.feed("</mies>")
-        self.assertEquals("<mies><mies>noot</mies></mies>", tostring(target.root))
+        self.assertEquals("<mies><mies>noot</mies></mies>", lxmltostring(target.root))
