@@ -47,14 +47,27 @@ class ConvertOaiV2ToV3Test(SeecrTestCase):
 
         self.assertTrue(isfile(join(datadir, 'stamp2identifier.bd')))
         stamp2identifier = btopen(join(datadir, 'stamp2identifier.bd'))
-        for stamp, identifier in stamp2identifier.items():
-            print identifier
-            assertEquals(stamp, stamp2identifier['id:' + identifier])
+        self.assertEquals(4, len(stamp2identifier))
+        for key, value in stamp2identifier.items():
+            if key.startswith('id:'):
+                stamp, identifier = value, key[len('id:'):]
+                self.assertEquals(identifier, stamp2identifier[stamp])
+            else:
+                stamp, identifier = key, value
+                self.assertEquals(stamp, stamp2identifier["id:" + identifier])
+        self.assertFalse(isdir(join(datadir, 'stamp2identifier')))
 
         self.assertTrue(isfile(join(datadir, 'identifier2setSpecs.bd')))
         identifier2setSpecs = btopen(join(datadir, 'identifier2setSpecs.bd')) 
-        for identifier, setSpecs in identifier2setSpecs.items():
-            print identifier, setSpecs
+        self.assertEquals(2, len(identifier2setSpecs))
+        self.assertFalse(isdir(join(datadir, 'identifier2setSpecs')))
+
+        self.assertTrue(isfile(join(datadir, 'tombStones.list')))
+        self.assertTrue(isfile(join(datadir, 'prefixes', 'rdf.list')))
+        self.assertTrue(isfile(join(datadir, 'prefixesInfo', 'rdf.schema')))
+        self.assertTrue(isfile(join(datadir, 'prefixesInfo', 'rdf.namespace')))
+        self.assertTrue(isfile(join(datadir, 'sets', 'testCollection.list')))
 
         self.assertEquals('3', open(join(datadir, 'oai.version')).read())
+
 

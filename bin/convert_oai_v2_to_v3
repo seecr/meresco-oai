@@ -37,13 +37,25 @@ sysPath.insert(0,'..')                            #DO_NOT_DISTRIBUTE
 import sys
 from os import listdir, remove, rename
 from os.path import join, isdir, isfile
+from shutil import rmtree
+from bsddb import btopen
 from meresco.components.facetindex import IntegerList
 from meresco.oai import OaiJazz
 
-def convert(path):
-   pass
-   # TODO
 
+def convert(path):
+    stamp2identifier = btopen(join(path, "stamp2identifier.bd"))
+    orig_stamp2identifier = btopen(join(path, "stamp2identifier", "keyvalue"), 'r')
+    orig_identifier2stamp = btopen(join(path, "stamp2identifier", "valuekey"), 'r')
+    for stamp, identifier in orig_stamp2identifier.items():
+        stamp2identifier[stamp] = identifier
+        stamp2identifier["id:"+identifier] = stamp
+    stamp2identifier.sync()
+    stamp2identifier.close()
+    rmtree(join(path, 'stamp2identifier'))
+
+    rename(join(path, 'identifier2setSpecs', 'keyvalue'), join(path, 'identifier2setSpecs.bd'))
+    rmtree(join(path, 'identifier2setSpecs'))
 
 def main():
     if len(sys.argv) != 2:
@@ -59,3 +71,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
