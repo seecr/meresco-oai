@@ -38,6 +38,7 @@ setup(
     ],
     scripts=[
         'bin/convert_oai_v1_to_v2',
+        'bin/convert_oai_v2_to_v3',
     ],
     version = '%VERSION%',
     url = 'http://www.cq2.nl',

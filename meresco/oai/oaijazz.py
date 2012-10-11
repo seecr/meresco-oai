@@ -288,7 +288,7 @@ class OaiJazz(object):
             self._identifier2setSpecs.sync()
         except:
             print_exc()
-            raise SystemExit()
+            raise SystemExit("OaiJazz: FATAL error committing change to disk.")
 
     def _purge(self, identifier, oldStamp, oldSets):
         self._stamp2identifier.pop(str(oldStamp), None)
