@@ -27,8 +27,6 @@
 # 
 ## end license ##
 
-from socket import socket, error as SocketError, SHUT_WR, SHUT_RD, SOL_SOCKET, SO_ERROR
-from errno import EINPROGRESS, ECONNREFUSED
 from lxml.etree import ElementTree
 from StringIO import StringIO
 from traceback import format_exc
