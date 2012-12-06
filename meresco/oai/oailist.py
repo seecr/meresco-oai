@@ -137,6 +137,9 @@ Error and Exception Conditions
             checkArgument(arguments, 'x-wait', validatedArguments)
             if validatedArguments.get('x-wait', None) not in ['True', None]:
                 raise OaiBadArgumentException("The argument 'x-wait' only supports 'True' as valid value.")
+        checkArgument(arguments, 'x-count', validatedArguments)
+        if validatedArguments.get('x-count', None) not in ['True', None]:
+            raise OaiBadArgumentException("The argument 'x-count' only supports 'True' as valid value.")
         if checkArgument(arguments, 'resumptionToken', validatedArguments):
             if len(arguments) > 0:
                 raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')
@@ -203,19 +206,22 @@ Error and Exception Conditions
             yield self.all.unknown(message, recordId=recordId, metadataPrefix=validatedArguments['metadataPrefix'])
 
         try:
+            recordsRemaining = 0
             if not 'x-wait' in validatedArguments:
                 results.next()
-            yield '<resumptionToken>%s</resumptionToken>' % ResumptionToken(
+                recordsRemaining += 1
+            if 'x-count' in validatedArguments:
+                recordsRemaining += sum(1 for result in results)
+                yield '<resumptionToken recordsRemaining="%s">' % recordsRemaining
+            else:
+                yield '<resumptionToken>'
+            yield '%s</resumptionToken>' % ResumptionToken(
                     metadataPrefix=validatedArguments['metadataPrefix'],
                     continueAfter=self.call.getUnique(recordId),
                     from_=validatedArguments['from'],
                     until=validatedArguments['until'],
-                    set_=validatedArguments['set']
-                )
-            return
+                    set_=validatedArguments['set'])
         except StopIteration:
-            pass
-
-        if 'resumptionToken' in validatedArguments:
-            yield '<resumptionToken/>'
+            if 'resumptionToken' in validatedArguments:
+                yield '<resumptionToken/>'
 
