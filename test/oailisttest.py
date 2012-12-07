@@ -37,7 +37,7 @@ from lxml.etree import parse
 
 from seecr.test import SeecrTestCase, CallTrace
 
-from weightless.core import compose
+from weightless.core import compose, Yield
 from meresco.components.http.utils import CRLF
 
 from meresco.oai.oailist import OaiList
@@ -279,14 +279,14 @@ class OaiListTest(SeecrTestCase):
         self.observer.returnValues['getUnique'] = 'unique_for_id'
         self.observer.returnValues['oaiSelect'] = ('id%s&%s' % (i, i) for i in xrange(1000))
 
-        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb': ['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2012-01-01T00:00:00Z'], 'set': ['set0'], 'x-count': ['True']}, **self.httpkwargs))).split(CRLF*2)
+        header, body = ''.join(s for s in compose(self.oaiList.listRecords(arguments={'verb': ['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2012-01-01T00:00:00Z'], 'set': ['set0'], 'x-count': ['True']}, **self.httpkwargs)) if not s is Yield).split(CRLF*2)
         oai = parse(StringIO(body))
         self.assertEquals(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         recordsRemaining = xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/@recordsRemaining')[0]
         self.assertEquals('998', recordsRemaining)
         resumptionToken = xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')[0]
         self.observer.returnValues['oaiSelect'] = (f for f in ['id:999&999'])
-        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb': ['ListRecords'], 'resumptionToken': [resumptionToken], 'x-count': ['True']}, **self.httpkwargs))).split(CRLF*2)
+        header, body = ''.join(s for s in compose(self.oaiList.listRecords(arguments={'verb': ['ListRecords'], 'resumptionToken': [resumptionToken], 'x-count': ['True']}, **self.httpkwargs)) if not s is Yield).split(CRLF*2)
         oai = parse(StringIO(body))
         self.assertEquals(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/@recordsRemaining')))
 

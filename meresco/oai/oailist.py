@@ -30,6 +30,7 @@
 # 
 ## end license ##
 
+from weightless.core import Yield
 from meresco.core.observable import Observable
 
 from resumptiontoken import resumptionTokenFromString, ResumptionToken
@@ -211,7 +212,10 @@ Error and Exception Conditions
                 results.next()
                 recordsRemaining += 1
             if 'x-count' in validatedArguments:
-                recordsRemaining += sum(1 for result in results)
+                for i, result in enumerate(results):
+                    if i % 100 == 0:
+                        yield Yield
+                    recordsRemaining += 1
                 yield '<resumptionToken recordsRemaining="%s">' % recordsRemaining
             else:
                 yield '<resumptionToken>'
