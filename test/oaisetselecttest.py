@@ -29,23 +29,29 @@
 ## end license ##
 
 from seecr.test import SeecrTestCase, CallTrace
+from seecr.test.io import stderr_replaced
 
 from meresco.core import Observable
 from meresco.oai import OaiSetSelect
 from weightless.core import be, compose
+
 
 class OaiSetSelectTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
         self.observer = CallTrace()
 
-        self.dna = be(
-            (Observable(),
-                (OaiSetSelect(['set1', 'set2']),
-                    (self.observer,)
+        with stderr_replaced() as err:
+            self.dna = be(
+                (Observable(),
+                    (OaiSetSelect(['set1', 'set2']),
+                        (self.observer,)
+                    )
                 )
             )
-        )
+            self.assertTrue(not err.getvalue() or \
+                'warn("OaiSetSelect is deprecated;' in err.getvalue(), err.getvalue())
+
 
     def testOaiSelect(self):
         self.dna.call.oaiSelect()
