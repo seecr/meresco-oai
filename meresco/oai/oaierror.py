@@ -30,7 +30,7 @@
 ## end license ##
 
 from meresco.core import Observable
-from weightless.core import compose
+from weightless.core import compose, Yield
 from oaiutils import oaiHeader, oaiFooter, REQUEST, requestUrl, oaiRequestArgs, zuluTime
 
 class OaiError(Observable):
@@ -38,7 +38,7 @@ class OaiError(Observable):
         result = compose(self.all.unknown(message, **kwargs))
         try:
             firstDataResult = result.next()
-            while callable(firstDataResult):
+            while callable(firstDataResult) or firstDataResult is Yield:
                 yield firstDataResult
                 firstDataResult = result.next()
         except StopIteration:

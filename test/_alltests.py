@@ -54,6 +54,8 @@ from oaiaddrecordtest import OaiAddRecordTest
 from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest
 from oaibrandingtest import OaiBrandingTest
 from oaidownloadprocessortest import OaiDownloadProcessorTest
+from oaierrortest import OaiErrorTest
+from oaiintegrationtest import OaiIntegrationTest
 from oaijazztest import OaiJazzTest
 from oailisttest import OaiListTest
 from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest
@@ -61,7 +63,6 @@ from oaiprovenancetest import OaiProvenanceTest
 from oairecordtest import OaiRecordTest
 from oaisetmasktest import OaiSetMaskTest
 from oaisetselecttest import OaiSetSelectTest
-from oaiintegrationtest import OaiIntegrationTest
 from oaitooltest import OaiToolTest
 from resumptiontokentest import ResumptionTokenTest
 from streaminglxmltest import StreamingLxmlTest
