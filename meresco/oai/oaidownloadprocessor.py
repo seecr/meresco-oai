@@ -28,24 +28,21 @@
 ## end license ##
 
 from lxml.etree import ElementTree
-from StringIO import StringIO
 from traceback import format_exc
-from os import makedirs, close, remove
+from os import makedirs
 from os.path import join, isfile, isdir
 from urllib import urlencode
 
 from meresco.core import Observable
-from meresco.components.http.utils import CRLF
 try:
     from meresco.components import lxmltostring
 except ImportError:
     from lxml.etree import tostring
     lxmltostring = lambda x: tostring(x, encoding="UTF-8")
 
-from sys import stderr, stdout
-from time import time
-from tempfile import mkstemp
 from simplejson import dump, loads
+from uuid import uuid4
+from sys import stderr
 
 
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
@@ -64,6 +61,12 @@ class OaiDownloadProcessor(Observable):
         isdir(workingDirectory) or makedirs(workingDirectory)
         self._stateFilePath = join(workingDirectory, "harvester.state")
         self._readState()
+        self._identifierFilePath = join(workingDirectory, "harvester.identifier")
+        if isfile(self._identifierFilePath):
+            self._identifier = open(self._identifierFilePath).read().strip()
+        else:
+            self._identifier = str(uuid4())
+            open(self._identifierFilePath, 'w').write(self._identifier)
 
     def buildRequest(self):
         arguments = [('verb', self._verb)]
@@ -75,8 +78,9 @@ class OaiDownloadProcessor(Observable):
                 arguments.append(('set', self._set))
         if self._xWait:
             arguments.append(('x-wait', 'True'))
-        statusline = "GET %s?%s HTTP/1.0\r\n\r\n"
-        return statusline % (self._path, urlencode(arguments))
+        request = "GET %s?%s HTTP/1.0\r\n%s\r\n"
+        headers = "X-Meresco-Oai-Client-Identifier: %s\r\n" % self._identifier
+        return request % (self._path, urlencode(arguments), headers)
 
     def handle(self, lxmlNode):
         errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
@@ -128,8 +132,6 @@ class OaiDownloadProcessor(Observable):
             d = loads(state)
             self._resumptionToken = d['resumptionToken']
             self._errorState = d['errorState']
-
-
 
     def _logError(self, message):
         self._err.write(message)

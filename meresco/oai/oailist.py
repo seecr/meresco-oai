@@ -31,6 +31,7 @@
 ## end license ##
 
 from weightless.core import Yield
+from meresco.components.http.utils import serverErrorPlainText
 from meresco.core.observable import Observable
 
 from resumptiontoken import resumptionTokenFromString, ResumptionToken
@@ -116,7 +117,12 @@ Error and Exception Conditions
             except OaiException, e:
                 if validatedArguments.get("x-wait", 'False') == 'True' and \
                         e.statusCode in ["noRecordsMatch", "cannotDisseminateFormat"]:
-                    yield self.any.suspend()
+                    clientId = httpkwargs['Headers']['X-Meresco-Oai-Client-Identifier']
+                    try:
+                        yield self.any.suspend(clientIdentifier=clientId)
+                    except Exception, e:
+                        yield serverErrorPlainText + str(e)
+                        raise e
                 else:
                     yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
                     return

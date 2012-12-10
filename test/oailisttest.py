@@ -34,6 +34,7 @@ from itertools import imap
 from StringIO import StringIO
 from xml.sax.saxutils import escape as escapeXml
 from lxml.etree import parse
+from uuid import uuid4
 
 from seecr.test import SeecrTestCase, CallTrace
 
@@ -55,16 +56,17 @@ class OaiListTest(SeecrTestCase):
         self.observer = CallTrace('observer')
         self.observer.returnValues['getAllPrefixes'] = ['oai_dc']
         self.observer.methods['oaiSelect'] = lambda **kwargs: (i for i in [])
-        self.observer.methods['suspend'] = lambda: (s for s in ['SUSPEND'])
+        self.observer.methods['suspend'] = lambda clientIdentifier: (s for s in ['SUSPEND'])
         self.observer.methods['oaiWatermark'] = lambda o=None: (x for x in ["Crafted By Seecr"])
         def oaiRecord(recordId, metadataPrefix):
             yield '<mock:record xmlns:mock="uri:mock">%s/%s</mock:record>' % (escapeXml(recordId), escapeXml(metadataPrefix))
         self.observer.methods['oaiRecord'] = oaiRecord
         self.observer.methods['oaiRecordHeader'] = oaiRecord
         self.oaiList.addObserver(self.observer)
+        self.clientId = str(uuid4())
         self.httpkwargs = {
             'path': '/path/to/oai',
-            'Headers':{'Host':'server'},
+            'Headers':{'Host':'server', 'X-Meresco-Oai-Client-Identifier': self.clientId},
             'port':9000,
         }
 
@@ -161,8 +163,9 @@ class OaiListTest(SeecrTestCase):
         result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
         suspend = result.next()
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'suspend'], [m.name for m in self.observer.calledMethods])
+        self.assertEquals({"clientIdentifier": self.clientId}, self.observer.calledMethods[2].kwargs)
         self.observer.returnValues['oaiSelect'] = (f for f in ['id:1&1'])
-        del self.observer.calledMethods[:]
+        self.observer.calledMethods.reset()
 
         header, body = ''.join(compose(result)).split(CRLF*2)
         oai = parse(StringIO(body))
@@ -185,7 +188,7 @@ class OaiListTest(SeecrTestCase):
         self.observer.returnValues['getAllPrefixes'] = ['other_prefix']
         suspend = result.next() 
         self.observer.returnValues['oaiSelect'] = (f for f in ['id:1&1'])
-        del self.observer.calledMethods[:]
+        self.observer.calledMethods.reset()
 
         header, body = ''.join(compose(result)).split(CRLF*2)
         oai = parse(StringIO(body))
@@ -218,7 +221,7 @@ class OaiListTest(SeecrTestCase):
     def testFromAndUntil(self):
         def selectArguments(oaiFrom, oaiUntil):
             self.observer.returnValues['oaiSelect'] = (f for f in ['id:3&3'])
-            del self.observer.calledMethods[:]
+            self.observer.calledMethods.reset()
             arguments = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
             if oaiFrom:
                 arguments['from'] = [oaiFrom]
@@ -240,7 +243,7 @@ class OaiListTest(SeecrTestCase):
     def testFromAndUntilErrors(self):
         def getError(oaiFrom, oaiUntil):
             self.observer.returnValues['oaiSelect'] = (f for f in ['id:3&3'])
-            del self.observer.calledMethods[:]
+            self.observer.calledMethods.reset()
             arguments = {'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}
             if oaiFrom:
                 arguments['from'] = [oaiFrom]

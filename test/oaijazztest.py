@@ -611,32 +611,48 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['123'], list(self.jazz.oaiSelect(prefix='oai_dc')))
 
     def testAddSuspendedListRecord(self):
-        suspend = self.jazz.suspend().next()
-        self.assertTrue([suspend], self.jazz._suspended)
+        suspend = self.jazz.suspend(clientIdentifier="a-client-id").next()
+        self.assertTrue({'a-client-id': suspend}, self.jazz._suspended)
         self.assertEquals(Suspend, type(suspend))
+
+    def testSuspendSameClientTwiceBeforeResuming(self):
+        reactor = CallTrace("reactor")
+        resumed = []
+        
+        suspendGen1 = self.jazz.suspend(clientIdentifier="a-client-id")
+        suspend1 = suspendGen1.next()
+        suspend1(reactor, lambda: resumed.append(True))
+        suspend2 = self.jazz.suspend(clientIdentifier="a-client-id").next()
+        
+        try:
+            suspendGen1.next()
+            self.fail()
+        except ValueError, e:
+            self.assertTrue([True], resumed)
+            self.assertEquals("Aborting suspended request because of new request for the same OaiClient with identifier: a-client-id.", str(e))
 
     def testAddOaiRecordResumes(self):
         reactor = CallTrace("reactor")
-        suspend = self.jazz.suspend().next()
+        suspend = self.jazz.suspend(clientIdentifier="a-client-id").next()
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
 
         self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
 
         self.assertEquals([True], resumed)
-        self.assertEquals([], self.jazz._suspended)
+        self.assertEquals({}, self.jazz._suspended)
 
     def testDeleteResumes(self):
         self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
         reactor = CallTrace("reactor")
-        suspend = self.jazz.suspend().next()
+        suspend = self.jazz.suspend(clientIdentifier="a-client-id").next()
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
 
         list(compose(self.jazz.delete(identifier='identifier')))
 
         self.assertEquals([True], resumed)
-        self.assertEquals([], self.jazz._suspended)
+        self.assertEquals({}, self.jazz._suspended)
 
     def testStamp2Zulutime(self):
         self.assertEquals("2012-10-04T09:21:04Z", stamp2zulutime("1349342464630008"))

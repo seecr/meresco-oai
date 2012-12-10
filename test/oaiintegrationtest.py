@@ -30,6 +30,7 @@ from os.path import join
 from random import randint
 from threading import Thread
 from time import sleep
+from uuid import uuid4
 
 from meresco.core import Observable
 from meresco.components.http import ObservableHttpServer
@@ -37,6 +38,8 @@ from meresco.components import StorageComponent, XmlParseLxml, PeriodicDownload
 from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
 
 from seecr.test import SeecrTestCase, CallTrace
+from seecr.test.utils import getRequest
+from seecr.test.io import stderr_replaced
 from weightless.io import Reactor
 from weightless.core import be, compose
 
@@ -82,6 +85,51 @@ class OaiIntegrationTest(SeecrTestCase):
             self.run = False
             oaiPmhThread.join()
             harvestThread.join()
+    
+    def testShouldRaiseExceptionOnSameRequestTwice(self):
+        self.run = True
+        portNumber = randint(50000, 60000)
+        oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+        clientId = str(uuid4())
+
+        requests = []
+        def doOaiListRecord(port):
+            header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, additionalHeaders={'X-Meresco-Oai-Client-Identifier': clientId}, parse=False)
+            requests.append((header, body))
+
+        oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
+        harvestThread1 = Thread(None, lambda: doOaiListRecord(portNumber))
+        harvestThread2 = Thread(None, lambda: doOaiListRecord(portNumber))
+
+        with stderr_replaced():
+            oaiPmhThread.start()
+            harvestThread1.start()
+            try:
+                while not oaiJazz._suspended:
+                    sleep(0.01)
+                harvest1Suspend = oaiJazz._suspended[clientId]
+                self.assertTrue(clientId in oaiJazz._suspended)
+                harvestThread2.start()
+                while harvest1Suspend == oaiJazz._suspended.get(clientId):
+                    sleep(0.01)
+                sleep(0.01)
+                self.assertTrue(clientId in oaiJazz._suspended)
+                self.assertTrue(harvest1Suspend != oaiJazz._suspended[clientId])
+
+                list(compose(storageComponent.add("id1", "prefix", "<a>a1</a>")))
+                oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
+                sleep(0.1)
+
+                self.assertEquals(2, len(requests))
+                self.assertEquals("HTTP/1.0 500 Internal Server Error\r\nContent-Type: text/plain; charset=utf-8", requests[0][0])
+                self.assertEquals("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientId, requests[0][1])
+                self.assertEquals("HTTP/1.0 200 OK\r\nContent-Type: text/xml; charset=utf-8", requests[1][0])
+            finally: 
+                self.run = False
+                oaiPmhThread.join()
+                harvestThread1.join()
+                harvestThread2.join()
 
     def testNearRealtimeOaiSavesState(self):
         observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})

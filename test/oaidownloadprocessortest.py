@@ -27,45 +27,38 @@
 # 
 ## end license ##
 
-from contextlib import contextmanager
-from random import randint
-from threading import Event, Thread
-from time import sleep
-from socket import socket, error as SocketError
 from lxml.etree import parse
 from meresco.components import lxmltostring
 from StringIO import StringIO
-from os.path import join
+from os.path import join, isfile
 from urllib import urlencode
 
 from seecr.test import SeecrTestCase, CallTrace
-
-from weightless.core import be, compose
+from weightless.core import compose
 from weightless.io import Suspend
 
-from meresco.core import Observable, asyncreturn
-from meresco.components.http.utils import CRLF
+from meresco.core import asyncreturn
 from meresco.oai import OaiDownloadProcessor
 
 
 class OaiDownloadProcessorTest(SeecrTestCase):
     def testRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
     def testListIdentifiersRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, verb='ListIdentifiers')
-        self.assertEquals("""GET /oai?verb=ListIdentifiers&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListIdentifiers&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
     def testSetInRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="setName", workingDirectory=self.tempdir, xWait=True)
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=setName&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=setName&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="set-_.!~*'()", workingDirectory=self.tempdir, xWait=True)
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=set-_.%21%7E%2A%27%28%29&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=set-_.%%21%%7E%%2A%%27%%28%%29&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
         resumptionToken = "u|c1286437597991025|mprefix|s|f"
         open(join(self.tempdir, 'harvester.state'), 'w').write("Resumptiontoken: %s\n" % resumptionToken)
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="setName", workingDirectory=self.tempdir, xWait=True)
-        self.assertEquals("""GET /oai?verb=ListRecords&resumptionToken=u%7Cc1286437597991025%7Cmprefix%7Cs%7Cf&x-wait=True HTTP/1.0\r\n\r\n""", oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&resumptionToken=u%%7Cc1286437597991025%%7Cmprefix%%7Cs%%7Cf&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
     def testHandle(self): 
         observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
@@ -119,11 +112,11 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         observer = CallTrace()
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         oaiDownloadProcessor.addObserver(observer)
-        self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
         list(oaiDownloadProcessor.handle(parse(StringIO(ERROR_RESPONSE))))
         self.assertEquals(0, len(observer.calledMethods))
         self.assertEquals("someError: Some error occurred.\n", oaiDownloadProcessor._err.getvalue())
-        self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('metadataPrefix', 'oai_dc'), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('metadataPrefix', 'oai_dc'), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
 
     def testUseResumptionToken(self):
         observer = CallTrace()
@@ -131,7 +124,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.addObserver(observer)
         list(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))
         self.assertEquals('x?y&z', oaiDownloadProcessor._resumptionToken)
-        self.assertEquals('GET /oai?verb=ListRecords&resumptionToken=x%3Fy%26z&x-wait=True HTTP/1.0\r\n\r\n', oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?verb=ListRecords&resumptionToken=x%%3Fy%%26z&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n' % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         self.assertEquals('x?y&z', oaiDownloadProcessor._resumptionToken)
 
@@ -157,13 +150,13 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         observer.exceptions={'add': Exception("Could be anything")}
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         oaiDownloadProcessor.addObserver(observer)
-        self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
         self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))))
         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
         errorOutput = oaiDownloadProcessor._err.getvalue()
         self.assertTrue(errorOutput.startswith('Traceback'), errorOutput)
         self.assertTrue(errorOutput.endswith('Exception: Could be anything\nWhile processing:\n<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>%s\n  \n'), errorOutput)
-        self.assertEquals('GET /oai?%s HTTP/1.0\r\n\r\n' % urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
 
     def testHandleYieldsAtLeastOnceAfterEachRecord(self):
         @asyncreturn
@@ -219,6 +212,18 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         state2 = oaiDownloadProcessor2.getState()
         self.assertEquals(resumptionToken, state2.resumptionToken)
         self.assertEquals("ERROR while processing 'oai:identifier:1': Could be anything", state2.errorState)
+
+    def testPersistentIdentifier(self):
+        identifierFilepath = join(self.tempdir, 'harvester.identifier')
+        self.assertFalse(isfile(identifierFilepath))
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+        currentIdentifier = oaiDownloadProcessor._identifier
+        self.assertTrue(isfile(identifierFilepath))
+        self.assertEquals(currentIdentifier, open(identifierFilepath).read())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % currentIdentifier, oaiDownloadProcessor.buildRequest())
+        
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % currentIdentifier, oaiDownloadProcessor.buildRequest())
 
 ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>'
 

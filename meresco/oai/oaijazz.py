@@ -63,7 +63,7 @@ class OaiJazz(object):
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
         self._name = name
-        self._suspended = []
+        self._suspended = {}
 
         self._stamp2identifier = btopen(join(aDirectory, 'stamp2identifier.bd'))
         self._tombStones = PersistentSortedIntegerList(
@@ -213,9 +213,11 @@ class OaiJazz(object):
     def getDeletedRecordType(self):
         return "persistent" if self._persistentDelete else "transient"
 
-    def suspend(self):
+    def suspend(self, clientIdentifier):
         suspend = Suspend()
-        self._suspended.append(suspend) 
+        if clientIdentifier in self._suspended:
+            self._suspended.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
+        self._suspended[clientIdentifier] = suspend 
         yield suspend
         suspend.getResult()
 
@@ -365,7 +367,8 @@ class OaiJazz(object):
 
     def _resume(self):
         while len(self._suspended) > 0:
-            self._suspended.pop().resume()
+            clientId, suspend = self._suspended.popitem()
+            suspend.resume()
 
     def _removeIfInList(self, item, l):
         try:
