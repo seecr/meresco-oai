@@ -212,8 +212,8 @@ Error and Exception Conditions
                 results.next()
                 recordsRemaining += 1
             if 'x-count' in validatedArguments:
-                for i, result in enumerate(results):
-                    if i % 100 == 0:
+                for result in results:
+                    if recordsRemaining % 100 == 0:
                         yield Yield
                     recordsRemaining += 1
                 yield '<resumptionToken recordsRemaining="%s">' % recordsRemaining

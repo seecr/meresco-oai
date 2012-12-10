@@ -50,8 +50,7 @@ from weightless.io import Suspend
 
 MERGE_TRIGGER = 1000
 SETSPEC_SEPARATOR = ','
-DATESTAMP_FACTOR, DATESTAMP_FACTOR_FLOAT = 1000000, 1000000.0
-
+DATESTAMP_FACTOR = 1000000
 
 class OaiJazz(object):
 
@@ -330,7 +329,7 @@ class OaiJazz(object):
     @staticmethod
     def _timeToNumber(time):
         try:
-            return int(timegm(strptime(time, '%Y-%m-%dT%H:%M:%SZ'))*DATESTAMP_FACTOR_FLOAT)
+            return int(timegm(strptime(time, '%Y-%m-%dT%H:%M:%SZ')) * DATESTAMP_FACTOR)
         except (ValueError, OverflowError):
             return maxint * DATESTAMP_FACTOR
 
@@ -350,7 +349,7 @@ class OaiJazz(object):
 
     def _newStamp(self):
         """time in microseconds"""
-        newStamp = int(time() * DATESTAMP_FACTOR_FLOAT)
+        newStamp = int(time() * DATESTAMP_FACTOR)
         if newStamp <= self._newestStamp:
             raise ValueError("Timestamp error: new stamp '%s' lower than existing ('%s')" % (newStamp, self._newestStamp))
         return newStamp
@@ -419,7 +418,7 @@ def stamp2zulutime(stamp):
 
 def _stamp2zulutime(stamp, preciseDatestamp=False):
     microseconds = ".%s" % (stamp % DATESTAMP_FACTOR) if preciseDatestamp else ""
-    return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp/DATESTAMP_FACTOR_FLOAT)), microseconds)
+    return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp / DATESTAMP_FACTOR)), microseconds)
 
 def _ensureDir(directory):
     isdir(directory) or makedirs(directory) 
