@@ -40,6 +40,7 @@ from calendar import timegm
 from json import dumps, load as jsonLoad
 from bsddb import btopen
 from traceback import print_exc
+from random import choice
 
 from escaping import escapeFilename, unescapeFilename
 from meresco.components.sorteditertools import OrIterator, AndIterator
@@ -56,12 +57,13 @@ class OaiJazz(object):
 
     version = '3'
 
-    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, name=None):
+    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
         self._directory = _ensureDir(aDirectory)
         self._versionFormatCheck()
         self._deletePrefixes = alwaysDeleteInPrefixes or []
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
+        self._maximumSuspendedConnections = maximumSuspendedConnections
         self._name = name
         self._suspended = {}
 
@@ -217,7 +219,9 @@ class OaiJazz(object):
         suspend = Suspend()
         if clientIdentifier in self._suspended:
             self._suspended.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
-        self._suspended[clientIdentifier] = suspend 
+        if len(self._suspended) == self._maximumSuspendedConnections:
+            self._suspended.pop(choice(self._suspended.keys())).resume()
+        self._suspended[clientIdentifier] = suspend
         yield suspend
         suspend.getResult()
 

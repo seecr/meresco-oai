@@ -631,6 +631,19 @@ class OaiJazzTest(SeecrTestCase):
             self.assertTrue([True], resumed)
             self.assertEquals("Aborting suspended request because of new request for the same OaiClient with identifier: a-client-id.", str(e))
 
+    def testShouldResumeAPreviousSuspendAfterTooManySuspends(self):
+        reactor = CallTrace("reactor")
+        resumed = []
+        jazz = OaiJazz(self.tempdir, maximumSuspendedConnections=1)
+        suspendGen1 = jazz.suspend(clientIdentifier="a-client-id")
+        suspend1 = suspendGen1.next()
+        suspend1(reactor, lambda: resumed.append(True))
+        suspend2 = jazz.suspend(clientIdentifier="another-client-id").next()
+
+        self.assertRaises(StopIteration, lambda: suspendGen1.next())
+        self.assertTrue([True], resumed)
+        self.assertEquals(1, len(jazz._suspended))
+
     def testAddOaiRecordResumes(self):
         reactor = CallTrace("reactor")
         suspend = self.jazz.suspend(clientIdentifier="a-client-id").next()
