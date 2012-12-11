@@ -122,7 +122,7 @@ Error and Exception Conditions
                     clientId = httpkwargs['Headers'].get('X-Meresco-Oai-Client-Identifier')
                     if clientId is None:
                         clientId = str(uuid4())
-                        sys.stderr.write("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for oai client from %s" % httpkwargs['Client'][0])
+                        sys.stderr.write("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for OAI client from %s\n" % httpkwargs['Client'][0])
                         sys.stderr.flush()
                     try:
                         yield self.any.suspend(clientIdentifier=clientId)
