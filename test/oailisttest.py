@@ -219,7 +219,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'suspend'], [m.name for m in self.observer.calledMethods])
         self.assertTrue('clientIdentifier' in self.observer.calledMethods[2].kwargs)
         self.assertEquals(len(str(uuid4())), len(self.observer.calledMethods[2].kwargs['clientIdentifier']))
-        self.assertEquals("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for oai client from 127.0.0.1", s.getvalue())
+        self.assertEquals("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for OAI client from 127.0.0.1\n", s.getvalue())
 
     def testNotSupportedXWait(self):
         self.observer.returnValues['oaiSelect'] = (f for f in ['id:1', 'id:2'])
