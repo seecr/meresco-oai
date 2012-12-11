@@ -37,6 +37,7 @@ from lxml.etree import parse
 from uuid import uuid4
 
 from seecr.test import SeecrTestCase, CallTrace
+from seecr.test.io import stderr_replaced
 
 from weightless.core import compose, Yield
 from meresco.components.http.utils import CRLF
@@ -200,6 +201,25 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'other_prefix', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[3:]
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'other_prefix'}, recordMethods[0].kwargs)
+
+    def testListRecordsWithoutClientIdentifierGeneratesOne(self):
+        self.oaiList = OaiList(batchSize=2, supportXWait=True)
+        self.oaiList.addObserver(self.observer)
+        self.observer.returnValues['oaiSelect'] = (f for f in [])
+
+        self.httpkwargs = {
+            'path': '/path/to/oai',
+            'Headers':{'Host':'server'},
+            'port':9000,
+            'Client': ('127.0.0.1', 1234)
+        }
+        with stderr_replaced() as s:
+            result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
+            suspend = result.next()
+        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'suspend'], [m.name for m in self.observer.calledMethods])
+        self.assertTrue('clientIdentifier' in self.observer.calledMethods[2].kwargs)
+        self.assertEquals(len(str(uuid4())), len(self.observer.calledMethods[2].kwargs['clientIdentifier']))
+        self.assertEquals("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for oai client from 127.0.0.1", s.getvalue())
 
     def testNotSupportedXWait(self):
         self.observer.returnValues['oaiSelect'] = (f for f in ['id:1', 'id:2'])

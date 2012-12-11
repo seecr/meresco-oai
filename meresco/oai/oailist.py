@@ -39,6 +39,8 @@ from oaitool import ISO8601, ISO8601Exception
 from itertools import chain, islice
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
+from uuid import uuid4
+import sys
 
 
 class OaiList(Observable):
@@ -117,7 +119,11 @@ Error and Exception Conditions
             except OaiException, e:
                 if validatedArguments.get("x-wait", 'False') == 'True' and \
                         e.statusCode in ["noRecordsMatch", "cannotDisseminateFormat"]:
-                    clientId = httpkwargs['Headers']['X-Meresco-Oai-Client-Identifier']
+                    clientId = httpkwargs['Headers'].get('X-Meresco-Oai-Client-Identifier')
+                    if clientId is None:
+                        clientId = str(uuid4())
+                        sys.stderr.write("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for oai client from %s" % httpkwargs['Client'][0])
+                        sys.stderr.flush()
                     try:
                         yield self.any.suspend(clientIdentifier=clientId)
                     except Exception, e:
