@@ -638,11 +638,13 @@ class OaiJazzTest(SeecrTestCase):
         suspendGen1 = jazz.suspend(clientIdentifier="a-client-id")
         suspend1 = suspendGen1.next()
         suspend1(reactor, lambda: resumed.append(True))
-        suspend2 = jazz.suspend(clientIdentifier="another-client-id").next()
+        with stderr_replaced() as s:
+            suspend2 = jazz.suspend(clientIdentifier="another-client-id").next()
 
         self.assertRaises(StopIteration, lambda: suspendGen1.next())
         self.assertTrue([True], resumed)
         self.assertEquals(1, len(jazz._suspended))
+        self.assertEquals("Too many suspended connections in OaiJazz. One random connection has been resumed.\n", s.getvalue())
 
     def testAddOaiRecordResumes(self):
         reactor = CallTrace("reactor")

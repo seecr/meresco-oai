@@ -31,6 +31,7 @@
 # 
 ## end license ##
 
+import sys
 from sys import maxint
 from os.path import isdir, join, isfile
 from os import makedirs, listdir, rename, remove
@@ -221,6 +222,7 @@ class OaiJazz(object):
             self._suspended.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
         if len(self._suspended) == self._maximumSuspendedConnections:
             self._suspended.pop(choice(self._suspended.keys())).resume()
+            sys.stderr.write("Too many suspended connections in OaiJazz. One random connection has been resumed.\n")
         self._suspended[clientIdentifier] = suspend
         yield suspend
         suspend.getResult()
