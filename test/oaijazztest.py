@@ -40,7 +40,7 @@ from time import time, strptime, sleep
 from calendar import timegm
 
 from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
-from meresco.oai.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATOR
+from meresco.oai.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATOR, ForcedResumeException
 from meresco.oai.oailist import OaiList
 from StringIO import StringIO
 from lxml.etree import parse
@@ -641,7 +641,7 @@ class OaiJazzTest(SeecrTestCase):
         with stderr_replaced() as s:
             suspend2 = jazz.suspend(clientIdentifier="another-client-id").next()
 
-        self.assertRaises(StopIteration, lambda: suspendGen1.next())
+        self.assertRaises(ForcedResumeException, lambda: suspendGen1.next())
         self.assertTrue([True], resumed)
         self.assertEquals(1, len(jazz._suspended))
         self.assertEquals("Too many suspended connections in OaiJazz. One random connection has been resumed.\n", s.getvalue())

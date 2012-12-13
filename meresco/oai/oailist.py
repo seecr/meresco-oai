@@ -31,7 +31,7 @@
 ## end license ##
 
 from weightless.core import Yield
-from meresco.components.http.utils import serverErrorPlainText
+from meresco.components.http.utils import serverErrorPlainText, successNoContentPlainText
 from meresco.core.observable import Observable
 
 from resumptiontoken import resumptionTokenFromString, ResumptionToken
@@ -39,6 +39,7 @@ from oaitool import ISO8601, ISO8601Exception
 from itertools import chain, islice
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
+from oaijazz import ForcedResumeException
 from uuid import uuid4
 import sys
 
@@ -126,6 +127,9 @@ Error and Exception Conditions
                         sys.stderr.flush()
                     try:
                         yield self.any.suspend(clientIdentifier=clientId)
+                    except ForcedResumeException, e:
+                        yield successNoContentPlainText + str(e)
+                        return
                     except Exception, e:
                         yield serverErrorPlainText + str(e)
                         raise e

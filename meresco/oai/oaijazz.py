@@ -221,7 +221,7 @@ class OaiJazz(object):
         if clientIdentifier in self._suspended:
             self._suspended.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
         if len(self._suspended) == self._maximumSuspendedConnections:
-            self._suspended.pop(choice(self._suspended.keys())).resume()
+            self._suspended.pop(choice(self._suspended.keys())).throw(ForcedResumeException, ForcedResumeException("OAI x-wait connection has been forcefully resumed."), None)
             sys.stderr.write("Too many suspended connections in OaiJazz. One random connection has been resumed.\n")
         self._suspended[clientIdentifier] = suspend
         yield suspend
@@ -432,4 +432,8 @@ def _stamp2zulutime(stamp, preciseDatestamp=False):
 def _ensureDir(directory):
     isdir(directory) or makedirs(directory) 
     return directory
+
+
+class ForcedResumeException(Exception):
+    pass
 

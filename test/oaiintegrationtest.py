@@ -28,8 +28,10 @@
 
 from os.path import join
 from random import randint
+from sys import stdout
 from threading import Thread
 from time import sleep
+from urllib2 import urlopen
 from uuid import uuid4
 
 from meresco.core import Observable
@@ -130,6 +132,46 @@ class OaiIntegrationTest(SeecrTestCase):
                 oaiPmhThread.join()
                 harvestThread1.join()
                 harvestThread2.join()
+
+    def testShouldNotStartToLoopLikeAMadMan(self):
+        self.run = True
+        portNumber = randint(50000, 60000)
+        oaiJazz = OaiJazz(join(self.tempdir, 'oai'), maximumSuspendedConnections=5)
+        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+
+        def doOaiListRecord(port):
+            header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, parse=False)
+
+        def doUrlOpenWith1SecTimeout(port, basket):
+            try:
+                response = urlopen("http://localhost:%s/?verb=ListRecords&metadataPrefix=prefix&x-wait=True" % port, timeout=0.5)
+            except URLError, e:
+                self.assertTrue('urlopen error timed out>' in str(e), str(e))
+            basket.append(response.getcode())
+
+        oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
+        threads = []
+        todo = [doUrlOpenWith1SecTimeout] * 7
+
+        statusCodes = []
+        oaiPmhThread.start()
+        with stderr_replaced():
+            while todo:
+                func = todo.pop()
+                harvestThread = Thread(None, lambda: func(portNumber, statusCodes))
+                threads.append(harvestThread)
+                harvestThread.start()
+
+            try:
+                while not oaiJazz._suspended:
+                    sleep(0.01)
+            finally:
+                for t in threads:
+                    t.join()
+                self.run = False
+                oaiPmhThread.join()
+
+        self.assertEquals([204] * 2, statusCodes)
 
     def testNearRealtimeOaiSavesState(self):
         observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
