@@ -47,7 +47,8 @@ class OaiAddRecordWithDefaultsTest(TestCase):
             observer.calledMethods[0].kwargs)
 
     def testAddWithMethods(self):
-        subject = OaiAddRecordWithDefaults(sets=lambda: [('setSpec', 'setName')], metadataFormats=lambda: [('prefix','schema','namespace')])
+        methodObject = CallTrace(returnValues={'sets':[('setSpec', 'setName')], 'metadataFormats': [('prefix','schema','namespace')]})
+        subject = OaiAddRecordWithDefaults(sets=methodObject.sets , metadataFormats=methodObject.metadataFormats)
         observer = CallTrace('oaijazz')
         subject.addObserver(observer)
 
@@ -58,6 +59,9 @@ class OaiAddRecordWithDefaultsTest(TestCase):
             'sets': [('setSpec', 'setName')],
             'metadataFormats': [('prefix','schema','namespace')]},
             observer.calledMethods[0].kwargs)
+        self.assertEquals(['sets', 'metadataFormats'], methodObject.calledMethodNames())
+        for method in methodObject.calledMethods:
+            self.assertEquals({'identifier':'id', 'ignored':'kwarg'}, method.kwargs)
 
 
 

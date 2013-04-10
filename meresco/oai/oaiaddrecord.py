@@ -43,12 +43,12 @@ class OaiAddRecordWithDefaults(Transparent):
     @staticmethod
     def _prepare(iterableOrCallable):
         if iterableOrCallable is None:
-            return lambda: []
-        return iterableOrCallable if callable(iterableOrCallable) else lambda: iterableOrCallable
+            return lambda **kwargs: []
+        return iterableOrCallable if callable(iterableOrCallable) else lambda **kwargs: iterableOrCallable
 
     @asyncreturn
     def add(self, identifier, **kwargs):
-        self.do.addOaiRecord(identifier=identifier, sets=self._sets(), metadataFormats=self._metadataFormats())
+        self.do.addOaiRecord(identifier=identifier, sets=self._sets(identifier=identifier, **kwargs), metadataFormats=self._metadataFormats(identifier=identifier, **kwargs))
 
 
 class OaiAddRecord(Transparent):
