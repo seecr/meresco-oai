@@ -51,6 +51,7 @@ simplefilter('default')
 
 from convertoaiv1tov2test import ConvertOaiV1ToV2Test
 from convertoaiv2tov3test import ConvertOaiV2ToV3Test
+from convertoaiv3tov4test import ConvertOaiV3ToV4Test
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest
