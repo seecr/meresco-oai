@@ -182,7 +182,7 @@ class OaiJazzTest(SeecrTestCase):
             self.assertTrue(stampId not in stampIds)
         for set, stampIds in jazz2._sets.items():
             self.assertTrue(stampId not in stampIds)
-        self.assertTrue('existing' not in jazz2._identifier2setSpecs)
+        self.assertTrue('ss:existing' not in jazz2._identifierDict)
 
     def testPurgeNotAllowedIfDeletesArePersistent(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
@@ -324,15 +324,10 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(',', SETSPEC_SEPARATOR)
         self.assertRaises(AssertionError, lambda: self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec,', 'setName')]))
 
-    def testConversionNeeded(self):
-        self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
-        remove(join(self.tempdir, 'identifier2setSpecs.bd'))
-        self.assertRaises(AssertionError, lambda: OaiJazz(self.tempdir))
-
     def testVersionWritten(self):
         version = open(join(self.tempdir, "oai.version")).read()
         self.assertEquals(version, OaiJazz.version)
-   
+
     def testRefuseInitWithNoVersionFile(self):
         self.oaiJazz = None
         remove(join(self.tempdir, 'oai.version'))
@@ -341,7 +336,7 @@ class OaiJazzTest(SeecrTestCase):
             oaiJazz = OaiJazz(self.tempdir)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v2_to_v3.py' in meresco-oai/bin)" % self.tempdir, str(e))
+            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4.py' in meresco-oai/bin)" % self.tempdir, str(e))
 
     def testRefuseInitWithDifferentVersionFile(self):
         self.oaiJazz = None
@@ -351,7 +346,7 @@ class OaiJazzTest(SeecrTestCase):
             oaiJazz = OaiJazz(self.tempdir)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v2_to_v3.py' in meresco-oai/bin)" % self.tempdir, str(e))
+            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4.py' in meresco-oai/bin)" % self.tempdir, str(e))
 
     def addDocuments(self, size):
         for id in range(1,size+1):
@@ -735,8 +730,7 @@ class OaiJazzTest(SeecrTestCase):
 
             replaceMethodWithCrashAtStep(crashingJazz, '_removeIfInList')
             replaceMethodWithCrashAtStep(crashingJazz, '_appendIfNotYet')
-            replaceMethodWithCrashAtStep(crashingJazz._stamp2identifier, 'sync')
-            replaceMethodWithCrashAtStep(crashingJazz._identifier2setSpecs, 'sync')
+            replaceMethodWithCrashAtStep(crashingJazz._identifierDict, 'sync')
 
             try:
                 with stderr_replaced():

@@ -54,9 +54,12 @@ MERGE_TRIGGER = 1000
 SETSPEC_SEPARATOR = ','
 DATESTAMP_FACTOR = 1000000
 
+IDENTIFIER2SETSPEC = 'ss:'
+STAMP2IDENTIFIER = 'st:'
+
 class OaiJazz(object):
 
-    version = '3'
+    version = '4'
 
     def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
         self._directory = _ensureDir(aDirectory)
@@ -68,12 +71,11 @@ class OaiJazz(object):
         self._name = name
         self._suspended = {}
 
-        self._stamp2identifier = btopen(join(aDirectory, 'stamp2identifier.bd'))
+        self._identifierDict = btopen(join(aDirectory, 'stamp2identifier2setSpecs.bd'))
         self._tombStones = PersistentSortedIntegerList(
-            join(self._directory, 'tombStones.list'), 
-            use64bits=True, 
+            join(self._directory, 'tombStones.list'),
+            use64bits=True,
             mergeTrigger=MERGE_TRIGGER)
-        self._identifier2setSpecs = btopen(join(self._directory, 'identifier2setSpecs.bd'))
         self._prefixesInfoDir = _ensureDir(join(aDirectory, 'prefixesInfo'))
         self._prefixesDir = _ensureDir(join(aDirectory, 'prefixes'))
         self._prefixes = {}
@@ -105,13 +107,13 @@ class OaiJazz(object):
         setSpecs = _flattenSetHierarchy((setSpec for setSpec, setName in sets))
         setSpecs.update(oldSets)
         self._saveForRecoveryAndApply(
-            identifier=identifier, 
-            oldStamp=oldStamp, 
+            identifier=identifier,
+            oldStamp=oldStamp,
             oldSets=list(oldSets),
-            newStamp=newStamp, 
-            delete=False, 
-            prefixes=list(prefixes), 
-            newSets=list(setSpecs)) 
+            newStamp=newStamp,
+            delete=False,
+            prefixes=list(prefixes),
+            newSets=list(setSpecs))
         self._resume()
 
     @asyncreturn
@@ -123,12 +125,12 @@ class OaiJazz(object):
         if not oldStamp and not self._deletePrefixes:
             return
         self._saveForRecoveryAndApply(
-            identifier=identifier, 
+            identifier=identifier,
             oldStamp=oldStamp,
-            oldSets=list(oldSets), 
-            newStamp=self._newStamp(), 
-            delete=True, 
-            prefixes=list(set(oldPrefixes + self._deletePrefixes)), 
+            oldSets=list(oldSets),
+            newStamp=self._newStamp(),
+            delete=True,
+            prefixes=list(set(oldPrefixes + self._deletePrefixes)),
             newSets=list(oldSets))
         self._resume()
 
@@ -140,10 +142,10 @@ class OaiJazz(object):
         if not oldStamp:
             return
         self._saveForRecoveryAndApply(
-            identifier=identifier, 
+            identifier=identifier,
             oldStamp=oldStamp,
-            oldSets=list(oldSets), 
-            newStamp=None) 
+            oldSets=list(oldSets),
+            newStamp=None)
 
     def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
         setsMask = setsMask or []
@@ -157,7 +159,7 @@ class OaiJazz(object):
         )
         if setsMask:
             stampIds = AndIterator(stampIds,
-                reduce(AndIterator, (setsStampIds[setSpec] for setSpec in setsMask))) 
+                reduce(AndIterator, (setsStampIds[setSpec] for setSpec in setsMask)))
         if sets:
             stampIds = AndIterator(stampIds,
                 reduce(OrIterator, (setsStampIds[setSpec] for setSpec in sets)))
@@ -190,19 +192,18 @@ class OaiJazz(object):
 
     def getSets(self, identifier):
         identifier = safeString(identifier)
-        if identifier not in self._identifier2setSpecs:
-            return []
-        return self._identifier2setSpecs[identifier].split(SETSPEC_SEPARATOR)
+        value = self._identifierDict.get(IDENTIFIER2SETSPEC + identifier)
+        return value.split(SETSPEC_SEPARATOR) if value else []
 
     def getPrefixes(self, identifier):
-        stamp = self.getUnique(identifier)
+        stamp = self.getUnique(safeString(identifier))
         if not stamp:
             return []
         return (prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds)
 
     def getAllSets(self):
         return self._sets.keys()
-        
+
     def getNrOfRecords(self, prefix='oai_dc'):
         return len(self._prefixes.get(prefix, []))
 
@@ -264,8 +265,8 @@ class OaiJazz(object):
                 if stamp in prefixStamps:  # Relatively expensive...
                     oldPrefixes.append(prefix)
             oldSets = [
-                setSpec 
-                for setSpec in self._identifier2setSpecs.get(identifier, '').split(SETSPEC_SEPARATOR) 
+                setSpec
+                for setSpec in self._identifierDict.get(IDENTIFIER2SETSPEC + identifier, '').split(SETSPEC_SEPARATOR)
                 if setSpec]
         return stamp, oldPrefixes, oldSets
 
@@ -293,38 +294,37 @@ class OaiJazz(object):
                 self._add(identifier, newStamp, prefixes, newSets)
                 if delete:
                     self._appendIfNotYet(newStamp, self._tombStones)
-            self._stamp2identifier.sync()
-            self._identifier2setSpecs.sync()
+            self._identifierDict.sync()
         except:
             print_exc()
             raise SystemExit("OaiJazz: FATAL error committing change to disk.")
 
     def _purge(self, identifier, oldStamp, oldSets):
-        self._stamp2identifier.pop(str(oldStamp), None)
-        self._stamp2identifier.pop(str("id:" + identifier), None)
+        self._identifierDict.pop(STAMP2IDENTIFIER + str(oldStamp), None)
+        self._identifierDict.pop(STAMP2IDENTIFIER + "id:" + identifier, None)
         self._removeIfInList(oldStamp, self._tombStones)
         for prefix, prefixStamps in self._prefixes.items():
             self._removeIfInList(oldStamp, prefixStamps)
-        self._identifier2setSpecs.pop(identifier, None)
+        self._identifierDict.pop(IDENTIFIER2SETSPEC + identifier, None)
         for setSpec in oldSets:
             self._removeIfInList(oldStamp, self._sets[setSpec])
 
     def _add(self, identifier, newStamp, prefixes, newSets):
         self._newestStamp = newStamp
-        self._stamp2identifier[str(newStamp)] = identifier
-        self._stamp2identifier["id:" + identifier] = str(newStamp)
+        self._identifierDict[STAMP2IDENTIFIER + str(newStamp)] = identifier
+        self._identifierDict[STAMP2IDENTIFIER + "id:" + identifier] = str(newStamp)
         for prefix in prefixes:
             self._appendIfNotYet(newStamp, self._getPrefixList(prefix))
         for setSpec in newSets:
             self._appendIfNotYet(newStamp, self._getSetList(setSpec))
         if newSets:
-            self._identifier2setSpecs[identifier] = SETSPEC_SEPARATOR.join(newSets)
-        
+            self._identifierDict[IDENTIFIER2SETSPEC + identifier] = SETSPEC_SEPARATOR.join(newSets)
+
     def _sliceStampIds(self, stampIds, start, stop):
         if stop:
             return stampIds[bisect_left(stampIds, start):bisect_left(stampIds, stop)]
         return stampIds[bisect_left(stampIds, start):]
-                
+
     def _fromTime(self, oaiFrom):
         if not oaiFrom:
             return 0
@@ -344,10 +344,10 @@ class OaiJazz(object):
             return maxint * DATESTAMP_FACTOR
 
     def _getIdentifier(self, stamp):
-        return self._stamp2identifier.get(str(stamp), None)
+        return self._identifierDict.get(STAMP2IDENTIFIER + str(stamp), None)
 
     def _getStamp(self, identifier):
-        result = self._stamp2identifier.get("id:" + safeString(identifier), None)
+        result = self._identifierDict.get(STAMP2IDENTIFIER + "id:" + safeString(identifier), None)
         if result != None:
             result = int(result)
         return result
@@ -367,11 +367,8 @@ class OaiJazz(object):
         return newStamp
 
     def _versionFormatCheck(self):
-        if isdir(join(self._directory, 'sets')):
-            assert isfile(join(self._directory, 'identifier2setSpecs.bd')), "This is an old OaiJazz data storage which doesn't have the identifier2setSpecs.bd file. Please convert manually or rebuild complete data storage."
-
         self._versionFile = join(self._directory, "oai.version")
-        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI index at %s need to be converted to the current version (with 'convert_oai_v2_to_v3.py' in meresco-oai/bin)" % self._directory
+        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4.py' in meresco-oai/bin)" % self._directory
         with open(join(self._directory, "oai.version"), 'w') as f:
             f.write(self.version)
 
@@ -434,7 +431,7 @@ def _stamp2zulutime(stamp, preciseDatestamp=False):
     return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp / DATESTAMP_FACTOR)), microseconds)
 
 def _ensureDir(directory):
-    isdir(directory) or makedirs(directory) 
+    isdir(directory) or makedirs(directory)
     return directory
 
 
