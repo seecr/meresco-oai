@@ -336,7 +336,7 @@ class OaiJazzTest(SeecrTestCase):
             oaiJazz = OaiJazz(self.tempdir)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4.py' in meresco-oai/bin)" % self.tempdir, str(e))
+            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self.tempdir, str(e))
 
     def testRefuseInitWithDifferentVersionFile(self):
         self.oaiJazz = None
@@ -346,7 +346,7 @@ class OaiJazzTest(SeecrTestCase):
             oaiJazz = OaiJazz(self.tempdir)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4.py' in meresco-oai/bin)" % self.tempdir, str(e))
+            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self.tempdir, str(e))
 
     def addDocuments(self, size):
         for id in range(1,size+1):
