@@ -1,34 +1,34 @@
 # -*- coding: utf-8 -*-
 ## begin license ##
-# 
+#
 # "Meresco Oai" are components to build Oai repositories, based on
-# "Meresco Core" and "Meresco Components". 
-# 
+# "Meresco Core" and "Meresco Components".
+#
 # Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
 # Copyright (C) 2007-2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
-# 
+#
 # This file is part of "Meresco Oai"
-# 
+#
 # "Meresco Oai" is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # "Meresco Oai" is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with "Meresco Oai"; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-# 
+#
 ## end license ##
 
 import sys
@@ -182,9 +182,7 @@ class OaiJazz(object):
         return stamp in self._tombStones
 
     def getAllMetadataFormats(self):
-        for prefix in self._prefixes.keys():
-            schema = open(join(self._prefixesInfoDir, '%s.schema' % escapeFilename(prefix))).read()
-            namespace = open(join(self._prefixesInfoDir, '%s.namespace' % escapeFilename(prefix))).read()
+        for prefix, schema, namespace in self._metadataFormats.values():
             yield (prefix, schema, namespace)
 
     def getAllPrefixes(self):
@@ -230,8 +228,12 @@ class OaiJazz(object):
     # private methods
 
     def _read(self):
+        self._metadataFormats = {}
         for prefix in (unescapeFilename(name[:-len('.list')]) for name in listdir(self._prefixesDir) if name.endswith('.list')):
             self._getPrefixList(prefix)
+            schema = open(join(self._prefixesInfoDir, '%s.schema' % escapeFilename(prefix))).read()
+            namespace = open(join(self._prefixesInfoDir, '%s.namespace' % escapeFilename(prefix))).read()
+            self._metadataFormats[prefix] = (prefix, schema, namespace)
         for setSpec in (unescapeFilename(name[:-len('.list')]) for name in listdir(self._setsDir) if name.endswith('.list')):
             self._getSetList(setSpec)
 
@@ -352,8 +354,10 @@ class OaiJazz(object):
 
     def _storeMetadataFormats(self, metadataFormats):
         for prefix, schema, namespace in metadataFormats:
-            _write(join(self._prefixesInfoDir, '%s.schema' % escapeFilename(prefix)), schema)
-            _write(join(self._prefixesInfoDir, '%s.namespace' % escapeFilename(prefix)), namespace)
+            if (prefix, schema, namespace) != self._metadataFormats.get(prefix):
+                self._metadataFormats[prefix] = (prefix, schema, namespace)
+                _write(join(self._prefixesInfoDir, '%s.schema' % escapeFilename(prefix)), schema)
+                _write(join(self._prefixesInfoDir, '%s.namespace' % escapeFilename(prefix)), namespace)
 
     def _newStamp(self):
         """time in microseconds"""
