@@ -368,7 +368,7 @@ class OaiJazz(object):
 
     def _versionFormatCheck(self):
         self._versionFile = join(self._directory, "oai.version")
-        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4.py' in meresco-oai/bin)" % self._directory
+        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self._directory
         with open(join(self._directory, "oai.version"), 'w') as f:
             f.write(self.version)
 
