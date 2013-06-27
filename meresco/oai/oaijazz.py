@@ -242,6 +242,7 @@ class OaiJazz(object):
         if setSpec not in self._sets:
             filename = join(self._setsDir, '%s.list' % escapeFilename(setSpec))
             l = self._sets[setSpec] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
+            self._removeInvalidStamp(l)
             self._newestStampFromList(l)
         return self._sets[setSpec]
 
@@ -249,6 +250,7 @@ class OaiJazz(object):
         if prefix not in self._prefixes:
             filename = join(self._prefixesDir, '%s.list' % escapeFilename(prefix))
             l = self._prefixes[prefix] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
+            self._removeInvalidStamp(l)
             self._newestStampFromList(l)
         return self._prefixes[prefix]
 
@@ -271,9 +273,9 @@ class OaiJazz(object):
         return stamp, oldPrefixes, oldSets
 
     def _saveForRecoveryAndApply(self, **kwargs):
-        _write(self._changeFile, dumps(kwargs))
+        # _write(self._changeFile, dumps(kwargs))
         self._applyChange(**kwargs)
-        remove(self._changeFile)
+        # remove(self._changeFile)
 
     def _maybeRecover(self):
         if isfile(self._changeFile + '.tmp'):
@@ -294,25 +296,31 @@ class OaiJazz(object):
                 self._add(identifier, newStamp, prefixes, newSets)
                 if delete:
                     self._appendIfNotYet(newStamp, self._tombStones)
+            else:
+                self._purge(identifier, oldStamp, oldSets)
             self._identifierDict.sync()
+            if not oldStamp is None:
+                self._purgeLists(identifier, oldStamp, oldSets)
         except:
             print_exc()
             raise SystemExit("OaiJazz: FATAL error committing change to disk.")
 
     def _purge(self, identifier, oldStamp, oldSets):
-        self._identifierDict.pop(STAMP2IDENTIFIER + str(oldStamp), None)
         self._identifierDict.pop(STAMP2IDENTIFIER + "id:" + identifier, None)
+        self._identifierDict.pop(IDENTIFIER2SETSPEC + identifier, None)
+        self._identifierDict.pop(STAMP2IDENTIFIER + str(oldStamp), None)
+
+    def _purgeLists(self, identifier, oldStamp, oldSets):
         self._removeIfInList(oldStamp, self._tombStones)
         for prefix, prefixStamps in self._prefixes.items():
             self._removeIfInList(oldStamp, prefixStamps)
-        self._identifierDict.pop(IDENTIFIER2SETSPEC + identifier, None)
         for setSpec in oldSets:
             self._removeIfInList(oldStamp, self._sets[setSpec])
 
     def _add(self, identifier, newStamp, prefixes, newSets):
         self._newestStamp = newStamp
-        self._identifierDict[STAMP2IDENTIFIER + str(newStamp)] = identifier
         self._identifierDict[STAMP2IDENTIFIER + "id:" + identifier] = str(newStamp)
+        self._identifierDict[STAMP2IDENTIFIER + str(newStamp)] = identifier
         for prefix in prefixes:
             self._appendIfNotYet(newStamp, self._getPrefixList(prefix))
         for setSpec in newSets:
@@ -376,6 +384,13 @@ class OaiJazz(object):
         while len(self._suspended) > 0:
             clientId, suspend = self._suspended.popitem()
             suspend.resume()
+
+    def _removeInvalidStamp(self, l):
+        # Last or second last could be unused stamps due to crashes
+        if l:
+            for stamp in l[-2:]:
+                if self._getIdentifier(str(stamp)) is None:
+                    l.remove(stamp)
 
     def _removeIfInList(self, item, l):
         try:

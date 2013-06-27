@@ -47,6 +47,7 @@ from lxml.etree import parse
 from meresco.core import Observable, Transparent
 from weightless.core import be, compose
 from weightless.io import Suspend
+from shutil import rmtree
 
 parseLxml = lambda s: parse(StringIO(s)).getroot()
 
@@ -680,6 +681,14 @@ class OaiJazzTest(SeecrTestCase):
         def asserts(jazz):
             self.assertEquals(['A', 'B'], jazz.getSets(identifier))
             self.assertEquals(set(['prefix', 'prefix2']), set(jazz.getPrefixes(identifier)))
+            self.assertEquals(1, len(list(jazz._getPrefixList(prefix='prefix'))))
+            self.assertEquals(1, len(list(jazz._getPrefixList(prefix='prefix2'))))
+            self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix'))))
+            self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix2'))))
+            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['A'], prefix='prefix'))))
+            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['B'], prefix='prefix'))))
+            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['A'], prefix='prefix2'))))
+            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['B'], prefix='prefix2'))))
 
         self._crashAtDifferentSteps(setUp, modify, asserts)
 
@@ -695,6 +704,10 @@ class OaiJazzTest(SeecrTestCase):
             self.assertEquals(['A'], jazz.getSets(identifier))
             self.assertEquals(set(['prefix']), set(jazz.getPrefixes(identifier)))
             self.assertTrue(jazz.isDeleted(identifier))
+            self.assertEquals(1, len(list(jazz._getPrefixList(prefix='prefix'))))
+            self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix'))))
+            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['A'], prefix='prefix'))))
+
 
         self._crashAtDifferentSteps(setUp, modify, asserts)
 
@@ -705,18 +718,23 @@ class OaiJazzTest(SeecrTestCase):
             jazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
 
         def modify(jazz):
+            jazz._persistentDelete = False
             jazz.purge(identifier)
 
         def asserts(jazz):
             self.assertEquals(None, jazz.getUnique(identifier))
+            self.assertEquals(0, len(list(jazz._getPrefixList(prefix='prefix'))))
+            self.assertEquals(0, len(list(jazz.oaiSelect(prefix='prefix'))))
+            self.assertEquals(0, len(list(jazz.oaiSelect(sets=['A'], prefix='prefix'))))
 
         self._crashAtDifferentSteps(setUp, modify, asserts)
-        
+
     def _crashAtDifferentSteps(self, setUp, modify, asserts):
+        oaiDir = join(self.tempdir, 'oai')
         for crashingStep in range(1, 15):
-            crashingJazz = OaiJazz(self.tempdir)
+            crashingJazz = OaiJazz(oaiDir)
             setUp(crashingJazz)
-            self.assertFalse(isfile(crashingJazz._changeFile))
+            # self.assertFalse(isfile(crashingJazz._changeFile))
 
             stepCount = [0]
             def replaceMethodWithCrashAtStep(object, methodName):
@@ -738,11 +756,11 @@ class OaiJazzTest(SeecrTestCase):
                 # not crashed...
                 asserts(crashingJazz)
             except SystemExit:
-                self.assertTrue(isfile(crashingJazz._changeFile))
+                # self.assertTrue(isfile(crashingJazz._changeFile))
                 crashingJazz = None
 
             # recover
-            newJazz = OaiJazz(aDirectory=self.tempdir)
-            self.assertFalse(isfile(newJazz._changeFile))
+            newJazz = OaiJazz(aDirectory=oaiDir)
+            modify(newJazz)
+            # self.assertFalse(isfile(newJazz._changeFile))
             asserts(newJazz)
-
