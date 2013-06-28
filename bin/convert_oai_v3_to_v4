@@ -46,7 +46,7 @@ from meresco.oai import OaiJazz
 
 
 def convert(path):
-    if isfile(path, 'change.json'):
+    if isfile(join(path, 'change.json')):
         print 'Previous jazz is crashed. Please fix this first with jazz version 3!'
         exit(2)
     stamp2identifier = btopen(join(path, "stamp2identifier.bd"))
