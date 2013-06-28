@@ -84,7 +84,6 @@ class OaiJazz(object):
         self._newestStamp = 0
         self._changeFile = join(self._directory, 'change.json')
         self._read()
-        self._maybeRecover()
 
     def observable_name(self):
         return self._name
@@ -106,7 +105,7 @@ class OaiJazz(object):
         prefixes.update(oldPrefixes)
         setSpecs = _flattenSetHierarchy((setSpec for setSpec, setName in sets))
         setSpecs.update(oldSets)
-        self._saveForRecoveryAndApply(
+        self._applyChange(
             identifier=identifier,
             oldStamp=oldStamp,
             oldSets=list(oldSets),
@@ -124,7 +123,7 @@ class OaiJazz(object):
         oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifier)
         if not oldStamp and not self._deletePrefixes:
             return
-        self._saveForRecoveryAndApply(
+        self._applyChange(
             identifier=identifier,
             oldStamp=oldStamp,
             oldSets=list(oldSets),
@@ -141,7 +140,7 @@ class OaiJazz(object):
         oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifier)
         if not oldStamp:
             return
-        self._saveForRecoveryAndApply(
+        self._applyChange(
             identifier=identifier,
             oldStamp=oldStamp,
             oldSets=list(oldSets),
@@ -271,21 +270,6 @@ class OaiJazz(object):
                 for setSpec in self._identifierDict.get(IDENTIFIER2SETSPEC + identifier, '').split(SETSPEC_SEPARATOR)
                 if setSpec]
         return stamp, oldPrefixes, oldSets
-
-    def _saveForRecoveryAndApply(self, **kwargs):
-        # _write(self._changeFile, dumps(kwargs))
-        self._applyChange(**kwargs)
-        # remove(self._changeFile)
-
-    def _maybeRecover(self):
-        if isfile(self._changeFile + '.tmp'):
-            remove(self._changeFile + '.tmp')
-            return
-        if isfile(self._changeFile):
-            with open(self._changeFile, 'r') as f:
-                change = jsonLoad(f)
-            self._applyChange(**change)
-            remove(self._changeFile)
 
     def _applyChange(self, identifier, oldStamp=None, oldSets=None, newStamp=None, delete=False, prefixes=None, newSets=None):
         identifier = safeString(identifier)
