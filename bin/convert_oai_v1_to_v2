@@ -43,9 +43,9 @@ from meresco.components.integerlist import IntegerList
 from meresco.oai import OaiJazz
 
 def convert(path):
-    iList = IntegerList(0, use64bits=True)
+    iList = IntegerList(0)
     iList.extendFrom(path)
-    iListDeleted = IntegerList(0, use64bits=True)
+    iListDeleted = IntegerList(0)
     if isfile(path + '.deleted'):
         iListDeleted.extendFrom(path + '.deleted')
         deleted = sorted(iListDeleted, reverse=True)
@@ -54,6 +54,9 @@ def convert(path):
     iList.save(path + '~', offset=0, append=False)
     if isfile(path + '.deleted'):
         remove(path + '.deleted')
+    iList = IntegerList(0)
+    iList.extendFrom(path + '~')
+    iList.save(path + '~', offset=0, append=False)
     rename(path + '~', path)
 
 def convertDir(directory):
