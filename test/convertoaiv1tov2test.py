@@ -45,12 +45,12 @@ class ConvertOaiV1ToV2Test(SeecrTestCase):
         datadir = join(self.tempdir, 'oai_conversion_v1_to_v2')
         copytree(join(mypath, 'data', 'oai_conversion_v1_to_v2'), datadir)
 
-        anotherSet = IntegerList(10, use64bits=True)
+        anotherSet = IntegerList(10)
         anotherSet.save(join(datadir, 'sets', 'anotherSet.list'), offset=0, append=False)
-        anotherSetDeleted = IntegerList(5, use64bits=True)
+        anotherSetDeleted = IntegerList(5)
         anotherSetDeleted.save(join(datadir, 'sets', 'anotherSet.list.deleted'), offset=0, append=False)
 
-        anotherPrefix = IntegerList(10, use64bits=True)
+        anotherPrefix = IntegerList(10)
         anotherPrefix.save(join(datadir, 'prefixes', 'anotherPrefix.list'), offset=0, append=False)
 
         system("%s %s > %s 2>&1" % (
@@ -58,21 +58,21 @@ class ConvertOaiV1ToV2Test(SeecrTestCase):
                 join(self.tempdir, 'oai_conversion_v1_to_v2'),
                 join(self.tempdir, 'oai_conversion_v1_to_v2.log'),
             ))
-
-        expectedList = PersistentSortedIntegerList(join(self.tempdir, 'forAssertEquals'), use64bits=True)
+        print open(join(self.tempdir, 'oai_conversion_v1_to_v2.log')).read()
+        expectedList = PersistentSortedIntegerList(join(self.tempdir, 'forAssertEquals'))
         for i in xrange(10 ** 3):
             expectedList.append(i)
         expectedList.remove(200)
         expectedList.remove(600)
         expectedList.remove(4)
         for listName in ['tombStones', 'prefixes/somePrefix', 'sets/someSet']:
-            converted = PersistentSortedIntegerList(join(datadir, listName + '.list'), use64bits=True)
+            converted = PersistentSortedIntegerList(join(datadir, listName + '.list'))
             self.assertEquals(list(expectedList), list(converted))
 
-        convertedAnotherSet = PersistentSortedIntegerList(join(datadir, 'sets', 'anotherSet.list'), use64bits=True)
+        convertedAnotherSet = PersistentSortedIntegerList(join(datadir, 'sets', 'anotherSet.list'))
         self.assertEquals(range(5, 10), list(convertedAnotherSet))
 
-        convertedAnotherPrefix = PersistentSortedIntegerList(join(datadir, 'prefixes', 'anotherPrefix.list'), use64bits=True)
+        convertedAnotherPrefix = PersistentSortedIntegerList(join(datadir, 'prefixes', 'anotherPrefix.list'))
         self.assertEquals(range(0, 10), list(convertedAnotherPrefix))
 
         self.assertEquals('2', open(join(datadir, 'oai.version')).read())

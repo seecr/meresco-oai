@@ -74,7 +74,6 @@ class OaiJazz(object):
         self._identifierDict = btopen(join(aDirectory, 'stamp2identifier2setSpecs.bd'))
         self._tombStones = PersistentSortedIntegerList(
             join(self._directory, 'tombStones.list'),
-            use64bits=True,
             mergeTrigger=MERGE_TRIGGER)
         self._prefixesInfoDir = _ensureDir(join(aDirectory, 'prefixesInfo'))
         self._prefixesDir = _ensureDir(join(aDirectory, 'prefixes'))
@@ -241,14 +240,14 @@ class OaiJazz(object):
     def _getSetList(self, setSpec):
         if setSpec not in self._sets:
             filename = join(self._setsDir, '%s.list' % escapeFilename(setSpec))
-            l = self._sets[setSpec] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
+            l = self._sets[setSpec] = PersistentSortedIntegerList(filename, mergeTrigger=MERGE_TRIGGER)
             self._newestStampFromList(l)
         return self._sets[setSpec]
 
     def _getPrefixList(self, prefix):
         if prefix not in self._prefixes:
             filename = join(self._prefixesDir, '%s.list' % escapeFilename(prefix))
-            l = self._prefixes[prefix] = PersistentSortedIntegerList(filename, use64bits=True, mergeTrigger=MERGE_TRIGGER)
+            l = self._prefixes[prefix] = PersistentSortedIntegerList(filename, mergeTrigger=MERGE_TRIGGER)
             self._newestStampFromList(l)
         return self._prefixes[prefix]
 
