@@ -50,31 +50,25 @@ from meresco.core import asyncreturn
 from weightless.io import Suspend
 
 
-MERGE_TRIGGER = 1000
-SETSPEC_SEPARATOR = ','
-DATESTAMP_FACTOR = 1000000
-
-IDENTIFIER2SETSPEC = 'ss:'
-STAMP2IDENTIFIER = 'st:'
-
 class OaiJazz(object):
 
     version = '4'
 
-    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
+    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, autoCommit=True, name=None):
         self._directory = _ensureDir(aDirectory)
         self._versionFormatCheck()
         self._deletePrefixes = alwaysDeleteInPrefixes or []
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
         self._maximumSuspendedConnections = maximumSuspendedConnections
+        self._autoCommit = autoCommit
         self._name = name
         self._suspended = {}
 
         self._identifierDict = btopen(join(aDirectory, 'stamp2identifier2setSpecs.bd'))
         self._tombStones = PersistentSortedIntegerList(
             join(self._directory, 'tombStones.list'),
-            mergeTrigger=MERGE_TRIGGER)
+            autoCommit=self._autoCommit)
         self._prefixesInfoDir = _ensureDir(join(aDirectory, 'prefixesInfo'))
         self._prefixesDir = _ensureDir(join(aDirectory, 'prefixes'))
         self._prefixes = {}
@@ -224,6 +218,14 @@ class OaiJazz(object):
         yield suspend
         suspend.getResult()
 
+    def commit(self):
+        self._identifierDict.sync()
+        for l in self._sets.values() + self._prefixes.values():
+            l.commit()
+
+    def handleShutdown(self):
+        self.commit()
+
     # private methods
 
     def _read(self):
@@ -239,7 +241,7 @@ class OaiJazz(object):
     def _getSetList(self, setSpec):
         if setSpec not in self._sets:
             filename = join(self._setsDir, '%s.list' % escapeFilename(setSpec))
-            l = self._sets[setSpec] = PersistentSortedIntegerList(filename, mergeTrigger=MERGE_TRIGGER)
+            l = self._sets[setSpec] = PersistentSortedIntegerList(filename, autoCommit=self._autoCommit)
             self._removeInvalidStamp(l)
             self._newestStampFromList(l)
         return self._sets[setSpec]
@@ -247,7 +249,7 @@ class OaiJazz(object):
     def _getPrefixList(self, prefix):
         if prefix not in self._prefixes:
             filename = join(self._prefixesDir, '%s.list' % escapeFilename(prefix))
-            l = self._prefixes[prefix] = PersistentSortedIntegerList(filename, mergeTrigger=MERGE_TRIGGER)
+            l = self._prefixes[prefix] = PersistentSortedIntegerList(filename, autoCommit=self._autoCommit)
             self._removeInvalidStamp(l)
             self._newestStampFromList(l)
         return self._prefixes[prefix]
@@ -281,7 +283,8 @@ class OaiJazz(object):
                     self._appendIfNotYet(newStamp, self._tombStones)
             else:
                 self._purge(identifier, oldStamp, oldSets)
-            self._identifierDict.sync()
+            if self._autoCommit:
+                self._identifierDict.sync()
             if not oldStamp is None:
                 self._purgeLists(identifier, oldStamp, oldSets)
         except:
@@ -436,3 +439,8 @@ def _ensureDir(directory):
 class ForcedResumeException(Exception):
     pass
 
+SETSPEC_SEPARATOR = ','
+DATESTAMP_FACTOR = 1000000
+
+IDENTIFIER2SETSPEC = 'ss:'
+STAMP2IDENTIFIER = 'st:'

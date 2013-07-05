@@ -670,6 +670,20 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals("", stamp2zulutime(None))
         self.assertRaises(Exception, stamp2zulutime, "not-a-stamp")
 
+    def testJazzWithShutdown(self):
+        jazz = OaiJazz(self.tempdir, autoCommit=False)
+        jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
+        jazz.handleShutdown()
+        jazz = OaiJazz(self.tempdir, autoCommit=False)
+        self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix'))))
+        self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix', sets=['A']))))
+
+    def testJazzWithoutCommit(self):
+        jazz = OaiJazz(self.tempdir, autoCommit=False)
+        jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
+        jazz = OaiJazz(self.tempdir, autoCommit=False)
+        self.assertEquals(0, len(list(jazz.oaiSelect(prefix='prefix'))))
+
     def testRecoverFromCrashingAddOaiRecord(self):
         identifier = 'oai://1234?34'
         def setUp(jazz):
