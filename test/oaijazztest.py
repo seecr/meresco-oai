@@ -32,7 +32,7 @@
 ## end license ##
 
 from seecr.test import SeecrTestCase, CallTrace
-from seecr.test.io import stderr_replaced
+from seecr.test.io import stderr_replaced, stdout_replace_decorator
 
 from os import listdir, remove
 from os.path import isfile, join
@@ -670,6 +670,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals("", stamp2zulutime(None))
         self.assertRaises(Exception, stamp2zulutime, "not-a-stamp")
 
+    @stdout_replace_decorator
     def testJazzWithShutdown(self):
         jazz = OaiJazz(self.tempdir, autoCommit=False)
         jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])

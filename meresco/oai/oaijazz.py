@@ -224,6 +224,7 @@ class OaiJazz(object):
             l.commit()
 
     def handleShutdown(self):
+        print 'handle shutdown: saving OaiJazz %s' % self._directory
         self.commit()
 
     # private methods
