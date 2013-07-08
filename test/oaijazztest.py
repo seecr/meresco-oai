@@ -674,10 +674,12 @@ class OaiJazzTest(SeecrTestCase):
     def testJazzWithShutdown(self):
         jazz = OaiJazz(self.tempdir, autoCommit=False)
         jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
+        list(compose(jazz.delete(identifier='identifier')))
         jazz.handleShutdown()
         jazz = OaiJazz(self.tempdir, autoCommit=False)
         self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix'))))
         self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix', sets=['A']))))
+        self.assertTrue(jazz.isDeleted('identifier'))
 
     def testJazzWithoutCommit(self):
         jazz = OaiJazz(self.tempdir, autoCommit=False)

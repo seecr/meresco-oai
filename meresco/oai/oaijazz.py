@@ -222,6 +222,7 @@ class OaiJazz(object):
         self._identifierDict.sync()
         for l in self._sets.values() + self._prefixes.values():
             l.commit()
+        self._tombStones.commit()
 
     def handleShutdown(self):
         print 'handle shutdown: saving OaiJazz %s' % self._directory
