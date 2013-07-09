@@ -48,7 +48,7 @@ from sys import stderr
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiDownloadProcessor(Observable):
-    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, name=None):
+    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, autoCommit=True, name=None):
         Observable.__init__(self, name=name)
         self._metadataPrefix = metadataPrefix
         self._resumptionToken = None
@@ -58,6 +58,7 @@ class OaiDownloadProcessor(Observable):
         self._path = path
         self._err = err or stderr
         self._verb = verb or 'ListRecords'
+        self._autoCommit = autoCommit
         isdir(workingDirectory) or makedirs(workingDirectory)
         self._stateFilePath = join(workingDirectory, "harvester.state")
         self._readState()
@@ -89,7 +90,7 @@ class OaiDownloadProcessor(Observable):
                 self._errorState = "%s: %s" % (error.get("code"), error.text)
                 self._logError(self._errorState)
             self._resumptionToken = None
-            self._writeState()                
+            self._maybeCommit()
             return
         try:
             verbNode = xpath(lxmlNode, "/oai:OAI-PMH/oai:%s" % self._verb)[0]
@@ -110,14 +111,22 @@ class OaiDownloadProcessor(Observable):
                 yield # some room for others
             self._resumptionToken = head(xpath(verbNode, "oai:resumptionToken/text()"))
         finally:
-            self._writeState()
+            self._maybeCommit()
 
-    def _writeState(self):
+    def _maybeCommit(self):
+        if self._autoCommit:
+            self.commit()
+
+    def commit(self):
         with open(self._stateFilePath, 'w') as f:
             dump({
                 'resumptionToken': self._resumptionToken,
                 'errorState': self._errorState,
             },f)
+
+    def handleShutdown(self):
+        print 'handle shutdown: saving OaiDownloadProcessor %s' % self._stateFilePath
+        self.commit()
 
     def _readState(self):
         self._resumptionToken = ''
@@ -127,7 +136,7 @@ class OaiDownloadProcessor(Observable):
             if not state.startswith('{'):
                 if RESUMPTIONTOKEN_STATE in state:
                     self._resumptionToken = state.split(RESUMPTIONTOKEN_STATE)[-1].strip()
-                self._writeState()
+                self._maybeCommit()
                 return
             d = loads(state)
             self._resumptionToken = d['resumptionToken']
