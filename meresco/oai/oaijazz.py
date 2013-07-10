@@ -226,6 +226,7 @@ class OaiJazz(object):
 
     def handleShutdown(self):
         print 'handle shutdown: saving OaiJazz %s' % self._directory
+        from sys import stdout; stdout.flush()
         self.commit()
 
     # private methods

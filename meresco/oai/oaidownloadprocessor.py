@@ -100,7 +100,7 @@ class OaiDownloadProcessor(Observable):
                 datestamp = xpath(header, 'oai:datestamp/text()')[0]
                 identifier = xpath(header, 'oai:identifier/text()')[0]
                 try:
-                    yield self.all.add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
+                    yield self._add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
                 except Exception, e:
                     self._logError(format_exc())
                     self._logError("While processing:")
@@ -112,6 +112,9 @@ class OaiDownloadProcessor(Observable):
             self._resumptionToken = head(xpath(verbNode, "oai:resumptionToken/text()"))
         finally:
             self._maybeCommit()
+
+    def _add(self, identifier, lxmlNode, datestamp):
+        yield self.all.add(identifier=identifier, lxmlNode=lxmlNode, datestamp=datestamp)
 
     def _maybeCommit(self):
         if self._autoCommit:
@@ -126,6 +129,7 @@ class OaiDownloadProcessor(Observable):
 
     def handleShutdown(self):
         print 'handle shutdown: saving OaiDownloadProcessor %s' % self._stateFilePath
+        from sys import stdout; stdout.flush()
         self.commit()
 
     def _readState(self):
