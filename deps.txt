@@ -1,5 +1,5 @@
 python-meresco-components (>= 4.7.1)
-python-meresco-components (<< 4.8)
+python-meresco-components (<< 4.9)
 python-meresco-core (>= 4.0)
 python-meresco-core (<< 4.1)
 python-weightless-core (>= 0.7)
