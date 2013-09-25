@@ -5,7 +5,7 @@
 #
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
-# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
@@ -35,7 +35,7 @@ from urllib import urlencode
 from simplejson import load
 
 from seecr.test import SeecrTestCase, CallTrace
-from seecr.test.io import stdout_replace_decorator
+from seecr.test.io import stdout_replaced
 from weightless.core import compose
 from weightless.io import Suspend
 
@@ -227,7 +227,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % currentIdentifier, oaiDownloadProcessor.buildRequest())
 
-    @stdout_replace_decorator
+    @stdout_replaced
     def testShutdownPersistsStateOnAutocommit(self):
         observer = CallTrace()
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, autoCommit=False)
