@@ -41,6 +41,7 @@ from meresco.components import lxmltostring
 from StringIO import StringIO
 from weightless.core import be, compose
 from socket import gethostname
+from time import sleep
 
 BATCHSIZE = 10
 HOSTNAME = gethostname()
@@ -70,6 +71,7 @@ class _OaiPmhTest(SeecrTestCase):
                 sets.append(('hierarchical:set', 'hierarchical set'))
             if 10 <= i < 15:
                 sets.append(('hierarchical', 'hierarchical toplevel only'))
+            sleep(0.001) # avoid timestamps being equals on VMs
             jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
             if i % 5 == 0:
                 list(compose(jazz.delete(recordId)))
