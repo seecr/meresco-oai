@@ -46,6 +46,7 @@ from random import choice
 from escaping import escapeFilename, unescapeFilename
 from meresco.components.sorteditertools import OrIterator, AndIterator
 from meresco.components import PersistentSortedIntegerList
+from meresco.lucene import TermNumerator
 from meresco.core import asyncreturn
 from weightless.io import Suspend
 
@@ -64,6 +65,8 @@ class OaiJazz(object):
         self._autoCommit = autoCommit
         self._name = name
         self._suspended = {}
+        if not termNumerator:
+            termNumerator = TermNumerator(join(aDirectory, "termnumerator"))
         self._termNumerator = termNumerator
         self._identifierDict = btopen(join(aDirectory, 'stamp2identifier2setSpecs.bd'))
         self._tombStones = PersistentSortedIntegerList(
@@ -161,7 +164,7 @@ class OaiJazz(object):
             stampIds = AndIterator(stampIds,
                 reduce(OrIterator, (setsStampIds[setSpec] for setSpec in sets)))
         idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
-        return (RecordId(self._termNumerator.getTerm(identifierID), stampId) 
+        return (RecordId(self._termNumerator.getTerm(int(identifierID)), stampId) 
                 for identifierID, stampId in idAndStamps if not identifierID is None)
 
     def getDatestamp(self, identifier):
@@ -240,6 +243,7 @@ class OaiJazz(object):
         print 'handle shutdown: saving OaiJazz %s' % self._directory
         from sys import stdout; stdout.flush()
         self.commit()
+        self._termNumerator.handleShutdown()
 
     # private methods
 
@@ -283,7 +287,7 @@ class OaiJazz(object):
                     oldPrefixes.append(prefix)
             oldSets = [
                 setSpec
-                for setSpec in self._identifierDict.get(IDENTIFIER2SETSPEC + identifierID, '').split(SETSPEC_SEPARATOR)
+                for setSpec in self._identifierDict.get(IDENTIFIER2SETSPEC + str(identifierID), '').split(SETSPEC_SEPARATOR)
                 if setSpec]
         return stamp, oldPrefixes, oldSets
 
@@ -307,8 +311,8 @@ class OaiJazz(object):
             raise SystemExit("OaiJazz: FATAL error committing change to disk.")
 
     def _purge(self, identifierID, oldStamp, oldSets):
-        self._identifierDict.pop(STAMP2IDENTIFIER + "id:" + identifierID, None)
-        self._identifierDict.pop(IDENTIFIER2SETSPEC + identifierID, None)
+        self._identifierDict.pop(STAMP2IDENTIFIER + "id:" + str(identifierID), None)
+        self._identifierDict.pop(IDENTIFIER2SETSPEC + str(identifierID), None)
         self._identifierDict.pop(STAMP2IDENTIFIER + str(oldStamp), None)
 
     def _purgeLists(self, identifierID, oldStamp, oldSets):
@@ -320,14 +324,14 @@ class OaiJazz(object):
 
     def _add(self, identifierID, newStamp, prefixes, newSets):
         self._newestStamp = newStamp
-        self._identifierDict[STAMP2IDENTIFIER + "id:" + identifierID] = str(newStamp)
-        self._identifierDict[STAMP2IDENTIFIER + str(newStamp)] = identifierID
+        self._identifierDict[STAMP2IDENTIFIER + "id:" + str(identifierID)] = str(newStamp)
+        self._identifierDict[STAMP2IDENTIFIER + str(newStamp)] = str(identifierID)
         for prefix in prefixes:
             self._appendIfNotYet(newStamp, self._getPrefixList(prefix))
         for setSpec in newSets:
             self._appendIfNotYet(newStamp, self._getSetList(setSpec))
         if newSets:
-            self._identifierDict[IDENTIFIER2SETSPEC + identifierID] = SETSPEC_SEPARATOR.join(newSets)
+            self._identifierDict[IDENTIFIER2SETSPEC + str(identifierID)] = SETSPEC_SEPARATOR.join(newSets)
 
     def _sliceStampIds(self, stampIds, start, stop):
         if stop:
@@ -356,7 +360,7 @@ class OaiJazz(object):
         return self._identifierDict.get(STAMP2IDENTIFIER + str(stamp), None)
 
     def _getStamp(self, identifierID):
-        result = self._identifierDict.get(STAMP2IDENTIFIER + "id:" + identifierID, None)
+        result = self._identifierDict.get(STAMP2IDENTIFIER + "id:" + str(identifierID), None)
         if result != None:
             result = int(result)
         return result
