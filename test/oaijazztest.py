@@ -55,7 +55,22 @@ parseLxml = lambda s: parse(StringIO(s)).getroot()
 class OaiJazzTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
-        self.jazz = OaiJazz(self.tempdir)
+        class MockNumerator(object):
+            def __init__(self):
+                self._terms = {}
+                self._next_N = 1
+            def numerateTerm(self, term):
+                if term not in self._terms:
+                    self._terms[term] = self._next_N
+                    self._next_N += 1
+                return str(self._terms[term])
+            def getTerm(self, number):
+                for k, v in self._terms.iteritems():
+                    if v == int(number):
+                        return k
+
+        self.mockNumerator = MockNumerator()
+        self.jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         self._originalNewStamp = self.jazz._newStamp
         self.stampNumber = self.orginalStampNumber = int((timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1))+.123456)*1000000)
         def stamp():
@@ -77,7 +92,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(0, result)
 
     def testOriginalStamp(self):
-        jazz = OaiJazz(self.tempdir)
+        jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         stamp0 = jazz._newStamp()
         sleep(0.0001)
         stamp1 = jazz._newStamp()
@@ -85,7 +100,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testResultsStored(self):
         self.jazz.addOaiRecord(identifier='oai://1234?34', sets=[], metadataFormats=[('prefix', 'schema', 'namespace')])
-        myJazz = OaiJazz(self.tempdir)
+        myJazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         recordIds = myJazz.oaiSelect(prefix='prefix')
         self.assertEquals('oai://1234?34', recordIds.next())
 
@@ -113,7 +128,7 @@ class OaiJazzTest(SeecrTestCase):
         for identifier in allids:
             list(self.jazz.getSets(identifier))
         t4 = time()
-        jazz = OaiJazz(self.tempdir)
+        jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         t5 = time()
         print t1 - t0, t2 - t1, t3 -t2, t3 -t1, t4 - t3, t5 - t4
         # a set of 10 million records costs 3.9 seconds (Without any efficiency things applied
@@ -141,7 +156,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals('2008-07-06T05:04:03Z', self.jazz.getDatestamp('123'))
 
     def testGetPreciseDatestamp(self):
-        jazz = OaiJazz(self.tempdir, preciseDatestamp=True)
+        jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, preciseDatestamp=True)
         jazz._newStamp = self.jazz._newStamp
         jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
         self.assertEquals('2008-07-06T05:04:03.123456Z', jazz.getDatestamp('123'))
@@ -149,7 +164,7 @@ class OaiJazzTest(SeecrTestCase):
     def testDeleteNonExistingRecords(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         list(compose(self.jazz.delete('notExisting')))
-        jazz2 = OaiJazz(self.tempdir)
+        jazz2 = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         self.assertEquals(None, jazz2.getUnique('notExisting'))
 
     def testDeleteEmptyIdentifier(self):
@@ -158,7 +173,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testMarkDeleteOfNonExistingRecordInGivenPrefixes(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
-        jazz = OaiJazz(self.tempdir, alwaysDeleteInPrefixes=["aprefix"])
+        jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, alwaysDeleteInPrefixes=["aprefix"])
         list(compose(jazz.delete('notExisting')))
         self.assertEquals(['notExisting'], list(jazz.oaiSelect(prefix='aprefix')))
         self.assertEquals(['existing'], list(jazz.oaiSelect(prefix='prefix')))
@@ -172,11 +187,11 @@ class OaiJazzTest(SeecrTestCase):
         self.assertFalse("__delitem__" in str(self.jazz._stamp2identifier.calledMethods))
 
     def testPurgeRecord(self):
-        self.jazz = OaiJazz(self.tempdir, persistentDelete=False)
+        self.jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, persistentDelete=False)
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         stampId = self.jazz.getUnique('existing')
         self.jazz.purge('existing')
-        jazz2 = OaiJazz(self.tempdir)
+        jazz2 = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         self.assertEquals(None, jazz2.getUnique('existing'))
         self.assertTrue(stampId not in jazz2._tombStones)
         for prefix, stampIds in jazz2._prefixes.items():
@@ -202,18 +217,18 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
         list(compose(self.jazz.delete('42')))
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
-        jazz2 = OaiJazz(self.tempdir)
+        jazz2 = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         self.assertTrue(jazz2.isDeleted('42'))
         self.assertEquals(['42'], list(jazz2.oaiSelect(prefix='oai_dc')))
 
     def testAddOaiRecordPersistent(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
-        jazz2 = OaiJazz(self.tempdir)
+        jazz2 = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         self.assertEquals(['42'], list(jazz2.oaiSelect(prefix='prefix', sets=['setSpec'])))
 
     def testUnicodeIdentifier(self):
         self.jazz.addOaiRecord(u'ë', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
-        jazz2 = OaiJazz(self.tempdir)
+        jazz2 = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         self.assertEquals(['ë'], list(jazz2.oaiSelect(prefix='prefix', sets=['setSpec'])))
         self.assertFalse(jazz2.isDeleted(u'ë'))
         list(compose(jazz2.delete(u'ë')))
@@ -224,13 +239,13 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['setSpec'], jazz2.getSets(u'ë'))
         self.assertEquals(['prefix'], list(jazz2.getPrefixes(u'ë')))
 
-        jazz3 = OaiJazz(self.tempdir, persistentDelete=False)
+        jazz3 = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, persistentDelete=False)
         jazz3.purge(u'ë')
         self.assertEquals([], list(jazz3.oaiSelect(prefix='prefix', sets=['setSpec'])))
 
     def testWeirdSetOrPrefixNamesDoNotMatter(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('/%^!@#$   \n\t','schema', 'namespace')], sets=[('set%2Spec\n\n', 'setName')])
-        jazz2 = OaiJazz(self.tempdir)
+        jazz2 = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
         self.assertEquals(['42'], list(jazz2.oaiSelect(prefix='/%^!@#$   \n\t', sets=['set%2Spec\n\n'])))
 
 
@@ -297,7 +312,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testGetLastStampId(self):
         stampFunction = self.jazz._newStamp
-        self.jazz = OaiJazz(self.tempdir, persistentDelete=False)
+        self.jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, persistentDelete=False)
         self.jazz._newStamp = stampFunction
         self.assertEquals(None, self.jazz.getLastStampId('aPrefix'))
         newStamp = self.stampNumber
@@ -328,7 +343,7 @@ class OaiJazzTest(SeecrTestCase):
         remove(join(self.tempdir, 'oai.version'))
 
         try:
-            oaiJazz = OaiJazz(self.tempdir)
+            oaiJazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
             self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self.tempdir, str(e))
@@ -338,7 +353,7 @@ class OaiJazzTest(SeecrTestCase):
         open(join(self.tempdir, 'oai.version'), 'w').write('different version')
 
         try:
-            oaiJazz = OaiJazz(self.tempdir)
+            oaiJazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator)
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
             self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self.tempdir, str(e))
@@ -624,7 +639,7 @@ class OaiJazzTest(SeecrTestCase):
     def testShouldResumeAPreviousSuspendAfterTooManySuspends(self):
         reactor = CallTrace("reactor")
         resumed = []
-        jazz = OaiJazz(self.tempdir, maximumSuspendedConnections=1)
+        jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, maximumSuspendedConnections=1)
         suspendGen1 = jazz.suspend(clientIdentifier="a-client-id")
         suspend1 = suspendGen1.next()
         suspend1(reactor, lambda: resumed.append(True))
@@ -666,19 +681,19 @@ class OaiJazzTest(SeecrTestCase):
 
     @stdout_replaced
     def testJazzWithShutdown(self):
-        jazz = OaiJazz(self.tempdir, autoCommit=False)
+        jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, autoCommit=False)
         jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
         list(compose(jazz.delete(identifier='identifier')))
         jazz.handleShutdown()
-        jazz = OaiJazz(self.tempdir, autoCommit=False)
+        jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, autoCommit=False)
         self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix'))))
         self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix', sets=['A']))))
         self.assertTrue(jazz.isDeleted('identifier'))
 
     def testJazzWithoutCommit(self):
-        jazz = OaiJazz(self.tempdir, autoCommit=False)
+        jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, autoCommit=False)
         jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
-        jazz = OaiJazz(self.tempdir, autoCommit=False)
+        jazz = OaiJazz(self.tempdir, termNumerator=self.mockNumerator, autoCommit=False)
         self.assertEquals(0, len(list(jazz.oaiSelect(prefix='prefix'))))
 
     def testRecoverFromCrashingAddOaiRecord(self):
@@ -740,10 +755,22 @@ class OaiJazzTest(SeecrTestCase):
 
         self._crashAtDifferentSteps(setUp, modify, asserts)
 
+    def testUseTermNumerator(self):
+        kijk = []
+        class MyDict(object):
+            def numerateTerm(self, term):
+                kijk.append(term)
+                return 43
+
+        j  = OaiJazz(self.tempdir, termNumerator=MyDict())
+        j.addOaiRecord("an identifier", metadataFormats=[("rdf", "schema", "ns")])
+
+        self.assertEquals(["an identifier"], kijk)
+
     def _crashAtDifferentSteps(self, setUp, modify, asserts):
         oaiDir = join(self.tempdir, 'oai')
         for crashingStep in range(1, 15):
-            crashingJazz = OaiJazz(oaiDir)
+            crashingJazz = OaiJazz(oaiDir, termNumerator=self.mockNumerator)
             setUp(crashingJazz)
             # self.assertFalse(isfile(crashingJazz._changeFile))
 
@@ -771,7 +798,7 @@ class OaiJazzTest(SeecrTestCase):
                 crashingJazz = None
 
             # recover
-            newJazz = OaiJazz(aDirectory=oaiDir)
+            newJazz = OaiJazz(aDirectory=oaiDir, termNumerator=self.mockNumerator)
             modify(newJazz)
             # self.assertFalse(isfile(newJazz._changeFile))
             asserts(newJazz)

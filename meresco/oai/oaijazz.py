@@ -54,7 +54,7 @@ class OaiJazz(object):
 
     version = '4'
 
-    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, autoCommit=True, name=None):
+    def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, autoCommit=True, name=None):
         self._directory = _ensureDir(aDirectory)
         self._versionFormatCheck()
         self._deletePrefixes = alwaysDeleteInPrefixes or []
@@ -64,7 +64,7 @@ class OaiJazz(object):
         self._autoCommit = autoCommit
         self._name = name
         self._suspended = {}
-
+        self._termNumerator = termNumerator
         self._identifierDict = btopen(join(aDirectory, 'stamp2identifier2setSpecs.bd'))
         self._tombStones = PersistentSortedIntegerList(
             join(self._directory, 'tombStones.list'),
@@ -85,6 +85,8 @@ class OaiJazz(object):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         identifier = safeString(identifier)
+        identifierID = self._termNumerator.numerateTerm(identifier)
+
         sets = sets or []
         metadataFormats = metadataFormats or []
         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
@@ -93,13 +95,13 @@ class OaiJazz(object):
 
         newStamp = self._newStamp()
         self._storeMetadataFormats(metadataFormats)
-        oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifier)
+        oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifierID)
         prefixes = set(prefix for prefix, schema, namespace in metadataFormats)
         prefixes.update(oldPrefixes)
         setSpecs = _flattenSetHierarchy((setSpec for setSpec, setName in sets))
         setSpecs.update(oldSets)
         self._applyChange(
-            identifier=identifier,
+            identifierID=identifierID,
             oldStamp=oldStamp,
             oldSets=list(oldSets),
             newStamp=newStamp,
@@ -113,11 +115,13 @@ class OaiJazz(object):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         identifier = safeString(identifier)
-        oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifier)
+        identifierID = self._termNumerator.numerateTerm(identifier)
+
+        oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifierID)
         if not oldStamp and not self._deletePrefixes:
             return
         self._applyChange(
-            identifier=identifier,
+            identifierID=identifierID,
             oldStamp=oldStamp,
             oldSets=list(oldSets),
             newStamp=self._newStamp(),
@@ -130,11 +134,12 @@ class OaiJazz(object):
         if self._persistentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
         identifier = safeString(identifier)
-        oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifier)
+        identifierID = self._termNumerator.numerateTerm(identifier)
+        oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifierID)
         if not oldStamp:
             return
         self._applyChange(
-            identifier=identifier,
+            identifierID=identifierID,
             oldStamp=oldStamp,
             oldSets=list(oldSets),
             newStamp=None)
@@ -156,10 +161,12 @@ class OaiJazz(object):
             stampIds = AndIterator(stampIds,
                 reduce(OrIterator, (setsStampIds[setSpec] for setSpec in sets)))
         idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
-        return (RecordId(identifier, stampId) for identifier, stampId in idAndStamps if not identifier is None)
+        return (RecordId(self._termNumerator.getTerm(identifierID), stampId) 
+                for identifierID, stampId in idAndStamps if not identifierID is None)
 
     def getDatestamp(self, identifier):
-        stamp = self.getUnique(identifier)
+        identifierID = self._termNumerator.numerateTerm(identifier)
+        stamp = self._getStamp(identifierID)
         if stamp is None:
             return None
         return _stamp2zulutime(stamp=stamp, preciseDatestamp=self._preciseDatestamp)
@@ -167,10 +174,12 @@ class OaiJazz(object):
     def getUnique(self, identifier):
         if hasattr(identifier, 'stamp'):
             return identifier.stamp
-        return self._getStamp(identifier)
+        identifierID = self._termNumerator.numerateTerm(identifier)
+        return self._getStamp(identifierID)
 
     def isDeleted(self, identifier):
-        stamp = self.getUnique(identifier)
+        identifierID = self._termNumerator.numerateTerm(identifier)
+        stamp = self._getStamp(identifierID)
         if stamp is None:
             return False
         return stamp in self._tombStones
@@ -184,11 +193,14 @@ class OaiJazz(object):
 
     def getSets(self, identifier):
         identifier = safeString(identifier)
-        value = self._identifierDict.get(IDENTIFIER2SETSPEC + identifier)
+        identifierID = self._termNumerator.numerateTerm(identifier)
+        value = self._identifierDict.get(IDENTIFIER2SETSPEC + identifierID)
         return value.split(SETSPEC_SEPARATOR) if value else []
 
     def getPrefixes(self, identifier):
-        stamp = self.getUnique(safeString(identifier))
+        identifier = safeString(identifier)
+        identifierID = self._termNumerator.numerateTerm(identifier)
+        stamp = self._getStamp(identifierID)
         if not stamp:
             return []
         return (prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds)
@@ -261,8 +273,8 @@ class OaiJazz(object):
         if len(l):
             self._newestStamp = max(self._newestStamp, l[-1])
 
-    def _lookupExisting(self, identifier):
-        stamp = self.getUnique(identifier)
+    def _lookupExisting(self, identifierID):
+        stamp = self._getStamp(identifierID)
         oldPrefixes = []
         oldSets = []
         if not stamp is None:
@@ -271,51 +283,51 @@ class OaiJazz(object):
                     oldPrefixes.append(prefix)
             oldSets = [
                 setSpec
-                for setSpec in self._identifierDict.get(IDENTIFIER2SETSPEC + identifier, '').split(SETSPEC_SEPARATOR)
+                for setSpec in self._identifierDict.get(IDENTIFIER2SETSPEC + identifierID, '').split(SETSPEC_SEPARATOR)
                 if setSpec]
         return stamp, oldPrefixes, oldSets
 
-    def _applyChange(self, identifier, oldStamp=None, oldSets=None, newStamp=None, delete=False, prefixes=None, newSets=None):
-        identifier = safeString(identifier)
+    def _applyChange(self, identifierID, oldStamp=None, oldSets=None, newStamp=None, delete=False, prefixes=None, newSets=None):
+        #identifier = safeString(identifier)
         try:
             if not oldStamp is None:
-                self._purge(identifier, oldStamp, oldSets)
+                self._purge(identifierID, oldStamp, oldSets)
             if not newStamp is None:
-                self._add(identifier, newStamp, prefixes, newSets)
+                self._add(identifierID, newStamp, prefixes, newSets)
                 if delete:
                     self._appendIfNotYet(newStamp, self._tombStones)
             else:
-                self._purge(identifier, oldStamp, oldSets)
+                self._purge(identifierID, oldStamp, oldSets)
             if self._autoCommit:
                 self._identifierDict.sync()
             if not oldStamp is None:
-                self._purgeLists(identifier, oldStamp, oldSets)
+                self._purgeLists(identifierID, oldStamp, oldSets)
         except:
             print_exc()
             raise SystemExit("OaiJazz: FATAL error committing change to disk.")
 
-    def _purge(self, identifier, oldStamp, oldSets):
-        self._identifierDict.pop(STAMP2IDENTIFIER + "id:" + identifier, None)
-        self._identifierDict.pop(IDENTIFIER2SETSPEC + identifier, None)
+    def _purge(self, identifierID, oldStamp, oldSets):
+        self._identifierDict.pop(STAMP2IDENTIFIER + "id:" + identifierID, None)
+        self._identifierDict.pop(IDENTIFIER2SETSPEC + identifierID, None)
         self._identifierDict.pop(STAMP2IDENTIFIER + str(oldStamp), None)
 
-    def _purgeLists(self, identifier, oldStamp, oldSets):
+    def _purgeLists(self, identifierID, oldStamp, oldSets):
         self._removeIfInList(oldStamp, self._tombStones)
         for prefix, prefixStamps in self._prefixes.items():
             self._removeIfInList(oldStamp, prefixStamps)
         for setSpec in oldSets:
             self._removeIfInList(oldStamp, self._sets[setSpec])
 
-    def _add(self, identifier, newStamp, prefixes, newSets):
+    def _add(self, identifierID, newStamp, prefixes, newSets):
         self._newestStamp = newStamp
-        self._identifierDict[STAMP2IDENTIFIER + "id:" + identifier] = str(newStamp)
-        self._identifierDict[STAMP2IDENTIFIER + str(newStamp)] = identifier
+        self._identifierDict[STAMP2IDENTIFIER + "id:" + identifierID] = str(newStamp)
+        self._identifierDict[STAMP2IDENTIFIER + str(newStamp)] = identifierID
         for prefix in prefixes:
             self._appendIfNotYet(newStamp, self._getPrefixList(prefix))
         for setSpec in newSets:
             self._appendIfNotYet(newStamp, self._getSetList(setSpec))
         if newSets:
-            self._identifierDict[IDENTIFIER2SETSPEC + identifier] = SETSPEC_SEPARATOR.join(newSets)
+            self._identifierDict[IDENTIFIER2SETSPEC + identifierID] = SETSPEC_SEPARATOR.join(newSets)
 
     def _sliceStampIds(self, stampIds, start, stop):
         if stop:
@@ -343,8 +355,8 @@ class OaiJazz(object):
     def _getIdentifier(self, stamp):
         return self._identifierDict.get(STAMP2IDENTIFIER + str(stamp), None)
 
-    def _getStamp(self, identifier):
-        result = self._identifierDict.get(STAMP2IDENTIFIER + "id:" + safeString(identifier), None)
+    def _getStamp(self, identifierID):
+        result = self._identifierDict.get(STAMP2IDENTIFIER + "id:" + identifierID, None)
         if result != None:
             result = int(result)
         return result
@@ -395,9 +407,9 @@ class OaiJazz(object):
 # helper methods
 
 class RecordId(str):
-    def __new__(self, identifier, stamp):
-        return str.__new__(self, identifier)
-    def __init__(self, identifier, stamp):
+    def __new__(self, identifierID, stamp):
+        return str.__new__(self, identifierID)
+    def __init__(self, identifierID, stamp):
         self.stamp = stamp
     def __getslice__(self, *args, **kwargs):
         return RecordId(str.__getslice__(self, *args, **kwargs), self.stamp)
