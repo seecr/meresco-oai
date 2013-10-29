@@ -34,11 +34,10 @@
 import sys
 from sys import maxint
 from os.path import isdir, join, isfile
-from os import makedirs, listdir, rename, remove
+from os import makedirs, listdir, rename
 from bisect import bisect_left
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
-from json import dumps, load as jsonLoad
 from bsddb import btopen
 from traceback import print_exc
 from random import choice
@@ -164,7 +163,7 @@ class OaiJazz(object):
             stampIds = AndIterator(stampIds,
                 reduce(OrIterator, (setsStampIds[setSpec] for setSpec in sets)))
         idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
-        return (RecordId(self._termNumerator.getTerm(int(identifierID)), stampId) 
+        return (RecordId(self._termNumerator.getTerm(int(identifierID)), stampId)
                 for identifierID, stampId in idAndStamps if not identifierID is None)
 
     def getDatestamp(self, identifier):
@@ -197,7 +196,7 @@ class OaiJazz(object):
     def getSets(self, identifier):
         identifier = safeString(identifier)
         identifierID = self._termNumerator.numerateTerm(identifier)
-        value = self._identifierDict.get(IDENTIFIER2SETSPEC + identifierID)
+        value = self._identifierDict.get(IDENTIFIER2SETSPEC + str(identifierID))
         return value.split(SETSPEC_SEPARATOR) if value else []
 
     def getPrefixes(self, identifier):

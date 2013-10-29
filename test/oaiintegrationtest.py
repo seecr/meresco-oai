@@ -1,38 +1,39 @@
 ## begin license ##
-# 
+#
 # "Meresco Oai" are components to build Oai repositories, based on
-# "Meresco Core" and "Meresco Components". 
-# 
+# "Meresco Core" and "Meresco Components".
+#
 # Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
-# 
+#
 # This file is part of "Meresco Oai"
-# 
+#
 # "Meresco Oai" is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # "Meresco Oai" is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with "Meresco Oai"; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-# 
+#
 ## end license ##
 
 from os.path import join
 from random import randint
-from sys import stdout
 from threading import Thread
 from time import sleep
 from urllib2 import urlopen
 from uuid import uuid4
+
+from lucene import getVMEnv
 
 from meresco.core import Observable
 from meresco.components.http import ObservableHttpServer
@@ -61,11 +62,11 @@ class OaiIntegrationTest(SeecrTestCase):
         harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
         oaiPmhThread.start()
         harvestThread.start()
-        
+
         try:
             requests = 3
             sleep(1.0 + 1.0 * requests)
-           
+
             self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
             ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods]
             self.assertEquals([['id0'],['id1'],['id2']], ids)
@@ -83,11 +84,11 @@ class OaiIntegrationTest(SeecrTestCase):
             self.assertTrue("id3" in kwarg, kwarg)
             sleep(1.0)
             self.assertEquals(1, len(oaiJazz._suspended))
-        finally: 
+        finally:
             self.run = False
             oaiPmhThread.join()
             harvestThread.join()
-    
+
     def testShouldRaiseExceptionOnSameRequestTwice(self):
         self.run = True
         portNumber = randint(50000, 60000)
@@ -127,7 +128,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 self.assertEquals("HTTP/1.0 500 Internal Server Error\r\nContent-Type: text/plain; charset=utf-8", requests[0][0])
                 self.assertEquals("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientId, requests[0][1])
                 self.assertEquals("HTTP/1.0 200 OK\r\nContent-Type: text/xml; charset=utf-8", requests[1][0])
-            finally: 
+            finally:
                 self.run = False
                 oaiPmhThread.join()
                 harvestThread1.join()
@@ -178,7 +179,7 @@ class OaiIntegrationTest(SeecrTestCase):
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
         storageComponent = StorageComponent(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, 1)
-        
+
         oaiPmhThread = None
         harvestThread = None
 
@@ -236,6 +237,7 @@ class OaiIntegrationTest(SeecrTestCase):
         self._loopReactor(reactor)
 
     def startOaiPmh(self, portNumber, oaiJazz, storageComponent):
+        getVMEnv().attachCurrentThread()
         reactor = Reactor()
         server = be(
             (Observable(),
@@ -251,7 +253,7 @@ class OaiIntegrationTest(SeecrTestCase):
         self._loopReactor(reactor)
 
     def _addOaiRecords(self, storageComponent, oaiJazz, count):
-        for i in range(count):            
+        for i in range(count):
             list(compose(storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)))
             oaiJazz.addOaiRecord(identifier="id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
 
