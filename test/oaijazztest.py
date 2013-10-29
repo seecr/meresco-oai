@@ -252,15 +252,9 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz._newStamp = self._originalNewStamp
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
         self.jazz._newestStamp += 12345  # time corrected by 0.012345 seconds
-        try:
-            self.jazz.addOaiRecord('43', sets=[('setSpec', 'setName')], metadataFormats=[('other', 'schema', 'namespace'), ('oai_dc','schema', 'namespace')])
-            self.fail()
-        except ValueError, e:
-            self.assertTrue(str(e).startswith('Timestamp error: '), str(e))
-
-        self.assertEquals(0, len(self.jazz._getSetList('setSpec')))
-        self.assertEquals(0, len(self.jazz._getPrefixList('other')))
-        self.assertEquals(1, len(self.jazz._getPrefixList('oai_dc')))
+        newestStamp = self.jazz._newestStamp
+	self.jazz.addOaiRecord('43', sets=[('setSpec', 'setName')], metadataFormats=[('other', 'schema', 'namespace'), ('oai_dc','schema', 'namespace')])
+        self.assertEqual(newestStamp + 1, self.jazz.getUnique('43'))
 
     def testFlattenSetHierarchy(self):
         self.assertEquals(['set1', 'set1:set2', 'set1:set2:set3'], sorted(_flattenSetHierarchy(['set1:set2:set3'])))

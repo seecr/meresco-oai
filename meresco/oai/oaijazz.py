@@ -360,7 +360,7 @@ class OaiJazz(object):
         """time in microseconds"""
         newStamp = int(time() * DATESTAMP_FACTOR)
         if newStamp <= self._newestStamp:
-            raise ValueError("Timestamp error: new stamp '%s' lower than existing ('%s')" % (newStamp, self._newestStamp))
+            return self._newestStamp + 1
         return newStamp
 
     def _versionFormatCheck(self):
