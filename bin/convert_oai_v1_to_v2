@@ -40,7 +40,6 @@ import sys
 from os import listdir, remove, rename
 from os.path import join, isdir, isfile
 from meresco.components.integerlist import IntegerList
-from meresco.oai import OaiJazz
 
 def convert(path):
     iList = IntegerList(0)

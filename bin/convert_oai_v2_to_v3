@@ -37,12 +37,10 @@ for path in glob('../deps.d/*'):                  #DO_NOT_DISTRIBUTE
 sysPath.insert(0,'..')                            #DO_NOT_DISTRIBUTE
 
 import sys
-from os import listdir, remove, rename
-from os.path import join, isdir, isfile
+from os import rename
+from os.path import join
 from shutil import rmtree
 from bsddb import btopen
-from meresco.components.integerlist import IntegerList
-from meresco.oai import OaiJazz
 
 
 def convert(path):
@@ -66,7 +64,7 @@ def main():
     directory = sys.argv[1]
     versionFile = join(directory, 'oai.version')
     version = open(versionFile).read()
-    assert version == '2', repr(version) 
+    assert version == '2', repr(version)
     convert(directory)
     open(versionFile, 'w').write('3')
     print "Finished converting %s to OAI data format v3." % directory
