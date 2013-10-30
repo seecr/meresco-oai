@@ -88,6 +88,7 @@ class OaiIntegrationTest(SeecrTestCase):
             self.run = False
             oaiPmhThread.join()
             harvestThread.join()
+            oaiJazz.close()
 
     def testShouldRaiseExceptionOnSameRequestTwice(self):
         self.run = True
@@ -133,6 +134,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 oaiPmhThread.join()
                 harvestThread1.join()
                 harvestThread2.join()
+                oaiJazz.close()
 
     def testShouldNotStartToLoopLikeAMadMan(self):
         self.run = True
@@ -171,6 +173,7 @@ class OaiIntegrationTest(SeecrTestCase):
                     t.join()
                 self.run = False
                 oaiPmhThread.join()
+                oaiJazz.close()
 
         self.assertEquals([204] * 2, statusCodes)
 

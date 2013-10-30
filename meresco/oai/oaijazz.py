@@ -49,36 +49,51 @@ from meresco.lucene import TermNumerator
 from meresco.core import asyncreturn
 from weightless.io import Suspend
 
+from lucene import initVM
+initVM()
+from org.apache.lucene.document import Document, StringField, Field, LongField, FieldType
+from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery, BooleanClause, TotalHitCountCollector, Sort, SortField
+from org.apache.lucene.index import DirectoryReader, Term
+from java.lang import Integer, Long
+
+def getWriter(path):
+    from java.io import File
+    from org.apache.lucene.store import FSDirectory
+    from org.apache.lucene.analysis.core import WhitespaceAnalyzer
+    from org.apache.lucene.index import IndexWriter, IndexWriterConfig
+    from org.apache.lucene.util import Version
+    directory = FSDirectory.open(File(path))
+    analyzer = WhitespaceAnalyzer(Version.LUCENE_43)
+    config = IndexWriterConfig(Version.LUCENE_43, analyzer)
+    return IndexWriter(directory, config)
 
 class OaiJazz(object):
 
-    version = '4'
+    version = '5'
 
     def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, autoCommit=True, name=None):
         self._directory = _ensureDir(aDirectory)
         self._versionFormatCheck()
-        self._deletePrefixes = alwaysDeleteInPrefixes or []
+        #self._deletePrefixes = alwaysDeleteInPrefixes or []
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
         self._maximumSuspendedConnections = maximumSuspendedConnections
-        self._autoCommit = autoCommit
+        #self._autoCommit = autoCommit
         self._name = name
         self._suspended = {}
-        if not termNumerator:
-            termNumerator = TermNumerator(join(aDirectory, "termnumerator"))
-        self._termNumerator = termNumerator
-        self._identifierDict = btopen(join(aDirectory, 'stamp2identifier2setSpecs.bd'))
-        self._tombStones = PersistentSortedIntegerList(
-            join(self._directory, 'tombStones.list'),
-            autoCommit=self._autoCommit)
         self._prefixesInfoDir = _ensureDir(join(aDirectory, 'prefixesInfo'))
-        self._prefixesDir = _ensureDir(join(aDirectory, 'prefixes'))
         self._prefixes = {}
-        self._setsDir = _ensureDir(join(aDirectory, 'sets'))
+        # TODO: geen test voor opslag 
+        #self._setsDir = _ensureDir(join(aDirectory, 'sets'))
         self._sets = {}
-        self._newestStamp = 0
-        self._changeFile = join(self._directory, 'change.json')
+        # TODO wat is dit?
+        #self._changeFile = join(self._directory, 'change.json')
         self._read()
+        self._writer = getWriter(aDirectory)
+        self._newestStamp = self._newestStampFromIndex()
+
+    def close(self):
+        self._writer.close()
 
     def observable_name(self):
         return self._name
@@ -86,89 +101,104 @@ class OaiJazz(object):
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        identifier = safeString(identifier)
-        identifierID = self._termNumerator.numerateTerm(identifier)
-
-        sets = sets or []
-        metadataFormats = metadataFormats or []
         assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
-        for setSpec, setName in sets:
-            assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
-
+        doc = self._getDocument(identifier)
+        if not doc:
+            doc = Document()
+        if metadataFormats:
+            #doc.removeFields("prefix") # funny, prefixes are updates, sets not
+            for prefix, schema, namespace in metadataFormats:
+                self._metadataFormats[prefix] = (prefix, schema, namespace)
+                doc.add(StringField("prefix", prefix, Field.Store.YES))
+        if sets:
+            doc.removeFields("sets")  # see funny above
+            for setSpec, setName in sets:
+                assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
+                doc.add(StringField("sets", setSpec, Field.Store.YES))
+                self._sets[setSpec] = "?"
+                if ":" in setSpec:
+                    for set_ in setSpec.split(":"):
+                        self._sets[set_] = "?"
+                        doc.add(StringField("sets", set_, Field.Store.YES))
+        doc.add(StringField("identifier", identifier, Field.Store.YES))
+        doc.removeFields("thumbstone")
         newStamp = self._newStamp()
-        self._storeMetadataFormats(metadataFormats)
-        oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifierID)
-        prefixes = set(prefix for prefix, schema, namespace in metadataFormats)
-        prefixes.update(oldPrefixes)
-        setSpecs = _flattenSetHierarchy((setSpec for setSpec, setName in sets))
-        setSpecs.update(oldSets)
-        self._applyChange(
-            identifierID=identifierID,
-            oldStamp=oldStamp,
-            oldSets=list(oldSets),
-            newStamp=newStamp,
-            delete=False,
-            prefixes=list(prefixes),
-            newSets=list(setSpecs))
+        doc.removeFields("stamp")
+        doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
+        self._writer.updateDocument(Term("identifier", identifier), doc)
         self._resume()
 
     @asyncreturn
     def delete(self, identifier):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        identifier = safeString(identifier)
-        identifierID = self._termNumerator.numerateTerm(identifier)
-
-        oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifierID)
-        if not oldStamp and not self._deletePrefixes:
+        doc = self._getDocument(identifier)
+        if not doc:
             return
-        self._applyChange(
-            identifierID=identifierID,
-            oldStamp=oldStamp,
-            oldSets=list(oldSets),
-            newStamp=self._newStamp(),
-            delete=True,
-            prefixes=list(set(oldPrefixes + self._deletePrefixes)),
-            newSets=list(oldSets))
+        doc.add(StringField("thumbstone", "True", Field.Store.YES))
+        oldStamp = doc.getField("stamp").numericValue().longValue()
+        newStamp = self._newStamp()
+        doc.removeFields("stamp")
+        doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
+        self._writer.updateDocument(Term("identifier", identifier), doc)
         self._resume()
+
+    def _purge(self, identifier):
+        self._writer.deleteDocuments(Term("identifier", identifier))
 
     def purge(self, identifier):
         if self._persistentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
-        identifier = safeString(identifier)
-        identifierID = self._termNumerator.numerateTerm(identifier)
-        oldStamp, oldPrefixes, oldSets = self._lookupExisting(identifierID)
-        if not oldStamp:
-            return
-        self._applyChange(
-            identifierID=identifierID,
-            oldStamp=oldStamp,
-            oldSets=list(oldSets),
-            newStamp=None)
+        return self._purge(identifier)
+
+    def _getSearcher(self):
+        oldReader = self._writer.getReader()
+        newReader = DirectoryReader.openIfChanged(oldReader, self._writer, True) or oldReader
+        return IndexSearcher(newReader)
 
     def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
-        setsMask = setsMask or []
-        sets = sets or []
         start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
-        stop = self._untilTime(oaiUntil)
-        stampIds = self._sliceStampIds(self._prefixes.get(prefix, []), start, stop)
-        setsStampIds = dict(
-            (setSpec, self._sliceStampIds(self._sets.get(setSpec, []), start, stop))
-            for setSpec in set(setsMask).union(sets)
-        )
-        if setsMask:
-            stampIds = AndIterator(stampIds,
-                reduce(AndIterator, (setsStampIds[setSpec] for setSpec in setsMask)))
+        stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
+        searcher = self._getSearcher()
+        fromRange = NumericRangeQuery.newLongRange("stamp", 8, start, stop, True, True)
+        query = BooleanQuery()
+        query.add(fromRange, BooleanClause.Occur.MUST)
+        query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
         if sets:
-            stampIds = AndIterator(stampIds,
-                reduce(OrIterator, (setsStampIds[setSpec] for setSpec in sets)))
-        idAndStamps = ((self._getIdentifier(stampId), stampId) for stampId in stampIds)
-        return (RecordId(self._termNumerator.getTerm(int(identifierID)), stampId)
-                for identifierID, stampId in idAndStamps if not identifierID is None)
+            sq = BooleanQuery()
+            for setSpec in sets:
+                sq.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.SHOULD)
+            if ":" in setSpec:
+                for set_ in setSpec.split(":"):
+                    sq.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
+            query.add(sq, BooleanClause.Occur.MUST)
+        if setsMask:
+            for set_ in setsMask:
+                query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
+        results = searcher.search(query, 200, Sort(SortField("stamp", SortField.Type.LONG)))
+        for result in results.scoreDocs:
+            yield searcher.doc(result.doc).getField("identifier").stringValue()
+        return
+
+        #TODO: RecordId gebruiken?
+        #return (RecordId(self._termNumerator.getTerm(int(identifierID)), stampId)
+        #        for identifierID, stampId in idAndStamps if not identifierID is None)
+
+    def _getDocument(self, identifier):
+        searcher = self._getSearcher()
+        results = searcher.search(TermQuery(Term("identifier", identifier)), 1)
+        if results.totalHits == 0:
+            return None
+        return searcher.doc(results.scoreDocs[0].doc)
+
+    def _getStamp(self, identifier):
+        doc = self._getDocument(identifier)
+        if not doc:
+            return None
+        return doc.getField("stamp").numericValue().longValue()
 
     def getDatestamp(self, identifier):
-        identifierID = self._termNumerator.numerateTerm(identifier)
-        stamp = self._getStamp(identifierID)
+        stamp = self._getStamp(identifier)
         if stamp is None:
             return None
         return _stamp2zulutime(stamp=stamp, preciseDatestamp=self._preciseDatestamp)
@@ -176,43 +206,41 @@ class OaiJazz(object):
     def getUnique(self, identifier):
         if hasattr(identifier, 'stamp'):
             return identifier.stamp
-        identifierID = self._termNumerator.numerateTerm(identifier)
-        return self._getStamp(identifierID)
+        return self._getStamp(identifier)
 
     def isDeleted(self, identifier):
-        identifierID = self._termNumerator.numerateTerm(identifier)
-        stamp = self._getStamp(identifierID)
-        if stamp is None:
-            return False
-        return stamp in self._tombStones
+        doc = self._getDocument(identifier)
+        return doc.get("thumbstone") == "True"
 
     def getAllMetadataFormats(self):
         for prefix, schema, namespace in self._metadataFormats.values():
             yield (prefix, schema, namespace)
 
     def getAllPrefixes(self):
-        return self._prefixes.keys()
+        return self._metadataFormats.keys()
 
     def getSets(self, identifier):
-        identifier = safeString(identifier)
-        identifierID = self._termNumerator.numerateTerm(identifier)
-        value = self._identifierDict.get(IDENTIFIER2SETSPEC + str(identifierID))
-        return value.split(SETSPEC_SEPARATOR) if value else []
+        doc = self._getDocument(identifier)
+        if not doc:
+            return []
+        return doc.getValues("sets")
 
     def getPrefixes(self, identifier):
-        identifier = safeString(identifier)
-        identifierID = self._termNumerator.numerateTerm(identifier)
-        stamp = self._getStamp(identifierID)
-        if not stamp:
+        doc = self._getDocument(identifier)
+        if not doc:
             return []
-        return (prefix for prefix, stampIds in self._prefixes.items() if stamp in stampIds)
+        return doc.getValues("prefix")
 
     def getAllSets(self):
         return self._sets.keys()
 
     def getNrOfRecords(self, prefix='oai_dc'):
-        return len(self._prefixes.get(prefix, []))
+        searcher = self._getSearcher()
+        collector = TotalHitCountCollector()
+        searcher.search(TermQuery(Term("prefix", prefix)), collector)
+        return collector.getTotalHits()
 
+    #TODO: onhandig in Lucene
     def getLastStampId(self, prefix='oai_dc'):
         if prefix in self._prefixes and self._prefixes[prefix]:
             stampIds = self._prefixes[prefix]
@@ -233,26 +261,26 @@ class OaiJazz(object):
         suspend.getResult()
 
     def commit(self):
-        self._identifierDict.sync()
-        for l in self._sets.values() + self._prefixes.values():
-            l.commit()
-        self._tombStones.commit()
+        self._writer.commit()
 
     def handleShutdown(self):
         print 'handle shutdown: saving OaiJazz %s' % self._directory
         from sys import stdout; stdout.flush()
         self.commit()
-        self._termNumerator.handleShutdown()
 
     # private methods
 
     def _read(self):
         self._metadataFormats = {}
-        for prefix in (unescapeFilename(name[:-len('.list')]) for name in listdir(self._prefixesDir) if name.endswith('.list')):
-            self._getPrefixList(prefix)
+        #for prefix in (unescapeFilename(name[:-len('.list')]) for name in listdir(self._prefixesDir) if name.endswith('.list')):
+        for prefix in (unescapeFilename(name[:-len('.schema')]) for name in listdir(self._prefixesInfoDir) if name.endswith('.schema')):
+            #self._getPrefixList(prefix)
             schema = open(join(self._prefixesInfoDir, '%s.schema' % escapeFilename(prefix))).read()
             namespace = open(join(self._prefixesInfoDir, '%s.namespace' % escapeFilename(prefix))).read()
             self._metadataFormats[prefix] = (prefix, schema, namespace)
+
+        return
+
         for setSpec in (unescapeFilename(name[:-len('.list')]) for name in listdir(self._setsDir) if name.endswith('.list')):
             self._getSetList(setSpec)
 
@@ -272,70 +300,13 @@ class OaiJazz(object):
             self._newestStampFromList(l)
         return self._prefixes[prefix]
 
-    def _newestStampFromList(self, l):
-        if len(l):
-            self._newestStamp = max(self._newestStamp, l[-1])
-
-    def _lookupExisting(self, identifierID):
-        stamp = self._getStamp(identifierID)
-        oldPrefixes = []
-        oldSets = []
-        if not stamp is None:
-            for prefix, prefixStamps in self._prefixes.items():
-                if stamp in prefixStamps:  # Relatively expensive...
-                    oldPrefixes.append(prefix)
-            oldSets = [
-                setSpec
-                for setSpec in self._identifierDict.get(IDENTIFIER2SETSPEC + str(identifierID), '').split(SETSPEC_SEPARATOR)
-                if setSpec]
-        return stamp, oldPrefixes, oldSets
-
-    def _applyChange(self, identifierID, oldStamp=None, oldSets=None, newStamp=None, delete=False, prefixes=None, newSets=None):
-        #identifier = safeString(identifier)
-        try:
-            if not oldStamp is None:
-                self._purge(identifierID, oldStamp, oldSets)
-            if not newStamp is None:
-                self._add(identifierID, newStamp, prefixes, newSets)
-                if delete:
-                    self._appendIfNotYet(newStamp, self._tombStones)
-            else:
-                self._purge(identifierID, oldStamp, oldSets)
-            if self._autoCommit:
-                self._identifierDict.sync()
-            if not oldStamp is None:
-                self._purgeLists(identifierID, oldStamp, oldSets)
-        except:
-            print_exc()
-            raise SystemExit("OaiJazz: FATAL error committing change to disk.")
-
-    def _purge(self, identifierID, oldStamp, oldSets):
-        self._identifierDict.pop(STAMP2IDENTIFIER + "id:" + str(identifierID), None)
-        self._identifierDict.pop(IDENTIFIER2SETSPEC + str(identifierID), None)
-        self._identifierDict.pop(STAMP2IDENTIFIER + str(oldStamp), None)
-
-    def _purgeLists(self, identifierID, oldStamp, oldSets):
-        self._removeIfInList(oldStamp, self._tombStones)
-        for prefix, prefixStamps in self._prefixes.items():
-            self._removeIfInList(oldStamp, prefixStamps)
-        for setSpec in oldSets:
-            self._removeIfInList(oldStamp, self._sets[setSpec])
-
-    def _add(self, identifierID, newStamp, prefixes, newSets):
-        self._newestStamp = newStamp
-        self._identifierDict[STAMP2IDENTIFIER + "id:" + str(identifierID)] = str(newStamp)
-        self._identifierDict[STAMP2IDENTIFIER + str(newStamp)] = str(identifierID)
-        for prefix in prefixes:
-            self._appendIfNotYet(newStamp, self._getPrefixList(prefix))
-        for setSpec in newSets:
-            self._appendIfNotYet(newStamp, self._getSetList(setSpec))
-        if newSets:
-            self._identifierDict[IDENTIFIER2SETSPEC + str(identifierID)] = SETSPEC_SEPARATOR.join(newSets)
-
-    def _sliceStampIds(self, stampIds, start, stop):
-        if stop:
-            return stampIds[bisect_left(stampIds, start):bisect_left(stampIds, stop)]
-        return stampIds[bisect_left(stampIds, start):]
+    def _newestStampFromIndex(self):
+        searcher = self._getSearcher()
+        maxDoc = searcher.getIndexReader().maxDoc()
+        if maxDoc > 0:
+            s = searcher.doc(maxDoc - 1).getField("stamp")
+        else:
+            return 0
 
     def _fromTime(self, oaiFrom):
         if not oaiFrom:
@@ -355,15 +326,6 @@ class OaiJazz(object):
         except (ValueError, OverflowError):
             return maxint * DATESTAMP_FACTOR
 
-    def _getIdentifier(self, stamp):
-        return self._identifierDict.get(STAMP2IDENTIFIER + str(stamp), None)
-
-    def _getStamp(self, identifierID):
-        result = self._identifierDict.get(STAMP2IDENTIFIER + "id:" + str(identifierID), None)
-        if result != None:
-            result = int(result)
-        return result
-
     def _storeMetadataFormats(self, metadataFormats):
         for prefix, schema, namespace in metadataFormats:
             if (prefix, schema, namespace) != self._metadataFormats.get(prefix):
@@ -375,7 +337,8 @@ class OaiJazz(object):
         """time in microseconds"""
         newStamp = int(time() * DATESTAMP_FACTOR)
         if newStamp <= self._newestStamp:
-            return self._newestStamp + 1
+            newStamp = self._newestStamp + 1
+        self._newestStamp = newStamp
         return newStamp
 
     def _versionFormatCheck(self):

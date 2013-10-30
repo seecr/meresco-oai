@@ -48,7 +48,7 @@ HOSTNAME = gethostname()
 class _OaiPmhTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
-        jazz = OaiJazz(join(self.tempdir, 'jazz'))
+        self.jazz = jazz = OaiJazz(join(self.tempdir, 'jazz'))
         storage = StorageComponent(join(self.tempdir, 'storage'))
         self.oaipmh = self.getOaiPmh()
         self.root = be((Observable(),
@@ -76,6 +76,10 @@ class _OaiPmhTest(SeecrTestCase):
             if i % 5 == 0:
                 list(compose(jazz.delete(recordId)))
 
+    def tearDown(self):
+        self.jazz.close()
+        SeecrTestCase.tearDown(self)
+
     def _request(self, from_=None, path=None, **arguments):
         httpMethod = getattr(self, 'httpMethod', 'GET')
         if from_:
@@ -98,7 +102,7 @@ class _OaiPmhTest(SeecrTestCase):
                 arguments=arguments,
                 path='/oai' if path is None else path,
             ))).split(CRLF * 2)
-        parsedBody = parse(StringIO(body))
+        parsedBody = parse(StringIO(str(body)))
         assertValidOai(parsedBody)
         return header, parsedBody
 
