@@ -34,29 +34,25 @@
 import sys
 from sys import maxint
 from os.path import isdir, join, isfile
-from os import makedirs, listdir, rename
-from bisect import bisect_left
+from os import makedirs, listdir
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
-from bsddb import btopen
-from traceback import print_exc
 from random import choice
 
-from escaping import escapeFilename, unescapeFilename
-from meresco.components.sorteditertools import OrIterator, AndIterator
-from meresco.components import PersistentSortedIntegerList
-from meresco.lucene import TermNumerator
 from meresco.core import asyncreturn
 from weightless.io import Suspend
 
+from json import load, dump
+
 from lucene import initVM
 initVM()
-from org.apache.lucene.document import Document, StringField, Field, LongField, FieldType
-from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery, BooleanClause, TotalHitCountCollector, Sort, SortField
-from org.apache.lucene.index import DirectoryReader, Term
 from java.lang import Integer, Long
+from org.apache.lucene.document import Document, StringField, Field, LongField
+from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery
+from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
+from org.apache.lucene.index import DirectoryReader, Term
 
-def getWriter(path):
+def getLucene(path):
     from java.io import File
     from org.apache.lucene.store import FSDirectory
     from org.apache.lucene.analysis.core import WhitespaceAnalyzer
@@ -65,32 +61,46 @@ def getWriter(path):
     directory = FSDirectory.open(File(path))
     analyzer = WhitespaceAnalyzer(Version.LUCENE_43)
     config = IndexWriterConfig(Version.LUCENE_43, analyzer)
-    return IndexWriter(directory, config)
+    writer = IndexWriter(directory, config)
+    reader = writer.getReader()
+    searcher = IndexSearcher(reader)
+    return writer, reader, searcher
 
 class OaiJazz(object):
 
     version = '5'
 
     def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, autoCommit=True, name=None):
-        self._directory = _ensureDir(aDirectory)
+        self._directory = aDirectory
+        if not isdir(aDirectory):
+            makedirs(aDirectory)
         self._versionFormatCheck()
-        #self._deletePrefixes = alwaysDeleteInPrefixes or []
+        #self._deletePrefixes = alwaysDeleteInPrefixes or []  #TODO
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
         self._maximumSuspendedConnections = maximumSuspendedConnections
-        #self._autoCommit = autoCommit
+        #self._autoCommit = autoCommit  #TODO
         self._name = name
         self._suspended = {}
-        self._prefixesInfoDir = _ensureDir(join(aDirectory, 'prefixesInfo'))
-        self._prefixes = {}
+        self._load()
         # TODO: geen test voor opslag 
-        #self._setsDir = _ensureDir(join(aDirectory, 'sets'))
-        self._sets = {}
         # TODO wat is dit?
         #self._changeFile = join(self._directory, 'change.json')
-        self._read()
-        self._writer = getWriter(aDirectory)
+        self._writer, self._reader, self._searcher = getLucene(aDirectory)
         self._newestStamp = self._newestStampFromIndex()
+
+    _sets = property(lambda self: self._data["sets"])
+    _prefixes = property(lambda self: self._data["prefixes"])
+
+    def _load(self):
+        path = join(self._directory, "data.json")
+        if isfile(path):
+            self._data = load(open(path))
+        else:
+            self._data = dict(prefixes={}, sets={}) 
+
+    def _save(self):
+        dump(self._data, open(join(self._directory, "data.json"), "w"))
 
     def close(self):
         self._writer.close()
@@ -101,30 +111,34 @@ class OaiJazz(object):
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        assert [prefix for prefix, schema, namespace in metadataFormats], 'No metadataFormat specified for record with identifier "%s"' % identifier
+        msg = 'No metadataFormat specified for record with identifier "%s"' % identifier
+        assert [prefix for prefix, schema, namespace in metadataFormats], msg
         doc = self._getDocument(identifier)
         if not doc:
             doc = Document()
+            doc.add(StringField("identifier", identifier, Field.Store.YES))
+        else:
+            doc.removeFields("thumbstone")
+            doc.removeFields("stamp")
+        newStamp = self._newStamp()
+        doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
+
         if metadataFormats:
             #doc.removeFields("prefix") # funny, prefixes are updates, sets not
             for prefix, schema, namespace in metadataFormats:
-                self._metadataFormats[prefix] = (prefix, schema, namespace)
+                self._prefixes[prefix] = (prefix, schema, namespace)
                 doc.add(StringField("prefix", prefix, Field.Store.YES))
         if sets:
             doc.removeFields("sets")  # see funny above
             for setSpec, setName in sets:
-                assert SETSPEC_SEPARATOR not in setSpec, 'SetSpec "%s" contains illegal characters' % setSpec
+                msg = 'SetSpec "%s" contains illegal characters' % setSpec
+                assert SETSPEC_SEPARATOR not in setSpec, msg
                 doc.add(StringField("sets", setSpec, Field.Store.YES))
                 self._sets[setSpec] = "?"
                 if ":" in setSpec:
                     for set_ in setSpec.split(":"):
                         self._sets[set_] = "?"
                         doc.add(StringField("sets", set_, Field.Store.YES))
-        doc.add(StringField("identifier", identifier, Field.Store.YES))
-        doc.removeFields("thumbstone")
-        newStamp = self._newStamp()
-        doc.removeFields("stamp")
-        doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
         self._writer.updateDocument(Term("identifier", identifier), doc)
         self._resume()
 
@@ -136,7 +150,6 @@ class OaiJazz(object):
         if not doc:
             return
         doc.add(StringField("thumbstone", "True", Field.Store.YES))
-        oldStamp = doc.getField("stamp").numericValue().longValue()
         newStamp = self._newStamp()
         doc.removeFields("stamp")
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
@@ -152,17 +165,20 @@ class OaiJazz(object):
         return self._purge(identifier)
 
     def _getSearcher(self):
-        oldReader = self._writer.getReader()
-        newReader = DirectoryReader.openIfChanged(oldReader, self._writer, True) or oldReader
-        return IndexSearcher(newReader)
+        newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
+        if newreader:
+            self._reader = newreader
+            self._searcher = IndexSearcher(newreader)
+        return self._searcher
 
     def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
-        start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
-        stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
         searcher = self._getSearcher()
-        fromRange = NumericRangeQuery.newLongRange("stamp", 8, start, stop, True, True)
         query = BooleanQuery()
-        query.add(fromRange, BooleanClause.Occur.MUST)
+        if oaiFrom or continueAfter or oaiUntil:
+            start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
+            stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
+            fromRange = NumericRangeQuery.newLongRange("stamp", start, stop, True, True)
+            query.add(fromRange, BooleanClause.Occur.MUST)
         query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
         if sets:
             sq = BooleanQuery()
@@ -213,11 +229,11 @@ class OaiJazz(object):
         return doc.get("thumbstone") == "True"
 
     def getAllMetadataFormats(self):
-        for prefix, schema, namespace in self._metadataFormats.values():
+        for prefix, schema, namespace in self._prefixes.values():
             yield (prefix, schema, namespace)
 
     def getAllPrefixes(self):
-        return self._metadataFormats.keys()
+        return self._prefixes.keys()
 
     def getSets(self, identifier):
         doc = self._getDocument(identifier)
@@ -261,44 +277,13 @@ class OaiJazz(object):
         suspend.getResult()
 
     def commit(self):
+        self._save()
         self._writer.commit()
 
     def handleShutdown(self):
         print 'handle shutdown: saving OaiJazz %s' % self._directory
         from sys import stdout; stdout.flush()
         self.commit()
-
-    # private methods
-
-    def _read(self):
-        self._metadataFormats = {}
-        #for prefix in (unescapeFilename(name[:-len('.list')]) for name in listdir(self._prefixesDir) if name.endswith('.list')):
-        for prefix in (unescapeFilename(name[:-len('.schema')]) for name in listdir(self._prefixesInfoDir) if name.endswith('.schema')):
-            #self._getPrefixList(prefix)
-            schema = open(join(self._prefixesInfoDir, '%s.schema' % escapeFilename(prefix))).read()
-            namespace = open(join(self._prefixesInfoDir, '%s.namespace' % escapeFilename(prefix))).read()
-            self._metadataFormats[prefix] = (prefix, schema, namespace)
-
-        return
-
-        for setSpec in (unescapeFilename(name[:-len('.list')]) for name in listdir(self._setsDir) if name.endswith('.list')):
-            self._getSetList(setSpec)
-
-    def _getSetList(self, setSpec):
-        if setSpec not in self._sets:
-            filename = join(self._setsDir, '%s.list' % escapeFilename(setSpec))
-            l = self._sets[setSpec] = PersistentSortedIntegerList(filename, autoCommit=self._autoCommit)
-            self._removeInvalidStamp(l)
-            self._newestStampFromList(l)
-        return self._sets[setSpec]
-
-    def _getPrefixList(self, prefix):
-        if prefix not in self._prefixes:
-            filename = join(self._prefixesDir, '%s.list' % escapeFilename(prefix))
-            l = self._prefixes[prefix] = PersistentSortedIntegerList(filename, autoCommit=self._autoCommit)
-            self._removeInvalidStamp(l)
-            self._newestStampFromList(l)
-        return self._prefixes[prefix]
 
     def _newestStampFromIndex(self):
         searcher = self._getSearcher()
@@ -326,13 +311,6 @@ class OaiJazz(object):
         except (ValueError, OverflowError):
             return maxint * DATESTAMP_FACTOR
 
-    def _storeMetadataFormats(self, metadataFormats):
-        for prefix, schema, namespace in metadataFormats:
-            if (prefix, schema, namespace) != self._metadataFormats.get(prefix):
-                self._metadataFormats[prefix] = (prefix, schema, namespace)
-                _write(join(self._prefixesInfoDir, '%s.schema' % escapeFilename(prefix)), schema)
-                _write(join(self._prefixesInfoDir, '%s.namespace' % escapeFilename(prefix)), namespace)
-
     def _newStamp(self):
         """time in microseconds"""
         newStamp = int(time() * DATESTAMP_FACTOR)
@@ -342,33 +320,16 @@ class OaiJazz(object):
         return newStamp
 
     def _versionFormatCheck(self):
-        self._versionFile = join(self._directory, "oai.version")
-        assert listdir(self._directory) == [] or (isfile(self._versionFile) and open(self._versionFile).read() == self.version), "The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self._directory
-        with open(join(self._directory, "oai.version"), 'w') as f:
+        versionFile = join(self._directory, "oai.version")
+        msg = "The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self._directory
+        assert listdir(self._directory) == [] or isfile(versionFile) and open(versionFile).read() == self.version, msg
+        with open(versionFile, 'w') as f:
             f.write(self.version)
 
     def _resume(self):
         while len(self._suspended) > 0:
             clientId, suspend = self._suspended.popitem()
             suspend.resume()
-
-    def _removeInvalidStamp(self, l):
-        # Last or second last could be unused stamps due to crashes
-        if l:
-            for stamp in l[-2:]:
-                if self._getIdentifier(str(stamp)) is None:
-                    l.remove(stamp)
-
-    def _removeIfInList(self, item, l):
-        try:
-            l.remove(item)
-        except ValueError:
-            pass
-
-    def _appendIfNotYet(self, item, l):
-        if len(l) == 0 or l[-1] != item:
-            l.append(item)
-
 
 # helper methods
 
@@ -380,17 +341,6 @@ class RecordId(str):
     def __getslice__(self, *args, **kwargs):
         return RecordId(str.__getslice__(self, *args, **kwargs), self.stamp)
 
-def _writeLines(filename, lines):
-    with open(filename + '.tmp', 'w') as f:
-        for line in lines:
-            f.write('%s\n' % line)
-    rename(filename + '.tmp', filename)
-
-def _write(filename, content):
-    with open(filename + '.tmp', 'w') as f:
-        f.write(content)
-    rename(filename + '.tmp', filename)
-
 def _flattenSetHierarchy(sets):
     """"[1:2:3, 1:2:4] => [1, 1:2, 1:2:3, 1:2:4]"""
     result = set()
@@ -399,9 +349,6 @@ def _flattenSetHierarchy(sets):
         for i in range(1, len(parts) + 1):
             result.add(':'.join(parts[:i]))
     return result
-
-def safeString(aString):
-    return str(aString) if isinstance(aString, unicode) else aString
 
 def stamp2zulutime(stamp):
     if stamp is None:
@@ -412,16 +359,9 @@ def _stamp2zulutime(stamp, preciseDatestamp=False):
     microseconds = ".%s" % (stamp % DATESTAMP_FACTOR) if preciseDatestamp else ""
     return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp / DATESTAMP_FACTOR)), microseconds)
 
-def _ensureDir(directory):
-    isdir(directory) or makedirs(directory)
-    return directory
-
 
 class ForcedResumeException(Exception):
     pass
 
-SETSPEC_SEPARATOR = ','
+SETSPEC_SEPARATOR = ","
 DATESTAMP_FACTOR = 1000000
-
-IDENTIFIER2SETSPEC = 'ss:'
-STAMP2IDENTIFIER = 'st:'
