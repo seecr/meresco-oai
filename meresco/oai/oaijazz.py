@@ -11,7 +11,7 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -104,7 +104,7 @@ class OaiJazz(object):
 
     def close(self):
         #TODO
-        #self._save()
+        self._save()
         self._writer.close()
 
     def commit(self):
@@ -215,6 +215,8 @@ class OaiJazz(object):
         #        for identifierID, stampId in idAndStamps if not identifierID is None)
 
     def _getDocument(self, identifier):
+        if hasattr(identifier, 'document'):
+            return identifier.document
         searcher = self._getSearcher()
         results = searcher.search(TermQuery(Term("identifier", identifier)), 1)
         if results.totalHits == 0:
@@ -261,12 +263,10 @@ class OaiJazz(object):
             return []
         return doc.getValues("prefix")
 
-    def getAllSets(self):
+    def getAllSets(self, includeSetNames=False):
+        if includeSetNames:
+            return self._sets.items()
         return self._sets.keys()
-
-    def getAllSetSpecs(self):
-        for setSpec, setName in self._sets.iteritems():
-            yield setSpec, setName
 
     def getNrOfRecords(self, prefix='oai_dc'):
         searcher = self._getSearcher()

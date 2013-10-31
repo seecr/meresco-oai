@@ -11,7 +11,7 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -180,16 +180,10 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         stampId = self.jazz.getUnique('existing')
         self.jazz.purge('existing')
-        #_removeWriteLockOfLuceneTermNumerator(self.jazz)
         self.jazz.close()
         jazz2 = OaiJazz(self.tmpdir2("b"))
         self.assertEquals(None, jazz2.getUnique('existing'))
-        #self.assertTrue(stampId not in jazz2._tombStones)
-        #for prefix, stampIds in jazz2._prefixes.items():
-        #    self.assertTrue(stampId not in stampIds)
-        #for set, stampIds in jazz2._sets.items():
-        #    self.assertTrue(stampId not in stampIds)
-        #self.assertTrue('ss:existing' not in jazz2._identifierDict)
+        self.assertEquals([], list(jazz2.oaiSelect(prefix='prefix')))
 
     def testPurgeNotAllowedIfDeletesArePersistent(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
@@ -215,9 +209,14 @@ class OaiJazzTest(SeecrTestCase):
 
     def testAddOaiRecordPersistent(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
+        self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix', sets=['setSpec'])))
+        self.assertEquals([('setSpec', 'setName')], self.jazz.getAllSets(includeSetNames=True))
+        self.assertEquals([('prefix','schema', 'namespace')], list(self.jazz.getAllMetadataFormats()))
         self.jazz.close()
         jazz2 = OaiJazz(self.tmpdir2("a"))
         self.assertEquals(['42'], list(jazz2.oaiSelect(prefix='prefix', sets=['setSpec'])))
+        self.assertEquals([('setSpec', 'setName')], jazz2.getAllSets(includeSetNames=True))
+        self.assertEquals([('prefix','schema', 'namespace')], list(jazz2.getAllMetadataFormats()))
 
     def testUnicodeIdentifier(self):
         self.jazz.addOaiRecord(u'ë', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
@@ -335,7 +334,7 @@ class OaiJazzTest(SeecrTestCase):
     def testStoreSetName(self):
         self.jazz.addOaiRecord("id:1", metadataFormats=[('p', 'x', 'b')],
             sets=[("spec1", "name1")])
-        sets = self.jazz.getAllSetSpecs()
+        sets = self.jazz.getAllSets(includeSetNames=True)
         self.assertEquals([("spec1", "name1")], list(sets))
 
     def testRefuseInitWithNoVersionFile(self):
