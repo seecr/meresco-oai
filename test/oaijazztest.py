@@ -458,11 +458,9 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix1', 'schema', 'namespace')],
                     sets=[('setSpec1', 'setName1'), ('setSpec2:setSpec3', 'setName23')])
         self.assertEquals(set(['setSpec1']), set(self.jazz.getSets('id:1')))
-        # TODO: is this correct? shouldn't setSpect3 not be a separate setSpec?
-        #self.assertEquals(set(['setSpec1', 'setSpec2', 'setSpec2:setSpec3']), set(self.jazz.getSets('id:2')))
+        self.assertEquals(set(['setSpec1', 'setSpec2', 'setSpec2:setSpec3']), set(self.jazz.getSets('id:2')))
         self.assertEquals(set([]), set(self.jazz.getSets('doesNotExist')))
-        # TODO: idem
-        #self.assertEquals(set(['setSpec1', 'setSpec2', 'setSpec2:setSpec3']), set(self.jazz.getAllSets()))
+        self.assertEquals(set(['setSpec1', 'setSpec2', 'setSpec2:setSpec3']), set(self.jazz.getAllSets()))
 
     def testHierarchicalSets(self):
         self.jazz.addOaiRecord('record123', metadataFormats=[('oai_dc', 'schema', 'namespace')],

@@ -133,12 +133,12 @@ class OaiJazz(object):
             for setSpec, setName in sets:
                 msg = 'SetSpec "%s" contains illegal characters' % setSpec
                 assert SETSPEC_SEPARATOR not in setSpec, msg
-                doc.add(StringField("sets", setSpec, Field.Store.YES))
-                self._sets[setSpec] = "?"
-                if ":" in setSpec:
-                    for set_ in setSpec.split(":"):
-                        self._sets[set_] = "?"
-                        doc.add(StringField("sets", set_, Field.Store.YES))
+                subsets = setSpec.split(":")
+                while subsets:
+                    fullSetSpec = ':'.join(subsets)
+                    self._sets[fullSetSpec] = "?"
+                    doc.add(StringField("sets", fullSetSpec, Field.Store.YES))
+                    subsets.pop()
         self._writer.updateDocument(Term("identifier", identifier), doc)
         self._resume()
 
@@ -184,9 +184,6 @@ class OaiJazz(object):
             sq = BooleanQuery()
             for setSpec in sets:
                 sq.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.SHOULD)
-            if ":" in setSpec:
-                for set_ in setSpec.split(":"):
-                    sq.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
             query.add(sq, BooleanClause.Occur.MUST)
         if setsMask:
             for set_ in setsMask:
