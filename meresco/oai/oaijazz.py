@@ -79,16 +79,13 @@ class OaiJazz(object):
         if not isdir(aDirectory):
             makedirs(aDirectory)
         self._versionFormatCheck()
-        #self._deletePrefixes = alwaysDeleteInPrefixes or []  #TODO
+        self._deletePrefixes = alwaysDeleteInPrefixes or []
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
         self._maximumSuspendedConnections = maximumSuspendedConnections
         self._name = name
         self._suspended = {}
         self._load()
-        # TODO: geen test voor opslag 
-        # TODO wat is dit?
-        #self._changeFile = join(self._directory, 'change.json')
         self._writer, self._reader, self._searcher = getLucene(aDirectory)
         self._newestStamp = self._newestStampFromIndex()
 
@@ -140,7 +137,7 @@ class OaiJazz(object):
         if metadataFormats:
             #doc.removeFields("prefix") # funny, prefixes are updates, sets not
             for prefix, schema, namespace in metadataFormats:
-                self._prefixes[prefix] = (prefix, schema, namespace)
+                self._prefixes[prefix] = (schema, namespace)
                 doc.add(StringField("prefix", prefix, Field.Store.YES))
         if sets:
             doc.removeFields("sets")  # see funny above
@@ -150,7 +147,7 @@ class OaiJazz(object):
                 subsets = setSpec.split(":")
                 while subsets:
                     fullSetSpec = ':'.join(subsets)
-                    self._sets[fullSetSpec] = "?"
+                    self._sets[fullSetSpec] = setName
                     doc.add(StringField("sets", fullSetSpec, Field.Store.YES))
                     subsets.pop()
         self._writer.updateDocument(Term("identifier", identifier), doc)
@@ -161,11 +158,17 @@ class OaiJazz(object):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         doc = self._getDocument(identifier)
-        if not doc:
-            return
+        if doc:
+            doc.removeFields("stamp")
+        else:
+            if not self._deletePrefixes:
+                return
+            doc = Document()
+            doc.add(StringField("identifier", identifier, Field.Store.YES))
+        for prefix in self._deletePrefixes:
+            doc.add(StringField("prefix", prefix, Field.Store.YES))
         doc.add(StringField("thumbstone", "True", Field.Store.YES))
         newStamp = self._newStamp()
-        doc.removeFields("stamp")
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
         self._writer.updateDocument(Term("identifier", identifier), doc)
         self._resume()
@@ -207,7 +210,7 @@ class OaiJazz(object):
             yield searcher.doc(result.doc).getField("identifier").stringValue()
         return
 
-        #TODO: RecordId gebruiken?
+        #TODO: RecordId gebruiken?  Ook voor alle info die al gelijk in het Lucene doc terugkomt.
         #return (RecordId(self._termNumerator.getTerm(int(identifierID)), stampId)
         #        for identifierID, stampId in idAndStamps if not identifierID is None)
 
@@ -240,7 +243,7 @@ class OaiJazz(object):
         return doc.get("thumbstone") == "True"
 
     def getAllMetadataFormats(self):
-        for prefix, schema, namespace in self._prefixes.values():
+        for prefix, (schema, namespace) in self._prefixes.iteritems():
             yield (prefix, schema, namespace)
 
     def getAllPrefixes(self):
@@ -261,17 +264,24 @@ class OaiJazz(object):
     def getAllSets(self):
         return self._sets.keys()
 
+    def getAllSetSpecs(self):
+        for setSpec, setName in self._sets.iteritems():
+            yield setSpec, setName
+
     def getNrOfRecords(self, prefix='oai_dc'):
         searcher = self._getSearcher()
         collector = TotalHitCountCollector()
         searcher.search(TermQuery(Term("prefix", prefix)), collector)
         return collector.getTotalHits()
 
-    #TODO: onhandig in Lucene
     def getLastStampId(self, prefix='oai_dc'):
-        if prefix in self._prefixes and self._prefixes[prefix]:
-            stampIds = self._prefixes[prefix]
-            return stampIds[-1] if stampIds else None
+        # onhandig in Lucene (traag)
+        searcher = self._getSearcher()
+        sort = Sort(SortField("stamp", SortField.Type.LONG, True)) # reverse=True
+        results = searcher.search(TermQuery(Term("prefix", prefix)), 1, sort)
+        if results.totalHits < 1:
+            return None
+        return searcher.doc(results.scoreDocs[0].doc).getField("stamp").numericValue().longValue()
 
     def getDeletedRecordType(self):
         return "persistent" if self._persistentDelete else "transient"

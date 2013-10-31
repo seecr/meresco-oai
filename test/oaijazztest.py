@@ -166,23 +166,14 @@ class OaiJazzTest(SeecrTestCase):
         self.assertRaises(ValueError, lambda: list(compose(self.jazz.delete(""))))
         self.assertRaises(ValueError, lambda: list(compose(self.jazz.delete(None))))
 
-    def XXXtestMarkDeleteOfNonExistingRecordInGivenPrefixes(self):
-        # TODO: dit kan niet meer, twee tegelijk op dezelfde dir
-        self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
-        _removeWriteLockOfLuceneTermNumerator(self.jazz)
-        jazz = OaiJazz(self.tmpdir2("a"), alwaysDeleteInPrefixes=["aprefix"])
+    def testMarkDeleteOfNonExistingRecordInGivenPrefixes(self):
+        jazz = OaiJazz(self.tmpdir2("b"), alwaysDeleteInPrefixes=["aprefix"])
+        jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         list(compose(jazz.delete('notExisting')))
         self.assertEquals(['notExisting'], list(jazz.oaiSelect(prefix='aprefix')))
         self.assertEquals(['existing'], list(jazz.oaiSelect(prefix='prefix')))
         list(compose(jazz.delete('existing')))
         self.assertEquals(['notExisting', 'existing'], list(jazz.oaiSelect(prefix='aprefix')))
-
-    def XXXtestDoNotPerformSuperfluousDeletes(self):
-        # TODO whitebox test
-        self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
-        self.jazz._stamp2identifier = CallTrace('mockdict', returnValues={'getKeysFor': None, '__delitem__':None})
-        list(compose(self.jazz.delete('notExisting')))
-        self.assertFalse("__delitem__" in str(self.jazz._stamp2identifier.calledMethods))
 
     def testPurgeRecord(self):
         self.jazz = OaiJazz(self.tmpdir2("b"), persistentDelete=False)
@@ -283,7 +274,7 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('id', metadataFormats=[('prefix', 'schema', 'namespace')])
         self.assertEquals(newStamp, self.jazz.getUnique('id'))
 
-    def XXXtestWithObservablesAndUseOfAnyBreaksStuff(self):
+    def testWithObservablesAndUseOfAnyBreaksStuff(self):
         self.jazz.addOaiRecord('23', metadataFormats=[('one','schema1', 'namespace1'), ('two','schema2', 'namespace2')])
         server = be((Observable(),
             (Transparent(),
@@ -313,8 +304,7 @@ class OaiJazzTest(SeecrTestCase):
         list(compose(self.jazz.delete('id1')))
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
 
-    def XXXtestGetLastStampId(self):
-        #TODO: kan, maar onhandig met Lucene, is het echt nodig?
+    def testGetLastStampId(self):
         stampFunction = self.jazz._newStamp
         self.jazz = OaiJazz(self.tmpdir2("b"), persistentDelete=False)
         self.jazz._newStamp = stampFunction
@@ -342,6 +332,12 @@ class OaiJazzTest(SeecrTestCase):
         version = open(join(self.tmpdir2("a"), "oai.version")).read()
         self.assertEquals(version, OaiJazz.version)
 
+    def testStoreSetName(self):
+        self.jazz.addOaiRecord("id:1", metadataFormats=[('p', 'x', 'b')],
+            sets=[("spec1", "name1")])
+        sets = self.jazz.getAllSetSpecs()
+        self.assertEquals([("spec1", "name1")], list(sets))
+
     def testRefuseInitWithNoVersionFile(self):
         self.oaiJazz = None
         remove(join(self.tmpdir2("a"), 'oai.version'))
@@ -352,6 +348,7 @@ class OaiJazzTest(SeecrTestCase):
         except AssertionError, e:
             self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self.tmpdir2("a"), str(e))
 
+    @stdout_replaced
     def testRefuseInitWithDifferentVersionFile(self):
         self.jazz.handleShutdown()
         self.jazz = None
