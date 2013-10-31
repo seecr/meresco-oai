@@ -1,28 +1,28 @@
 ## begin license ##
-# 
+#
 # "Meresco Oai" are components to build Oai repositories, based on
-# "Meresco Core" and "Meresco Components". 
-# 
+# "Meresco Core" and "Meresco Components".
+#
 # Copyright (C) 2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
-# 
+# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+#
 # This file is part of "Meresco Oai"
-# 
+#
 # "Meresco Oai" is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # "Meresco Oai" is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with "Meresco Oai"; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-# 
+#
 ## end license ##
 
 
@@ -32,36 +32,35 @@ from weightless.core import compose
 from xml.sax.saxutils import escape as xmlEscape
 
 class OaiRecord(Transparent):
-    def _oaiRecordHeader(self, recordId, isDeleted):
-        isDeletedStr = ' status="deleted"' if isDeleted else ''
-        datestamp = self.call.getDatestamp(recordId)
+    def _oaiRecordHeader(self, record):
+        isDeletedStr = ' status="deleted"' if record.isDeleted else ''
+        datestamp = record.getDatestamp()
         yield '<header%s>' % isDeletedStr
-        yield '<identifier>%s</identifier>' % xmlEscape(recordId.encode('utf-8'))
+        yield '<identifier>%s</identifier>' % xmlEscape(record.identifier.encode('utf-8'))
         yield '<datestamp>%s</datestamp>' % datestamp
-        yield self._getSetSpecs(recordId)
+        yield self._getSetSpecs(record)
         yield '</header>'
 
-    def oaiRecordHeader(self, recordId, **kwargs):
-        yield self._oaiRecordHeader(recordId, self.call.isDeleted(recordId))
+    def oaiRecordHeader(self, record, **kwargs):
+        yield self._oaiRecordHeader(record=record)
 
-    def oaiRecord(self, recordId, metadataPrefix):
+    def oaiRecord(self, record, metadataPrefix):
         yield '<record>'
-        isDeleted = self.call.isDeleted(recordId)
-        yield self._oaiRecordHeader(recordId, isDeleted)
+        yield self._oaiRecordHeader(record)
 
-        if not isDeleted:
+        if not record.isDeleted:
             yield '<metadata>'
-            yield self.all.yieldRecord(recordId, metadataPrefix)
+            yield self.all.yieldRecord(record.identifier, metadataPrefix)
             yield '</metadata>'
             
-            provenance = compose(self.all.provenance(recordId))
+            provenance = compose(self.all.provenance(record.identifier))
             for line in decorate('<about>', provenance, '</about>'):
                 yield line
 
         yield '</record>'
 
-    def _getSetSpecs(self, recordId):
-        sets = self.call.getSets(recordId)
+    def _getSetSpecs(self, record):
+        sets = record.setSpecs
         if sets:
             return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in sets)
         return ''

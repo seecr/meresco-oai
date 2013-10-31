@@ -1,33 +1,33 @@
 ## begin license ##
-# 
+#
 # "Meresco Oai" are components to build Oai repositories, based on
-# "Meresco Core" and "Meresco Components". 
-# 
+# "Meresco Core" and "Meresco Components".
+#
 # Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
 # Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
-# 
+#
 # This file is part of "Meresco Oai"
-# 
+#
 # "Meresco Oai" is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # "Meresco Oai" is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with "Meresco Oai"; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-# 
+#
 ## end license ##
 
 from weightless.core import Yield
@@ -115,7 +115,7 @@ Error and Exception Conditions
         while True:
             try:
                 responseDate = zuluTime()
-                results = self._preProcess(validatedArguments, **httpkwargs)
+                records = self._preProcess(validatedArguments, **httpkwargs)
                 break
             except OaiException, e:
                 if validatedArguments.get("x-wait", 'False') == 'True' and \
@@ -140,7 +140,7 @@ Error and Exception Conditions
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
-        yield self._process(verb, results, validatedArguments, **httpkwargs)
+        yield self._process(verb, records, validatedArguments, **httpkwargs)
         yield '</%s>' % verb
 
         yield oaiFooter()
@@ -205,30 +205,30 @@ Error and Exception Conditions
         validatedArguments['until'] = until
         validatedArguments['set'] = set_
         validatedArguments['metadataPrefix'] = metadataPrefix
-        result = self.call.oaiSelect(
+        records = self.call.oaiSelect(
             sets=[set_] if set_ else None,
             prefix=metadataPrefix,
             continueAfter=continueAfter,
             oaiFrom=from_,
             oaiUntil=until)
         try:
-            firstRecord = result.next()
-            return chain(iter([firstRecord]), result)
+            firstRecord = records.next()
+            return chain(iter([firstRecord]), records)
         except StopIteration:
             raise OaiException('noRecordsMatch')
 
-    def _process(self, verb, results, validatedArguments, **httpkwargs):
+    def _process(self, verb, records, validatedArguments, **httpkwargs):
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
-        for recordId in islice(results, 0, self._batchSize):
-            yield self.all.unknown(message, recordId=recordId, metadataPrefix=validatedArguments['metadataPrefix'])
+        for record in islice(records, 0, self._batchSize):
+            yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'])
 
         try:
             recordsRemaining = 0
             if not 'x-wait' in validatedArguments:
-                results.next()
+                records.next()
                 recordsRemaining += 1
             if 'x-count' in validatedArguments:
-                for result in results:
+                for result in records:
                     if recordsRemaining % 100 == 0:
                         yield Yield
                     recordsRemaining += 1

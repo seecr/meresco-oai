@@ -11,7 +11,7 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -207,7 +207,7 @@ class OaiJazz(object):
                 query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
         results = searcher.search(query, 200, Sort(SortField("stamp", SortField.Type.LONG)))
         for result in results.scoreDocs:
-            yield searcher.doc(result.doc).getField("identifier").stringValue()
+            yield Record(searcher.doc(result.doc), preciseDatestamp=self._preciseDatestamp)
         return
 
         #TODO: RecordId gebruiken?  Ook voor alle info die al gelijk in het Lucene doc terugkomt.
@@ -215,13 +215,14 @@ class OaiJazz(object):
         #        for identifierID, stampId in idAndStamps if not identifierID is None)
 
     def _getDocument(self, identifier):
-        if hasattr(identifier, 'document'):
-            return identifier.document
         searcher = self._getSearcher()
         results = searcher.search(TermQuery(Term("identifier", identifier)), 1)
         if results.totalHits == 0:
             return None
         return searcher.doc(results.scoreDocs[0].doc)
+
+    def getRecord(self, identifier):
+        return Record(self._getDocument(identifier), preciseDatestamp=self._preciseDatestamp)
 
     def _getStamp(self, identifier):
         doc = self._getDocument(identifier)
@@ -230,10 +231,7 @@ class OaiJazz(object):
         return doc.getField("stamp").numericValue().longValue()
 
     def getDatestamp(self, identifier):
-        stamp = self._getStamp(identifier)
-        if stamp is None:
-            return None
-        return _stamp2zulutime(stamp=stamp, preciseDatestamp=self._preciseDatestamp)
+        return self.getRecord(identifier).getDatestamp()
 
     def getUnique(self, identifier):
         if hasattr(identifier, 'stamp'):
@@ -345,13 +343,17 @@ class OaiJazz(object):
 
 # helper methods
 
-class RecordId(str):
-    def __new__(self, identifierID, stamp):
-        return str.__new__(self, identifierID)
-    def __init__(self, identifierID, stamp):
-        self.stamp = stamp
-    def __getslice__(self, *args, **kwargs):
-        return RecordId(str.__getslice__(self, *args, **kwargs), self.stamp)
+class Record(object):
+    def __init__(self, doc, preciseDatestamp=False):
+        self.identifier = doc.getField("identifier").stringValue()
+        self.stamp=doc.getField("stamp").numericValue().longValue()
+        self.setSpecs=doc.getValues('sets')
+        self.prefixes=doc.getValues('prefix')
+        self.isDeleted=doc.get("thumbstone") == "True"
+        self._preciseDatestamp = preciseDatestamp
+       
+    def getDatestamp(self):
+        return _stamp2zulutime(stamp=self.stamp, preciseDatestamp=self._preciseDatestamp)
 
 def _flattenSetHierarchy(sets):
     """"[1:2:3, 1:2:4] => [1, 1:2, 1:2:3, 1:2:4]"""
