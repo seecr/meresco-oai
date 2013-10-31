@@ -47,14 +47,18 @@ from json import load, dump
 from lucene import initVM
 initVM()
 from java.lang import Integer, Long
+from java.io import File
 from org.apache.lucene.document import Document, StringField, Field, LongField
 from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery
 from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
 from org.apache.lucene.index import DirectoryReader, Term
+from org.apache.lucene.store import FSDirectory
+
+def getReader(path):
+    from org.apache.lucene.index import DirectoryReader
+    return DirectoryReader.open(FSDirectory.open(File(path)))
 
 def getLucene(path):
-    from java.io import File
-    from org.apache.lucene.store import FSDirectory
     from org.apache.lucene.analysis.core import WhitespaceAnalyzer
     from org.apache.lucene.index import IndexWriter, IndexWriterConfig
     from org.apache.lucene.util import Version
@@ -70,7 +74,7 @@ class OaiJazz(object):
 
     version = '5'
 
-    def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, autoCommit=True, name=None):
+    def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
         self._directory = aDirectory
         if not isdir(aDirectory):
             makedirs(aDirectory)
@@ -79,7 +83,6 @@ class OaiJazz(object):
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
         self._maximumSuspendedConnections = maximumSuspendedConnections
-        #self._autoCommit = autoCommit  #TODO
         self._name = name
         self._suspended = {}
         self._load()
@@ -103,7 +106,18 @@ class OaiJazz(object):
         dump(self._data, open(join(self._directory, "data.json"), "w"))
 
     def close(self):
+        #TODO
+        #self._save()
         self._writer.close()
+
+    def commit(self):
+        self._save()
+        self._writer.commit()
+
+    def handleShutdown(self):
+        print 'handle shutdown: saving OaiJazz %s' % self._directory
+        from sys import stdout; stdout.flush()
+        self.close()
 
     def observable_name(self):
         return self._name
@@ -272,15 +286,6 @@ class OaiJazz(object):
         self._suspended[clientIdentifier] = suspend
         yield suspend
         suspend.getResult()
-
-    def commit(self):
-        self._save()
-        self._writer.commit()
-
-    def handleShutdown(self):
-        print 'handle shutdown: saving OaiJazz %s' % self._directory
-        from sys import stdout; stdout.flush()
-        self.commit()
 
     def _newestStampFromIndex(self):
         searcher = self._getSearcher()

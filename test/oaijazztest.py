@@ -696,139 +696,24 @@ class OaiJazzTest(SeecrTestCase):
 
     @stdout_replaced
     def testJazzWithShutdown(self):
-        jazz = OaiJazz(self.tmpdir2("b"), autoCommit=False)
+        jazz = OaiJazz(self.tmpdir2("b"))
         jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
         list(compose(jazz.delete(identifier='identifier')))
         jazz.handleShutdown()
         jazz.close()
-        jazz = OaiJazz(self.tmpdir2("b"), autoCommit=False)
+        jazz = OaiJazz(self.tmpdir2("b"))
         self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix'))))
         self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix', sets=['A']))))
         self.assertTrue(jazz.isDeleted('identifier'))
 
     def testJazzWithoutCommit(self):
-        jazz = OaiJazz(self.tmpdir2("b"), autoCommit=False)
+        theDir = self.tmpdir2("b")
+        jazz = OaiJazz(theDir)
         jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
-        #_removeWriteLockOfLuceneTermNumerator(jazz)
-        #TODO
-        jazz.close()  # dit niet wat we willen testen, wat wel?
-        jazz = OaiJazz(self.tmpdir2("b"), autoCommit=False)
-        #self.assertEquals(0, len(list(jazz.oaiSelect(prefix='prefix'))))
+        from meresco.oai.oaijazz import getReader
+        try:
+            getReader(theDir)
+            self.fail()
+        except Exception, e:
+            self.assertTrue("no segments" in str(e), str(e))
 
-    def XXXXtestRecoverFromCrashingAddOaiRecord(self):
-        #TODO
-        identifier = 'oai://1234?34'
-        def setUp(jazz):
-            jazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
-
-        def modify(jazz):
-            jazz.addOaiRecord(identifier=identifier, sets=[('B', 'set B')], metadataFormats=[('prefix2', 'schema2', 'namespace2')])
-
-        def asserts(jazz):
-            self.assertEquals(['A', 'B'], jazz.getSets(identifier))
-            self.assertEquals(set(['prefix', 'prefix2']), set(jazz.getPrefixes(identifier)))
-            self.assertEquals(1, len(list(jazz._getPrefixList(prefix='prefix'))))
-            self.assertEquals(1, len(list(jazz._getPrefixList(prefix='prefix2'))))
-            self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix'))))
-            self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix2'))))
-            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['A'], prefix='prefix'))))
-            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['B'], prefix='prefix'))))
-            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['A'], prefix='prefix2'))))
-            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['B'], prefix='prefix2'))))
-
-        self._crashAtDifferentSteps(setUp, modify, asserts)
-
-    def XXXtestRecoverFromCrashingDelete(self):
-        identifier = 'oai://1234?34'
-        def setUp(jazz):
-            jazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
-
-        def modify(jazz):
-            list(compose(jazz.delete(identifier)))
-
-        def asserts(jazz):
-            self.assertEquals(['A'], jazz.getSets(identifier))
-            self.assertEquals(set(['prefix']), set(jazz.getPrefixes(identifier)))
-            self.assertTrue(jazz.isDeleted(identifier))
-            self.assertEquals(1, len(list(jazz._getPrefixList(prefix='prefix'))))
-            self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix'))))
-            self.assertEquals(1, len(list(jazz.oaiSelect(sets=['A'], prefix='prefix'))))
-
-
-        self._crashAtDifferentSteps(setUp, modify, asserts)
-
-    def XXXtestRecoverFromCrashingPurge(self):
-        identifier = 'oai://1234?34'
-        def setUp(jazz):
-            jazz._persistentDelete = False
-            jazz.addOaiRecord(identifier=identifier, sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
-
-        def modify(jazz):
-            jazz._persistentDelete = False
-            jazz.purge(identifier)
-
-        def asserts(jazz):
-            self.assertEquals(None, jazz.getUnique(identifier))
-            self.assertEquals(0, len(list(jazz._getPrefixList(prefix='prefix'))))
-            self.assertEquals(0, len(list(jazz.oaiSelect(prefix='prefix'))))
-            self.assertEquals(0, len(list(jazz.oaiSelect(sets=['A'], prefix='prefix'))))
-
-        self._crashAtDifferentSteps(setUp, modify, asserts)
-
-    def XXXtestUseTermNumerator(self):
-        kijk = []
-        class MyDict(object):
-            def numerateTerm(self, term):
-                kijk.append(term)
-                return 43
-
-        j  = OaiJazz(self.tmpdir2("b"), termNumerator=MyDict())
-        j.addOaiRecord("an identifier", metadataFormats=[("rdf", "schema", "ns")])
-
-        self.assertEquals(["an identifier"], kijk)
-
-    def _crashAtDifferentSteps(self, setUp, modify, asserts):
-        oaiDir = join(self.tmpdir2("b"), 'oai')
-        for crashingStep in range(1, 15):
-            crashingJazz = OaiJazz(oaiDir)
-            setUp(crashingJazz)
-            # self.assertFalse(isfile(crashingJazz._changeFile))
-
-            stepCount = [0]
-            def replaceMethodWithCrashAtStep(object, methodName):
-                original = getattr(object, methodName)
-                def crashAtStep(*args, **kwargs):
-                    stepCount[0] += 1
-                    if stepCount[0] == crashingStep:
-                        raise RuntimeError("crash in '%s' of %s@%s for args %s and kwargs %s" % (methodName, object.__class__.__name__, id(object), args, kwargs))
-                    original(*args, **kwargs)
-                setattr(object, methodName, crashAtStep)
-
-            replaceMethodWithCrashAtStep(crashingJazz, '_removeIfInList')
-            replaceMethodWithCrashAtStep(crashingJazz, '_appendIfNotYet')
-            # TODO  watte?
-            #replaceMethodWithCrashAtStep(crashingJazz._identifierDict, 'sync')
-
-            try:
-                with stderr_replaced():
-                    modify(crashingJazz)
-                # not crashed...
-                asserts(crashingJazz)
-            except SystemExit:
-                # self.assertTrue(isfile(crashingJazz._changeFile))
-                _removeWriteLockOfLuceneTermNumerator(crashingJazz)
-                crashingJazz = None
-
-            if crashingJazz:
-                _removeWriteLockOfLuceneTermNumerator(crashingJazz)
-            # recover
-            newJazz = OaiJazz(aDirectory=oaiDir)
-            modify(newJazz)
-            # self.assertFalse(isfile(newJazz._changeFile))
-            asserts(newJazz)
-            _removeWriteLockOfLuceneTermNumerator(newJazz)
-
-
-def _removeWriteLockOfLuceneTermNumerator(jazz):
-    #jazz._termNumerator.close()
-    pass
