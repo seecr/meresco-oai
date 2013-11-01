@@ -29,8 +29,10 @@
 export LANG=en_US.UTF-8
 export PYTHONPATH=.:"$PYTHONPATH"
 pyversions="python2.6"
-if [ -f /etc/debian_version -a "$(cat /etc/debian_version | awk -F. '{print $1}')" = "7" ]; then
-    pyversions="python2.7"
+if [ -f /etc/debian_version ]; then
+    if [ "$(cat /etc/debian_version | awk -F. '{print $1}')" = "7" ]; then
+        pyversions="python2.7"
+    fi
 fi
 option=$1
 if [ "${option:0:10}" == "--python2." ]; then
