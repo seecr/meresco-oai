@@ -97,6 +97,7 @@ class OaiJazz(object):
         self._suspended = {}
         self._load()
         self._writer, self._reader, self._searcher = getLucene(aDirectory)
+        self._latestModifications = set()
         self._newestStamp = self._newestStampFromIndex()
 
     _sets = property(lambda self: self._data["sets"])
@@ -161,6 +162,7 @@ class OaiJazz(object):
                     doc.add(StringField("sets", fullSetSpec, Field.Store.YES))
                     subsets.pop()
         self._writer.updateDocument(Term("identifier", identifier), doc)
+        self._latestModifications.add(str(identifier))
         self._resume()
 
     @asyncreturn
@@ -181,6 +183,7 @@ class OaiJazz(object):
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
         self._writer.updateDocument(Term("identifier", identifier), doc)
+        self._latestModifications.add(str(identifier))
         self._resume()
 
     def _purge(self, identifier):
@@ -191,7 +194,10 @@ class OaiJazz(object):
             raise KeyError("Purging of records is not allowed with persistent deletes.")
         return self._purge(identifier)
 
-    def _getSearcher(self):
+    def _getSearcher(self, identifier=None):
+        if identifier and str(identifier) not in self._latestModifications:
+            return self._searcher
+        self._latestModifications.clear()
         newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
         if newreader:
             self._reader = newreader
@@ -222,7 +228,7 @@ class OaiJazz(object):
         return
 
     def _getDocument(self, identifier):
-        searcher = self._getSearcher()
+        searcher = self._getSearcher(identifier)
         results = searcher.search(TermQuery(Term("identifier", identifier)), 1)
         if results.totalHits == 0:
             return None
