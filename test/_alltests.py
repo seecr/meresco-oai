@@ -58,8 +58,7 @@ from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest
 from oaibrandingtest import OaiBrandingTest
 from oaidownloadprocessortest import OaiDownloadProcessorTest
 from oaierrortest import OaiErrorTest
-# from oaiintegrationtest import OaiIntegrationTest
-print 'SKIPPED'
+from oaiintegrationtest import OaiIntegrationTest
 from oaijazztest import OaiJazzTest
 from oailisttest import OaiListTest
 from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest
