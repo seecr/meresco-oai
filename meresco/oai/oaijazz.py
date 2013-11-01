@@ -350,13 +350,13 @@ class OaiJazz(object):
 
 class Record(object):
     def __init__(self, doc, preciseDatestamp=False):
-        self.identifier = doc.getField("identifier").stringValue()
+        self.identifier = str(doc.getField("identifier").stringValue())
         self.stamp=doc.getField("stamp").numericValue().longValue()
         self.setSpecs=doc.getValues('sets')
         self.prefixes=doc.getValues('prefix')
         self.isDeleted=doc.get("thumbstone") == "True"
         self._preciseDatestamp = preciseDatestamp
-       
+
     def getDatestamp(self):
         return _stamp2zulutime(stamp=self.stamp, preciseDatestamp=self._preciseDatestamp)
 
