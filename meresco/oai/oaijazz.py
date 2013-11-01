@@ -34,7 +34,7 @@
 import sys
 from sys import maxint
 from os.path import isdir, join, isfile
-from os import makedirs, listdir
+from os import makedirs, listdir, getenv
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from random import choice
@@ -43,10 +43,19 @@ from meresco.core import asyncreturn
 from weightless.io import Suspend
 
 from json import load, dump
+from warnings import warn
 
-from lucene import initVM
-initVM()
-from java.lang import Integer, Long
+maxheap = getenv('PYLUCENE_MAXHEAP')
+if not maxheap:
+    maxheap = '4g'
+    warn("Using '4g' as maxheap for lucene.initVM(). To override use PYLUCENE_MAXHEAP environment variable.")
+from lucene import initVM, getVMEnv
+try:
+    VM = initVM(maxheap=maxheap)#, vmargs='-agentlib:hprof=heap=sites')
+except ValueError:
+    VM = getVMEnv()
+
+from java.lang import Long
 from java.io import File
 from org.apache.lucene.document import Document, StringField, Field, LongField
 from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery
@@ -55,7 +64,6 @@ from org.apache.lucene.index import DirectoryReader, Term
 from org.apache.lucene.store import FSDirectory
 
 def getReader(path):
-    from org.apache.lucene.index import DirectoryReader
     return DirectoryReader.open(FSDirectory.open(File(path)))
 
 def getLucene(path):
@@ -97,7 +105,7 @@ class OaiJazz(object):
         if isfile(path):
             self._data = load(open(path))
         else:
-            self._data = dict(prefixes={}, sets={}) 
+            self._data = dict(prefixes={}, sets={})
 
     def _save(self):
         dump(self._data, open(join(self._directory, "data.json"), "w"))
