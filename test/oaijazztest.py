@@ -207,6 +207,11 @@ class OaiJazzTest(SeecrTestCase):
         self.assertTrue(jazz2.isDeleted('42'))
         self.assertEquals(['42'], recordIds(jazz2.oaiSelect(prefix='oai_dc')))
 
+    def testSelectOnlyBatchSize(self):
+        self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
+        self.jazz.addOaiRecord('43', metadataFormats=[('oai_dc','schema', 'namespace')])
+        self.assertEquals(['42'], recordIds(self.jazz.oaiSelect(prefix='oai_dc', batchSize=1)))
+
     def testAddOaiRecordPersistent(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
         self.assertEquals(['42'], recordIds(self.jazz.oaiSelect(prefix='prefix', sets=['setSpec'])))
@@ -263,6 +268,9 @@ class OaiJazzTest(SeecrTestCase):
         newestStamp = self.jazz._newestStamp
         self.jazz.addOaiRecord('43', sets=[('setSpec', 'setName')], metadataFormats=[('other', 'schema', 'namespace'), ('oai_dc','schema', 'namespace')])
         self.assertEqual(newestStamp + 1, self.jazz.getUnique('43'))
+        self.jazz.close()
+        self.jazz = OaiJazz(self.tmpdir2("a"))
+        self.assertEqual(newestStamp + 1, self.jazz._newestStamp)
 
     def testFlattenSetHierarchy(self):
         self.assertEquals(['set1', 'set1:set2', 'set1:set2:set3'], sorted(_flattenSetHierarchy(['set1:set2:set3'])))

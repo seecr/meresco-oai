@@ -11,6 +11,7 @@
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
 # Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -36,6 +37,7 @@ from meresco.core import Transparent, Observable
 from weightless.core import be, compose
 from oaiidentify import OaiIdentify
 from oailist import OaiList
+from oaijazz import DEFAULT_BATCH_SIZE
 from oaigetrecord import OaiGetRecord
 from oailistmetadataformats import OaiListMetadataFormats
 from oailistsets import OaiListSets
@@ -44,14 +46,14 @@ from oaiidentifierrename import OaiIdentifierRename
 from oairecord import OaiRecord
 
 class OaiPmh(object):
-    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=OaiList.DEFAULT_BATCH_SIZE, supportXWait=False):
+    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False):
         outside = Transparent() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
         self._internalObserverTree = be(
             (Observable(),
                 (OaiError(),
-                    (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier), 
+                    (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier),
                         (outside,)
                     ),
                     (OaiList(batchSize=batchSize, supportXWait=supportXWait),

@@ -39,7 +39,7 @@ from oaitool import ISO8601, ISO8601Exception
 from itertools import chain, islice
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
-from oaijazz import ForcedResumeException
+from oaijazz import ForcedResumeException, DEFAULT_BATCH_SIZE
 from uuid import uuid4
 import sys
 
@@ -86,8 +86,6 @@ Error and Exception Conditions
     * noRecordsMatch - The combination of the values of the from, until, set and metadataPrefix arguments results in an empty list.
     * noSetHierarchy - The repository does not support sets.
 """
-
-    DEFAULT_BATCH_SIZE = 200
 
     def __init__(self, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False):
         self._supportedVerbs = ['ListIdentifiers', 'ListRecords']
@@ -136,7 +134,7 @@ Error and Exception Conditions
                 else:
                     yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
                     return
-        
+
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
@@ -187,7 +185,7 @@ Error and Exception Conditions
 
             try:
                 from_ = from_ and ISO8601(from_)
-                until = until and ISO8601(until) 
+                until = until and ISO8601(until)
                 if from_ and until:
                     if from_.isShort() != until.isShort():
                         raise OaiBadArgumentException('From and/or until arguments must match in length.')
@@ -195,7 +193,7 @@ Error and Exception Conditions
                         raise OaiBadArgumentException('From argument must be smaller than until argument.')
                 from_ = from_ and from_.floor()
                 until = until and until.ceil()
-            except ISO8601Exception, e:
+            except ISO8601Exception:
                 raise OaiBadArgumentException('From and/or until arguments are faulty.')
 
         if not metadataPrefix in set(self.call.getAllPrefixes()):
@@ -210,7 +208,8 @@ Error and Exception Conditions
             prefix=metadataPrefix,
             continueAfter=continueAfter,
             oaiFrom=from_,
-            oaiUntil=until)
+            oaiUntil=until,
+            batchSize=self._batchSize + 1) # +1 so we can see if there is more for a resumptionToken
         try:
             firstRecord = records.next()
             return chain(iter([firstRecord]), records)

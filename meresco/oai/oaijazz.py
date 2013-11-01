@@ -78,6 +78,8 @@ def getLucene(path):
     searcher = IndexSearcher(reader)
     return writer, reader, searcher
 
+DEFAULT_BATCH_SIZE = 200
+
 class OaiJazz(object):
 
     version = '5'
@@ -196,7 +198,8 @@ class OaiJazz(object):
             self._searcher = IndexSearcher(newreader)
         return self._searcher
 
-    def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None, setsMask=None):
+    def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None,
+                    setsMask=None, batchSize=DEFAULT_BATCH_SIZE + 1):
         searcher = self._getSearcher()
         query = BooleanQuery()
         if oaiFrom or continueAfter or oaiUntil:
@@ -213,14 +216,10 @@ class OaiJazz(object):
         if setsMask:
             for set_ in setsMask:
                 query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
-        results = searcher.search(query, 200, Sort(SortField("stamp", SortField.Type.LONG)))
+        results = searcher.search(query, batchSize, Sort(SortField("stamp", SortField.Type.LONG)))
         for result in results.scoreDocs:
             yield Record(searcher.doc(result.doc), preciseDatestamp=self._preciseDatestamp)
         return
-
-        #TODO: RecordId gebruiken?  Ook voor alle info die al gelijk in het Lucene doc terugkomt.
-        #return (RecordId(self._termNumerator.getTerm(int(identifierID)), stampId)
-        #        for identifierID, stampId in idAndStamps if not identifierID is None)
 
     def _getDocument(self, identifier):
         searcher = self._getSearcher()
@@ -303,10 +302,9 @@ class OaiJazz(object):
     def _newestStampFromIndex(self):
         searcher = self._getSearcher()
         maxDoc = searcher.getIndexReader().maxDoc()
-        if maxDoc > 0:
-            s = searcher.doc(maxDoc - 1).getField("stamp")
-        else:
+        if maxDoc < 1:
             return 0
+        return searcher.doc(maxDoc - 1).getField("stamp").numericValue().longValue()
 
     def _fromTime(self, oaiFrom):
         if not oaiFrom:

@@ -30,7 +30,6 @@
 #
 ## end license ##
 
-from itertools import imap
 from StringIO import StringIO
 from xml.sax.saxutils import escape as escapeXml
 from lxml.etree import parse
@@ -43,11 +42,8 @@ from weightless.core import compose, Yield
 from meresco.components.http.utils import CRLF
 
 from meresco.oai.oailist import OaiList
-from meresco.oai.oairecord import OaiRecord
-from meresco.oai.resumptiontoken import resumptionTokenFromString, ResumptionToken
-from meresco.oai.oaiutils import OaiException
 
-from mockoaijazz import MockOaiJazz, MockRecord
+from mockoaijazz import MockRecord
 
 
 class OaiListTest(SeecrTestCase):
@@ -81,7 +77,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken')))
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'oaiRecord', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
         selectMethod = self.observer.calledMethods[1]
-        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
+        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None, 'batchSize': 3}, selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[3:]
         self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
@@ -96,7 +92,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken')))
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'oaiRecordHeader', 'oaiRecordHeader'], [m.name for m in self.observer.calledMethods])
         selectMethod = self.observer.calledMethods[1]
-        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
+        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None, 'batchSize': 3}, selectMethod.kwargs)
         headerMethods = self.observer.calledMethods[3:]
         self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, _m(headerMethods[0].kwargs))
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(headerMethods[1].kwargs))
@@ -113,7 +109,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals(['u2012-01-01T00:00:00Z|cunique_for_id|moai_dc|sset0|f2000-01-01T00:00:00Z'], resumptionToken)
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'oaiRecord', 'oaiRecord', 'getUnique'], [m.name for m in self.observer.calledMethods])
         selectMethod = self.observer.calledMethods[1]
-        self.assertEquals({'continueAfter':'0', 'oaiUntil':'2012-01-01T00:00:00Z', 'prefix':'oai_dc', 'oaiFrom':'2000-01-01T00:00:00Z', 'sets':['set0']}, selectMethod.kwargs)
+        self.assertEquals({'continueAfter':'0', 'oaiUntil':'2012-01-01T00:00:00Z', 'prefix':'oai_dc', 'oaiFrom':'2000-01-01T00:00:00Z', 'sets':['set0'], 'batchSize': 3}, selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[3:]
         self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
@@ -128,7 +124,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken')))
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
         selectMethod = self.observer.calledMethods[1]
-        self.assertEquals({'continueAfter':'unique_for_id', 'oaiUntil':'2012-01-01T00:00:00Z', 'prefix':'oai_dc', 'oaiFrom':'2000-01-01T00:00:00Z', 'sets':['set0']}, selectMethod.kwargs)
+        self.assertEquals({'continueAfter':'unique_for_id', 'oaiUntil':'2012-01-01T00:00:00Z', 'prefix':'oai_dc', 'oaiFrom':'2000-01-01T00:00:00Z', 'sets':['set0'], 'batchSize': 3}, selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[3:]
         self.assertEquals({'recordId':'id:2&2', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
 
@@ -144,7 +140,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals(None, resumptionTokens[0].text)
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'oaiRecord', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
         selectMethod = self.observer.calledMethods[1]
-        self.assertEquals({'continueAfter':'unique_for_id', 'oaiUntil':'2012-01-01T00:00:00Z', 'prefix':'oai_dc', 'oaiFrom':'2000-01-01T00:00:00Z', 'sets':['set0']}, selectMethod.kwargs)
+        self.assertEquals({'continueAfter':'unique_for_id', 'oaiUntil':'2012-01-01T00:00:00Z', 'prefix':'oai_dc', 'oaiFrom':'2000-01-01T00:00:00Z', 'sets':['set0'], 'batchSize': 3}, selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[3:]
         self.assertEquals({'recordId':'id:2&2', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
         self.assertEquals({'recordId':'id:3&3', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
@@ -175,7 +171,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'oaiRecord', 'getUnique'], [m.name for m in self.observer.calledMethods])
         selectMethod = self.observer.calledMethods[1]
-        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
+        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'oai_dc', 'oaiFrom':None, 'sets':None, 'batchSize': 3}, selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[3:]
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
 
@@ -187,7 +183,7 @@ class OaiListTest(SeecrTestCase):
         suspend = result.next()
         self.assertEquals(['getAllPrefixes', 'suspend'], [m.name for m in self.observer.calledMethods])
         self.observer.returnValues['getAllPrefixes'] = ['other_prefix']
-        suspend = result.next() 
+        suspend = result.next()
         self.observer.returnValues['oaiSelect'] = (MockRecord(f) for f in ['id:1&1'])
         self.observer.calledMethods.reset()
 
@@ -198,7 +194,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
         self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'oaiRecord', 'getUnique'], [m.name for m in self.observer.calledMethods])
         selectMethod = self.observer.calledMethods[1]
-        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'other_prefix', 'oaiFrom':None, 'sets':None}, selectMethod.kwargs)
+        self.assertEquals({'continueAfter':'0', 'oaiUntil':None, 'prefix':'other_prefix', 'oaiFrom':None, 'sets':None, 'batchSize': 3}, selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[3:]
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'other_prefix'}, _m(recordMethods[0].kwargs))
 
@@ -318,6 +314,6 @@ class OaiListTest(SeecrTestCase):
 def xpath(node, path):
     return node.xpath(path, namespaces={'oai': 'http://www.openarchives.org/OAI/2.0/',
         'mock': 'uri:mock',})
-        
+
 def _m(kwargs):
-    return {'metadataPrefix': kwargs['metadataPrefix'], 'recordId': kwargs['record'].identifier} 
+    return {'metadataPrefix': kwargs['metadataPrefix'], 'recordId': kwargs['record'].identifier}
