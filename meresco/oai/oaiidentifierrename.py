@@ -56,9 +56,6 @@ class OaiIdentifierRename(Transparent):
     def getUnique(self, identifier):
         return self.call.getUnique(self._strip(identifier))
 
-    def getDatestamp(self, identifier):
-        return self.call.getDatestamp(self._strip(identifier))
-    
     def getPrefixes(self, identifier):
         return self.call.getPrefixes(self._strip(identifier))
     

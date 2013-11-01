@@ -148,13 +148,13 @@ class OaiJazzTest(SeecrTestCase):
 
     def testGetDatestamp(self):
         self.jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
-        self.assertEquals('2008-07-06T05:04:03Z', self.jazz.getDatestamp('123'))
+        self.assertEquals('2008-07-06T05:04:03Z', self.jazz.getRecord('123').getDatestamp())
 
     def testGetPreciseDatestamp(self):
         jazz = OaiJazz(self.tmpdir2("b"), preciseDatestamp=True)
         jazz._newStamp = self.jazz._newStamp
         jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
-        self.assertEquals('2008-07-06T05:04:03.123456Z', jazz.getDatestamp('123'))
+        self.assertEquals('2008-07-06T05:04:03.123456Z', jazz.getRecord('123').getDatestamp())
 
     def testDeleteNonExistingRecords(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
@@ -227,7 +227,7 @@ class OaiJazzTest(SeecrTestCase):
         list(compose(jazz2.delete(u'ë')))
         self.assertTrue(jazz2.isDeleted('ë'))
         self.assertTrue(jazz2.isDeleted(u'ë'))
-        self.assertNotEquals(None, jazz2.getDatestamp(u'ë'))
+        self.assertNotEquals(None, jazz2.getRecord(u'ë').getDatestamp())
         self.assertNotEquals(None, jazz2.getUnique(u'ë'))
         self.assertEquals(['setSpec'], jazz2.getSets(u'ë'))
         self.assertEquals(['prefix'], list(jazz2.getPrefixes(u'ë')))
@@ -249,11 +249,11 @@ class OaiJazzTest(SeecrTestCase):
 
     def testDeleteIncrementsDatestampAndUnique(self):
         self.jazz.addOaiRecord('23', metadataFormats=[('oai_dc','schema', 'namespace')])
-        stamp = self.jazz.getDatestamp('23')
+        stamp = self.jazz.getRecord('23').getDatestamp()
         unique = self.jazz.getUnique('23')
         self.stampNumber += 1234567890 # increaseTime
         list(compose(self.jazz.delete('23')))
-        self.assertNotEqual(stamp, self.jazz.getDatestamp('23'))
+        self.assertNotEqual(stamp, self.jazz.getRecord('23').getDatestamp())
         self.assertNotEquals(unique, int(self.jazz.getUnique('23')))
 
     def testTimeUpdateRaisesErrorButLeavesIndexCorrect(self):

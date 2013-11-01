@@ -230,9 +230,6 @@ class OaiJazz(object):
             return None
         return doc.getField("stamp").numericValue().longValue()
 
-    def getDatestamp(self, identifier):
-        return self.getRecord(identifier).getDatestamp()
-
     def getUnique(self, identifier):
         if hasattr(identifier, 'stamp'):
             return identifier.stamp
