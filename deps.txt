@@ -9,3 +9,5 @@ python-escaping (<< 0.2)
 python-lxml (>= 2.1)
 python-lxml (<< 3.0)
 python-simplejson
+pylucene (>= 4.3.0)
+pylucene (<< 4.4.0)
