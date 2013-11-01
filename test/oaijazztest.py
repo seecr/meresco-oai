@@ -403,11 +403,7 @@ class OaiJazzTest(SeecrTestCase):
         self._addRecord(3)
         for r in select:
             result.append(r.identifier)
-
-        #TODO watte ?!?!?!?!?
-        # self.assertEquals(['00001', '00002', '00004'], result)
-
-
+        self.assertEquals(['00001', '00002', '00004'], result)
         result = []
         select = self.jazz.oaiSelect(prefix='oai_dc')
         for r in select:

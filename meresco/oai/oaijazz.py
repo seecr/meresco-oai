@@ -195,7 +195,7 @@ class OaiJazz(object):
         return self._purge(identifier)
 
     def _getSearcher(self, identifier=None):
-        if identifier and str(identifier) not in self._latestModifications:
+        if identifier and str(identifier) not in self._latestModifications and len(self._latestModifications) < 100000:
             return self._searcher
         self._latestModifications.clear()
         newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
@@ -215,16 +215,18 @@ class OaiJazz(object):
             query.add(fromRange, BooleanClause.Occur.MUST)
         query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
         if sets:
-            sq = BooleanQuery()
+            setQuery = BooleanQuery()
             for setSpec in sets:
-                sq.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.SHOULD)
-            query.add(sq, BooleanClause.Occur.MUST)
+                setQuery.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.SHOULD)
+            query.add(setQuery, BooleanClause.Occur.MUST)
         if setsMask:
             for set_ in setsMask:
                 query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
         results = searcher.search(query, batchSize, Sort(SortField("stamp", SortField.Type.LONG)))
         for result in results.scoreDocs:
-            yield Record(searcher.doc(result.doc), preciseDatestamp=self._preciseDatestamp)
+            record = Record(searcher.doc(result.doc), preciseDatestamp=self._preciseDatestamp)
+            if record.identifier not in self._latestModifications:
+                yield record
         return
 
     def _getDocument(self, identifier):
