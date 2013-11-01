@@ -37,6 +37,8 @@ from seecr.test import SeecrTestCase, CallTrace
 
 from meresco.oai.oairecord import OaiRecord
 
+from mockoaijazz import MockRecord
+
 from weightless.core import compose
 
 class OaiRecordTest(SeecrTestCase):
@@ -134,15 +136,4 @@ class OaiRecordTest(SeecrTestCase):
     <setSpec>set1</setSpec>
 </header>""", result)
         self.assertEquals([], [str(m) for m in self.observer.calledMethods])
-
-
-class MockRecord(object):
-    def __init__(self, identifier, stamp=123412341123456L, sets=None, prefixes=None, deleted=False):
-        self.identifier = identifier
-        self.stamp = stamp
-        self.setSpecs = ['set0', 'set1'] if sets is None else sets
-        self.prefixes = ['oai_dc'] if prefixes is None else prefixes
-        self.isDeleted = deleted
-        self.getDatestamp = lambda: '2011-03-25T10:45:00Z'
-
 

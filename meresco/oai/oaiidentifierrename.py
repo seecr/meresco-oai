@@ -73,6 +73,9 @@ class OaiIdentifierRename(Transparent):
 
     def getStream(self, id, partName):
         return self.call.getStream(self._strip(id), partName)
+
+    def getRecord(self, identifier):
+        return self._append(self.call.getRecord(self._strip(identifier)))
     
     def oaiSelect(self, *args, **kwargs):
         return (self._append(record) for record in self.call.oaiSelect(*args, **kwargs))

@@ -237,7 +237,7 @@ Error and Exception Conditions
                 yield '<resumptionToken>'
             yield '%s</resumptionToken>' % ResumptionToken(
                     metadataPrefix=validatedArguments['metadataPrefix'],
-                    continueAfter=self.call.getUnique(recordId),
+                    continueAfter=self.call.getUnique(record.identifier),
                     from_=validatedArguments['from'],
                     until=validatedArguments['until'],
                     set_=validatedArguments['set'])

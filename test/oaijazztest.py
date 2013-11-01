@@ -525,9 +525,6 @@ class OaiJazzTest(SeecrTestCase):
         results =self.jazz.oaiSelect(prefix='lom')
         self.assertEquals(['124', '121','122'], recordIds(results))
 
-    def testGetDatestampNotExisting(self):
-        self.assertEquals(None, self.jazz.getDatestamp('doesNotExist'))
-
     def testDelete(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
         self.assertFalse(self.jazz.isDeleted('42'))
