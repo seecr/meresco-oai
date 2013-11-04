@@ -222,16 +222,10 @@ Error and Exception Conditions
             yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'])
 
         try:
-            recordsRemaining = 0
             if not 'x-wait' in validatedArguments:
                 records.next()
-                recordsRemaining += 1
             if 'x-count' in validatedArguments:
-                for result in records:
-                    if recordsRemaining % 100 == 0:
-                        yield Yield
-                    recordsRemaining += 1
-                yield '<resumptionToken recordsRemaining="%s">' % recordsRemaining
+                yield '<resumptionToken recordsRemaining="%s">' % record.recordsRemaining
             else:
                 yield '<resumptionToken>'
             yield '%s</resumptionToken>' % ResumptionToken(

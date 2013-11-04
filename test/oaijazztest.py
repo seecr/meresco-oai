@@ -686,6 +686,19 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals([True], resumed)
         self.assertEquals({}, self.jazz._suspended)
 
+    def testRecordsRemaining(self):
+        self.jazz.addOaiRecord('id1', metadataFormats=[('prefix','schema', 'namespace')])
+        self.jazz.addOaiRecord('id2', metadataFormats=[('prefix','schema', 'namespace')])
+        self.jazz.addOaiRecord('id3', metadataFormats=[('prefix','schema', 'namespace')])
+        self.jazz.addOaiRecord('id4', metadataFormats=[('prefix','schema', 'namespace')])
+        records = list(self.jazz.oaiSelect(prefix='prefix', batchSize=2))
+        self.assertEquals(3, records[0].recordsRemaining)
+        self.assertEquals(2, records[1].recordsRemaining)
+        records = list(self.jazz.oaiSelect(prefix='prefix', batchSize=2, continueAfter=self.jazz.getUnique(records[1].identifier)))
+        self.assertEquals(1, records[0].recordsRemaining)
+        self.assertEquals(0, records[1].recordsRemaining)
+
+
     def testStamp2Zulutime(self):
         self.assertEquals("2012-10-04T09:21:04Z", stamp2zulutime("1349342464630008"))
         self.assertEquals("", stamp2zulutime(None))

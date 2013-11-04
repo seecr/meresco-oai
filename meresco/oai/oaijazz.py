@@ -223,8 +223,9 @@ class OaiJazz(object):
             for set_ in setsMask:
                 query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
         results = searcher.search(query, batchSize, Sort(SortField("stamp", SortField.Type.LONG)))
-        for result in results.scoreDocs:
-            record = Record(searcher.doc(result.doc), preciseDatestamp=self._preciseDatestamp)
+        totalHits = results.totalHits
+        for i, result in enumerate(results.scoreDocs, start=1):
+            record = Record(searcher.doc(result.doc), remaining=totalHits - i, preciseDatestamp=self._preciseDatestamp)
             if record.identifier not in self._latestModifications:
                 yield record
         return
@@ -355,13 +356,14 @@ class OaiJazz(object):
 # helper methods
 
 class Record(object):
-    def __init__(self, doc, preciseDatestamp=False):
+    def __init__(self, doc, remaining=None, preciseDatestamp=False):
         self.identifier = str(doc.getField("identifier").stringValue())
         self.stamp=doc.getField("stamp").numericValue().longValue()
         self.setSpecs=doc.getValues('sets')
         self.prefixes=doc.getValues('prefix')
         self.isDeleted=doc.get("thumbstone") == "True"
         self._preciseDatestamp = preciseDatestamp
+        self.recordsRemaining = remaining
 
     def getDatestamp(self):
         return _stamp2zulutime(stamp=self.stamp, preciseDatestamp=self._preciseDatestamp)

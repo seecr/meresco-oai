@@ -296,7 +296,7 @@ class OaiListTest(SeecrTestCase):
 
     def testXCount(self):
         self.observer.returnValues['getUnique'] = 'unique_for_id'
-        self.observer.returnValues['oaiSelect'] = (MockRecord('id%s&%s' % (i, i)) for i in xrange(1000))
+        self.observer.returnValues['oaiSelect'] = (MockRecord('id%s&%s' % (i, i), remaining=999-i) for i in xrange(10))
 
         header, body = ''.join(s for s in compose(self.oaiList.listRecords(arguments={'verb': ['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['2012-01-01T00:00:00Z'], 'set': ['set0'], 'x-count': ['True']}, **self.httpkwargs)) if not s is Yield).split(CRLF*2)
         oai = parse(StringIO(body))
