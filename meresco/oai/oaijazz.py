@@ -63,25 +63,10 @@ from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort
 from org.apache.lucene.index import DirectoryReader, Term
 from org.apache.lucene.store import FSDirectory
 
-def getReader(path):
-    return DirectoryReader.open(FSDirectory.open(File(path)))
-
-def getLucene(path):
-    from org.apache.lucene.analysis.core import WhitespaceAnalyzer
-    from org.apache.lucene.index import IndexWriter, IndexWriterConfig
-    from org.apache.lucene.util import Version
-    directory = FSDirectory.open(File(path))
-    analyzer = WhitespaceAnalyzer(Version.LUCENE_43)
-    config = IndexWriterConfig(Version.LUCENE_43, analyzer)
-    writer = IndexWriter(directory, config)
-    reader = writer.getReader()
-    searcher = IndexSearcher(reader)
-    return writer, reader, searcher
 
 DEFAULT_BATCH_SIZE = 200
 
 class OaiJazz(object):
-
     version = '5'
 
     def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
@@ -103,32 +88,32 @@ class OaiJazz(object):
     _sets = property(lambda self: self._data["sets"])
     _prefixes = property(lambda self: self._data["prefixes"])
 
-    def _load(self):
-        path = join(self._directory, "data.json")
-        if isfile(path):
-            self._data = load(open(path))
-        else:
-            self._data = dict(prefixes={}, sets={})
-
-    def _save(self):
-        dump(self._data, open(join(self._directory, "data.json"), "w"))
-
-    def close(self):
-        #TODO
-        self._save()
-        self._writer.close()
-
-    def commit(self):
-        self._save()
-        self._writer.commit()
-
-    def handleShutdown(self):
-        print 'handle shutdown: saving OaiJazz %s' % self._directory
-        from sys import stdout; stdout.flush()
-        self.close()
-
-    def observable_name(self):
-        return self._name
+    def oaiSelect(
+            self, sets=None, prefix='oai_dc', continueAfter='0', 
+            oaiFrom=None, oaiUntil=None,
+            setsMask=None, batchSize=DEFAULT_BATCH_SIZE + 1):
+        searcher = self._getSearcher()
+        query = BooleanQuery()
+        if oaiFrom or continueAfter or oaiUntil:
+            start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
+            stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
+            fromRange = NumericRangeQuery.newLongRange("stamp", start, stop, True, True)
+            query.add(fromRange, BooleanClause.Occur.MUST)
+        query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
+        if sets:
+            setQuery = BooleanQuery()
+            for setSpec in sets:
+                setQuery.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.SHOULD)
+            query.add(setQuery, BooleanClause.Occur.MUST)
+        if setsMask:
+            for set_ in setsMask:
+                query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
+        results = searcher.search(query, batchSize, Sort(SortField("stamp", SortField.Type.LONG)))
+        totalHits = results.totalHits
+        for i, result in enumerate(results.scoreDocs, start=1):
+            record = Record(searcher.doc(result.doc), remaining=totalHits - i, preciseDatestamp=self._preciseDatestamp)
+            if record.identifier not in self._latestModifications:
+                yield record
 
     def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
         if not identifier:
@@ -140,24 +125,29 @@ class OaiJazz(object):
             doc = Document()
             doc.add(StringField("identifier", identifier, Field.Store.YES))
         else:
-            doc.removeFields("thumbstone")
+            doc.removeFields("thumbstone")  # FIXME: should be 'tombstone' (binary incompatible)
             doc.removeFields("stamp")
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
 
         if metadataFormats:
+            oldPrefixes = set(doc.getValues("prefix"))
             for prefix, schema, namespace in metadataFormats:
                 self._prefixes[prefix] = (schema, namespace)
-                doc.add(StringField("prefix", prefix, Field.Store.YES))
+                if not prefix in oldPrefixes:
+                    doc.add(StringField("prefix", prefix, Field.Store.YES))
         if sets:
+            oldSets = set(doc.getValues('sets'))
             for setSpec, setName in sets:
                 msg = 'SetSpec "%s" contains illegal characters' % setSpec
                 assert SETSPEC_SEPARATOR not in setSpec, msg
                 subsets = setSpec.split(":")
                 while subsets:
                     fullSetSpec = ':'.join(subsets)
-                    self._sets[fullSetSpec] = setName
-                    doc.add(StringField("sets", fullSetSpec, Field.Store.YES))
+                    if setName:
+                        self._sets[fullSetSpec] = setName
+                    if not fullSetSpec in oldSets:
+                        doc.add(StringField("sets", fullSetSpec, Field.Store.YES))
                     subsets.pop()
         self._writer.updateDocument(Term("identifier", identifier), doc)
         self._latestModifications.add(str(identifier))
@@ -184,104 +174,55 @@ class OaiJazz(object):
         self._latestModifications.add(str(identifier))
         self._resume()
 
-    def _purge(self, identifier):
-        self._writer.deleteDocuments(Term("identifier", identifier))
-
     def purge(self, identifier):
         if self._persistentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
         return self._purge(identifier)
-
-    def _getSearcher(self, identifier=None):
-        if identifier and str(identifier) not in self._latestModifications and len(self._latestModifications) < 100000:
-            return self._searcher
-        self._latestModifications.clear()
-        newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
-        if newreader:
-            self._reader = newreader
-            self._searcher = IndexSearcher(newreader)
-        return self._searcher
-
-    def oaiSelect(self, sets=None, prefix='oai_dc', continueAfter='0', oaiFrom=None, oaiUntil=None,
-                    setsMask=None, batchSize=DEFAULT_BATCH_SIZE + 1):
-        searcher = self._getSearcher()
-        query = BooleanQuery()
-        if oaiFrom or continueAfter or oaiUntil:
-            start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
-            stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
-            fromRange = NumericRangeQuery.newLongRange("stamp", start, stop, True, True)
-            query.add(fromRange, BooleanClause.Occur.MUST)
-        query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
-        if sets:
-            setQuery = BooleanQuery()
-            for setSpec in sets:
-                setQuery.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.SHOULD)
-            query.add(setQuery, BooleanClause.Occur.MUST)
-        if setsMask:
-            for set_ in setsMask:
-                query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
-        results = searcher.search(query, batchSize, Sort(SortField("stamp", SortField.Type.LONG)))
-        totalHits = results.totalHits
-        for i, result in enumerate(results.scoreDocs, start=1):
-            record = Record(searcher.doc(result.doc), remaining=totalHits - i, preciseDatestamp=self._preciseDatestamp)
-            if record.identifier not in self._latestModifications:
-                yield record
-        return
-
-    def _getDocument(self, identifier):
-        searcher = self._getSearcher(identifier)
-        results = searcher.search(TermQuery(Term("identifier", identifier)), 1)
-        if results.totalHits == 0:
-            return None
-        return searcher.doc(results.scoreDocs[0].doc)
-
-    def getRecord(self, identifier):
-        return Record(self._getDocument(identifier), preciseDatestamp=self._preciseDatestamp)
-
-    def _getStamp(self, identifier):
-        doc = self._getDocument(identifier)
-        if not doc:
-            return None
-        return doc.getField("stamp").numericValue().longValue()
-
-    def getUnique(self, identifier):
-        if hasattr(identifier, 'stamp'):
-            return identifier.stamp
-        return self._getStamp(identifier)
-
-    def isDeleted(self, identifier):
-        doc = self._getDocument(identifier)
-        return doc.get("thumbstone") == "True"
 
     def getAllMetadataFormats(self):
         for prefix, (schema, namespace) in self._prefixes.iteritems():
             yield (prefix, schema, namespace)
 
     def getAllPrefixes(self):
-        return self._prefixes.keys()
-
-    def getSets(self, identifier):
-        doc = self._getDocument(identifier)
-        if not doc:
-            return []
-        return doc.getValues("sets")
-
-    def getPrefixes(self, identifier):
-        doc = self._getDocument(identifier)
-        if not doc:
-            return []
-        return doc.getValues("prefix")
+        return set(self._prefixes.keys())
 
     def getAllSets(self, includeSetNames=False):
         if includeSetNames:
-            return self._sets.items()
-        return self._sets.keys()
+            return set(self._sets.items())
+        return set(self._sets.keys())
 
     def getNrOfRecords(self, prefix='oai_dc'):
         searcher = self._getSearcher()
         collector = TotalHitCountCollector()
         searcher.search(TermQuery(Term("prefix", prefix)), collector)
         return collector.getTotalHits()
+
+    def getRecord(self, identifier):
+        return Record(self._getDocument(identifier), preciseDatestamp=self._preciseDatestamp)
+
+    def isDeleted(self, identifier):
+        doc = self._getDocument(identifier)
+        return doc.get("thumbstone") == "True"
+
+    def getSets(self, identifier):
+        doc = self._getDocument(identifier)
+        if not doc:
+            return set([])
+        return set(doc.getValues("sets"))
+
+    def getPrefixes(self, identifier):
+        doc = self._getDocument(identifier)
+        if not doc:
+            return set([])
+        return set(doc.getValues("prefix"))
+
+    def getUnique(self, identifier):
+        if hasattr(identifier, 'stamp'):
+            return identifier.stamp
+        return self._getStamp(identifier)
+
+    def getDeletedRecordType(self):
+        return "persistent" if self._persistentDelete else "transient"
 
     def getLastStampId(self, prefix='oai_dc'):
         # onhandig in Lucene (traag)
@@ -292,8 +233,21 @@ class OaiJazz(object):
             return None
         return searcher.doc(results.scoreDocs[0].doc).getField("stamp").numericValue().longValue()
 
-    def getDeletedRecordType(self):
-        return "persistent" if self._persistentDelete else "transient"
+    def commit(self):
+        self._save()
+        self._writer.commit()
+
+    def handleShutdown(self):
+        print 'handle shutdown: saving OaiJazz %s' % self._directory
+        from sys import stdout; stdout.flush()
+        self.close()
+
+    def close(self):
+        self._save()
+        self._writer.close()
+
+    def observable_name(self):
+        return self._name
 
     def suspend(self, clientIdentifier):
         suspend = Suspend()
@@ -306,12 +260,37 @@ class OaiJazz(object):
         yield suspend
         suspend.getResult()
 
+
+    def _versionFormatCheck(self):
+        versionFile = join(self._directory, "oai.version")
+        msg = "The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self._directory
+        assert listdir(self._directory) == [] or isfile(versionFile) and open(versionFile).read() == self.version, msg
+        with open(versionFile, 'w') as f:
+            f.write(self.version)
+
+    def _load(self):
+        path = join(self._directory, "data.json")
+        if isfile(path):
+            self._data = load(open(path))
+        else:
+            self._data = dict(prefixes={}, sets={})
+
     def _newestStampFromIndex(self):
         searcher = self._getSearcher()
         maxDoc = searcher.getIndexReader().maxDoc()
         if maxDoc < 1:
             return 0
         return searcher.doc(maxDoc - 1).getField("stamp").numericValue().longValue()
+
+    def _getSearcher(self, identifier=None):
+        if identifier and str(identifier) not in self._latestModifications and len(self._latestModifications) < 100000:
+            return self._searcher
+        self._latestModifications.clear()
+        newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
+        if newreader:
+            self._reader = newreader
+            self._searcher = IndexSearcher(newreader)
+        return self._searcher
 
     def _fromTime(self, oaiFrom):
         if not oaiFrom:
@@ -331,6 +310,13 @@ class OaiJazz(object):
         except (ValueError, OverflowError):
             return maxint * DATESTAMP_FACTOR
 
+    def _getDocument(self, identifier):
+        searcher = self._getSearcher(identifier)
+        results = searcher.search(TermQuery(Term("identifier", identifier)), 1)
+        if results.totalHits == 0:
+            return None
+        return searcher.doc(results.scoreDocs[0].doc)
+
     def _newStamp(self):
         """time in microseconds"""
         newStamp = int(time() * DATESTAMP_FACTOR)
@@ -339,19 +325,41 @@ class OaiJazz(object):
         self._newestStamp = newStamp
         return newStamp
 
-    def _versionFormatCheck(self):
-        versionFile = join(self._directory, "oai.version")
-        msg = "The OAI index at %s need to be converted to the current version (with 'convert_oai_v3_to_v4' in meresco-oai/bin)" % self._directory
-        assert listdir(self._directory) == [] or isfile(versionFile) and open(versionFile).read() == self.version, msg
-        with open(versionFile, 'w') as f:
-            f.write(self.version)
-
     def _resume(self):
         while len(self._suspended) > 0:
             clientId, suspend = self._suspended.popitem()
             suspend.resume()
 
+    def _purge(self, identifier):
+        self._writer.deleteDocuments(Term("identifier", identifier))
+
+    def _getStamp(self, identifier):
+        doc = self._getDocument(identifier)
+        if not doc:
+            return None
+        return doc.getField("stamp").numericValue().longValue()
+
+    def _save(self):
+        dump(self._data, open(join(self._directory, "data.json"), "w"))
+
+
 # helper methods
+
+def getReader(path):
+    return DirectoryReader.open(FSDirectory.open(File(path)))
+
+def getLucene(path):
+    from org.apache.lucene.analysis.core import WhitespaceAnalyzer
+    from org.apache.lucene.index import IndexWriter, IndexWriterConfig
+    from org.apache.lucene.util import Version
+    directory = FSDirectory.open(File(path))
+    analyzer = WhitespaceAnalyzer(Version.LUCENE_43)
+    config = IndexWriterConfig(Version.LUCENE_43, analyzer)
+    writer = IndexWriter(directory, config)
+    reader = writer.getReader()
+    searcher = IndexSearcher(reader)
+    return writer, reader, searcher
+
 
 class Record(object):
     def __init__(self, doc, remaining=None, preciseDatestamp=False):

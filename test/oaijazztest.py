@@ -215,12 +215,12 @@ class OaiJazzTest(SeecrTestCase):
     def testAddOaiRecordPersistent(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
         self.assertEquals(['42'], recordIds(self.jazz.oaiSelect(prefix='prefix', sets=['setSpec'])))
-        self.assertEquals([('setSpec', 'setName')], self.jazz.getAllSets(includeSetNames=True))
+        self.assertEquals(set([('setSpec', 'setName')]), self.jazz.getAllSets(includeSetNames=True))
         self.assertEquals([('prefix','schema', 'namespace')], list(self.jazz.getAllMetadataFormats()))
         self.jazz.close()
         jazz2 = OaiJazz(self.tmpdir2("a"))
         self.assertEquals(['42'], recordIds(jazz2.oaiSelect(prefix='prefix', sets=['setSpec'])))
-        self.assertEquals([('setSpec', 'setName')], jazz2.getAllSets(includeSetNames=True))
+        self.assertEquals(set([('setSpec', 'setName')]), jazz2.getAllSets(includeSetNames=True))
         self.assertEquals([('prefix','schema', 'namespace')], list(jazz2.getAllMetadataFormats()))
 
     def testUnicodeIdentifier(self):
@@ -234,8 +234,8 @@ class OaiJazzTest(SeecrTestCase):
         self.assertTrue(jazz2.isDeleted(u'ë'))
         self.assertNotEquals(None, jazz2.getRecord(u'ë').getDatestamp())
         self.assertNotEquals(None, jazz2.getUnique(u'ë'))
-        self.assertEquals(['setSpec'], jazz2.getSets(u'ë'))
-        self.assertEquals(['prefix'], list(jazz2.getPrefixes(u'ë')))
+        self.assertEquals(set(['setSpec']), jazz2.getSets(u'ë'))
+        self.assertEquals(set(['prefix']), jazz2.getPrefixes(u'ë'))
 
         jazz3 = OaiJazz(self.tmpdir2("b"), persistentDelete=False)
         jazz3.purge(u'ë')
@@ -458,8 +458,11 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix1', 'schema', 'namespace')],
                     sets=[('setSpec1', 'setName1'), ('setSpec2:setSpec3', 'setName23')])
         self.assertEquals(set(['setSpec1']), set(self.jazz.getSets('id:1')))
-        self.assertEquals(set(['setSpec1', 'setSpec2', 'setSpec2:setSpec3']), set(self.jazz.getSets('id:2')))
-        self.assertEquals(set([]), set(self.jazz.getSets('doesNotExist')))
+        self.assertEquals(set, type(self.jazz.getSets('id:2')))
+        self.assertEquals(set(['setSpec1', 'setSpec2', 'setSpec2:setSpec3']), self.jazz.getSets('id:2'))
+
+        self.assertEquals(set([]), self.jazz.getSets('doesNotExist'))
+        self.assertEquals(set, type(self.jazz.getAllSets()))
         self.assertEquals(set(['setSpec1', 'setSpec2', 'setSpec2:setSpec3']), set(self.jazz.getAllSets()))
 
     def testHierarchicalSets(self):
@@ -493,6 +496,7 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
         result = self.jazz.oaiSelect(prefix='prefix')
         self.assertEquals(['id:1'],recordIds(result))
+        self.assertEquals(['prefix'], sorted(self.jazz.getPrefixes('id:1')))
 
     def testUpdateOaiRecordSet(self):
         self.jazz.addOaiRecord('id:1', sets=[('setSpec1', 'setName1')],
@@ -509,9 +513,13 @@ class OaiJazzTest(SeecrTestCase):
         result = self.jazz.oaiSelect(prefix='prefix', sets=['setSpec1'])
         self.assertEquals(['id:1'], recordIds(result))
 
+        self.jazz.addOaiRecord('id:1', sets=[('setSpec1', 'setName1')],
+                                metadataFormats=[('prefix', 'schema', 'namespace')])
+        self.assertEquals(['setSpec1'], sorted(self.jazz.getSets('id:1')))
+
         self.jazz.addOaiRecord('id:1', sets=[('setSpec2', 'setName2')],
                                 metadataFormats=[('prefix', 'schema', 'namespace')])
-        self.assertEquals(set(['setSpec1', 'setSpec2']), set(self.jazz.getSets('id:1')))
+        self.assertEquals(['setSpec1', 'setSpec2'], sorted(self.jazz.getSets('id:1')))
 
     def testAddPartWithUniqueNumbersAndSorting(self):
         list(compose(self.oaiAddRecord.add(identifier='123', partname='oai_dc', lxmlNode=parseLxml('<oai_dc/>'))))
@@ -620,13 +628,15 @@ class OaiJazzTest(SeecrTestCase):
         prefixes = set(self.jazz.getAllPrefixes())
         self.assertEquals(set(['oai_dc']), prefixes)
         list(compose(self.oaiAddRecord.add(identifier='457', partname='dc2', lxmlNode=parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))))
-        prefixes = set(self.jazz.getAllPrefixes())
-        self.assertEquals(set(['oai_dc', 'dc2']), prefixes)
+        prefixes = self.jazz.getAllPrefixes()
+        self.assertEquals(set, type(prefixes))
+        self.assertEquals(set(['oai_dc', 'dc2']), set(prefixes))
 
     def testGetPrefixes(self):
         list(compose(self.oaiAddRecord.add(identifier='123', partname='oai_dc', lxmlNode=parseLxml('<dc/>'))))
         list(compose(self.oaiAddRecord.add(identifier='123', partname='lom', lxmlNode=parseLxml('<lom/>'))))
-        parts = set(self.jazz.getPrefixes('123'))
+        parts = self.jazz.getPrefixes('123')
+        self.assertEquals(set, type(parts))
         self.assertEquals(set(['oai_dc', 'lom']), parts)
         self.assertEquals(['123'], recordIds(self.jazz.oaiSelect(prefix='lom')))
         self.assertEquals(['123'], recordIds(self.jazz.oaiSelect(prefix='oai_dc')))
