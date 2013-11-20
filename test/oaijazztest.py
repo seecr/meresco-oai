@@ -509,6 +509,10 @@ class OaiJazzTest(SeecrTestCase):
         result = self.jazz.oaiSelect(prefix='prefix', sets=['setSpec1'])
         self.assertEquals(['id:1'], recordIds(result))
 
+        self.jazz.addOaiRecord('id:1', sets=[('setSpec2', 'setName2')],
+                                metadataFormats=[('prefix', 'schema', 'namespace')])
+        self.assertEquals(set(['setSpec1', 'setSpec2']), set(self.jazz.getSets('id:1')))
+
     def testAddPartWithUniqueNumbersAndSorting(self):
         list(compose(self.oaiAddRecord.add(identifier='123', partname='oai_dc', lxmlNode=parseLxml('<oai_dc/>'))))
         list(compose(self.oaiAddRecord.add(identifier='124', partname='lom', lxmlNode=parseLxml('<lom/>'))))

@@ -146,12 +146,10 @@ class OaiJazz(object):
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
 
         if metadataFormats:
-            #doc.removeFields("prefix") # funny, prefixes are updates, sets not
             for prefix, schema, namespace in metadataFormats:
                 self._prefixes[prefix] = (schema, namespace)
                 doc.add(StringField("prefix", prefix, Field.Store.YES))
         if sets:
-            doc.removeFields("sets")  # see funny above
             for setSpec, setName in sets:
                 msg = 'SetSpec "%s" contains illegal characters' % setSpec
                 assert SETSPEC_SEPARATOR not in setSpec, msg
