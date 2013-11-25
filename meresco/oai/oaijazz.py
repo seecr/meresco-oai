@@ -89,7 +89,7 @@ class OaiJazz(object):
     _prefixes = property(lambda self: self._data["prefixes"])
 
     def oaiSelect(
-            self, sets=None, prefix='oai_dc', continueAfter='0', 
+            self, sets=None, prefix='oai_dc', continueAfter='0',
             oaiFrom=None, oaiUntil=None,
             setsMask=None, batchSize=DEFAULT_BATCH_SIZE + 1):
         searcher = self._getSearcher()
@@ -217,8 +217,6 @@ class OaiJazz(object):
         return set(doc.getValues("prefix"))
 
     def getUnique(self, identifier):
-        if hasattr(identifier, 'stamp'):
-            return identifier.stamp
         return self._getStamp(identifier)
 
     def getDeletedRecordType(self):
