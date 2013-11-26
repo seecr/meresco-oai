@@ -266,13 +266,6 @@ class OaiJazz(object):
         with open(versionFile, 'w') as f:
             f.write(self.version)
 
-    def _load(self):
-        path = join(self._directory, "data.json")
-        if isfile(path):
-            self._data = load(open(path))
-        else:
-            self._data = dict(prefixes={}, sets={})
-
     def _newestStampFromIndex(self):
         searcher = self._getSearcher()
         maxDoc = searcher.getIndexReader().maxDoc()
@@ -281,13 +274,16 @@ class OaiJazz(object):
         return searcher.doc(maxDoc - 1).getField("stamp").numericValue().longValue()
 
     def _getSearcher(self, identifier=None):
-        if identifier and str(identifier) not in self._latestModifications and len(self._latestModifications) < 100000:
+        modifications = len(self._latestModifications)
+        if modifications == 0:
             return self._searcher
-        self._latestModifications.clear()
+        if identifier and str(identifier) not in self._latestModifications and modifications < 100000:
+            return self._searcher
         newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
         if newreader:
             self._reader = newreader
             self._searcher = IndexSearcher(newreader)
+        self._latestModifications.clear()
         return self._searcher
 
     def _fromTime(self, oaiFrom):
@@ -339,6 +335,13 @@ class OaiJazz(object):
 
     def _save(self):
         dump(self._data, open(join(self._directory, "data.json"), "w"))
+
+    def _load(self):
+        path = join(self._directory, "data.json")
+        if isfile(path):
+            self._data = load(open(path))
+        else:
+            self._data = dict(prefixes={}, sets={})
 
 
 # helper methods
