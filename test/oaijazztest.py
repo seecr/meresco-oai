@@ -299,7 +299,6 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals('id1', r.identifier)
         self.assertEquals(self.originalStampNumber, r.stamp)
         self.assertEquals(['setSpec'], r.setSpecs)
-        self.assertEquals(['aPrefix'], r.prefixes)
 
     def testGetNrOfRecords(self):
         self.assertEquals(0, self.jazz.getNrOfRecords('aPrefix'))
