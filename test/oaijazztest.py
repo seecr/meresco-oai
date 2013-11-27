@@ -711,7 +711,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals("", stamp2zulutime(None))
         self.assertRaises(Exception, stamp2zulutime, "not-a-stamp")
 
-    def testPerformance(self):
+    def xtestSelectPerformance(self):
         for i in xrange(1000):
             self.jazz.addOaiRecord('id%s' % i, metadataFormats=[('prefix','schema', 'namespace')])
             if i % 10 == 0:
