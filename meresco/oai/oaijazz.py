@@ -62,7 +62,13 @@ from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, Num
 from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
 from org.apache.lucene.index import DirectoryReader, Term
 from org.apache.lucene.store import FSDirectory
+from org.apache.lucene.document import NumericDocValuesField
+from org.apache.lucene.index.sorter import SortingMergePolicy, NumericDocValuesSorter
 
+from meresco_oai import initVM
+OAI_VM = initVM()
+
+from org.meresco.oai import MyCollector
 
 DEFAULT_BATCH_SIZE = 200
 
@@ -108,10 +114,15 @@ class OaiJazz(object):
         if setsMask:
             for set_ in setsMask:
                 query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
-        results = searcher.search(query, batchSize, Sort(SortField("stamp", SortField.Type.LONG)))
-        totalHits = results.totalHits
-        for i, result in enumerate(results.scoreDocs, start=1):
-            record = Record(searcher.doc(result.doc), remaining=totalHits - i, preciseDatestamp=self._preciseDatestamp)
+
+        collector = MyCollector(batchSize, long(start), None if stop is None else long(stop))
+        searcher.search(query, None, collector)
+
+        # results = searcher.search(query, batchSize)#, Sort(SortField("stamp", SortField.Type.LONG)))
+        totalHits = 201#results.totalHits
+
+        for i, hit in enumerate(collector.hits(), start=1):
+            record = Record(searcher.doc(hit), remaining=totalHits - i, preciseDatestamp=self._preciseDatestamp)
             if record.identifier not in self._latestModifications:
                 yield record
 
@@ -129,7 +140,7 @@ class OaiJazz(object):
             doc.removeFields("stamp")
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
-
+        doc.add(NumericDocValuesField("stamp", long(newStamp)))
         if metadataFormats:
             oldPrefixes = set(doc.getValues("prefix"))
             for prefix, schema, namespace in metadataFormats:
@@ -170,6 +181,7 @@ class OaiJazz(object):
         doc.add(StringField("thumbstone", "True", Field.Store.YES))
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
+        doc.add(NumericDocValuesField("stamp", long(newStamp)))
         self._writer.updateDocument(Term("identifier", identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume()
@@ -177,6 +189,7 @@ class OaiJazz(object):
     def purge(self, identifier):
         if self._persistentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
+        self._latestModifications.add(str(identifier))
         return self._purge(identifier)
 
     def getAllMetadataFormats(self):
@@ -225,11 +238,11 @@ class OaiJazz(object):
     def getLastStampId(self, prefix='oai_dc'):
         # onhandig in Lucene (traag)
         searcher = self._getSearcher()
-        sort = Sort(SortField("stamp", SortField.Type.LONG, True)) # reverse=True
+        sort = Sort(SortField(None, SortField.Type.DOC, True))
         results = searcher.search(TermQuery(Term("prefix", prefix)), 1, sort)
         if results.totalHits < 1:
             return None
-        return searcher.doc(results.scoreDocs[0].doc).getField("stamp").numericValue().longValue()
+        return _stampFromDocument(searcher.doc(results.scoreDocs[0].doc))
 
     def commit(self):
         self._save()
@@ -305,11 +318,15 @@ class OaiJazz(object):
             return maxint * DATESTAMP_FACTOR
 
     def _getDocument(self, identifier):
+        docId = self._getDocId(identifier)
+        return self._getSearcher(identifier).doc(docId) if docId is not None else None
+
+    def _getDocId(self, identifier):
         searcher = self._getSearcher(identifier)
         results = searcher.search(TermQuery(Term("identifier", identifier)), 1)
         if results.totalHits == 0:
             return None
-        return searcher.doc(results.scoreDocs[0].doc)
+        return results.scoreDocs[0].doc
 
     def _newStamp(self):
         """time in microseconds"""
@@ -329,9 +346,9 @@ class OaiJazz(object):
 
     def _getStamp(self, identifier):
         doc = self._getDocument(identifier)
-        if not doc:
+        if doc is None:
             return None
-        return doc.getField("stamp").numericValue().longValue()
+        return _stampFromDocument(doc)
 
     def _save(self):
         dump(self._data, open(join(self._directory, "data.json"), "w"))
@@ -356,6 +373,9 @@ def getLucene(path):
     directory = FSDirectory.open(File(path))
     analyzer = WhitespaceAnalyzer(Version.LUCENE_43)
     config = IndexWriterConfig(Version.LUCENE_43, analyzer)
+    mergePolicy = config.getMergePolicy()
+    sortingMergePolicy = SortingMergePolicy(mergePolicy, NumericDocValuesSorter("stamp", True))
+    config.setMergePolicy(sortingMergePolicy)
     writer = IndexWriter(directory, config)
     reader = writer.getReader()
     searcher = IndexSearcher(reader)
@@ -365,7 +385,8 @@ def getLucene(path):
 class Record(object):
     def __init__(self, doc, remaining=None, preciseDatestamp=False):
         self.identifier = str(doc.getField("identifier").stringValue())
-        self.stamp=doc.getField("stamp").numericValue().longValue()
+        # self.stamp = stamp
+        self.stamp=_stampFromDocument(doc)
         self.setSpecs=doc.getValues('sets')
         self.prefixes=doc.getValues('prefix')
         self.isDeleted=doc.get("thumbstone") == "True"
@@ -392,6 +413,10 @@ def stamp2zulutime(stamp):
 def _stamp2zulutime(stamp, preciseDatestamp=False):
     microseconds = ".%s" % (stamp % DATESTAMP_FACTOR) if preciseDatestamp else ""
     return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp / DATESTAMP_FACTOR)), microseconds)
+
+def _stampFromDocument(doc):
+    return doc.getField("stamp").numericValue().longValue()
+
 
 
 class ForcedResumeException(Exception):

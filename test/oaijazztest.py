@@ -312,6 +312,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
 
     def testGetLastStampId(self):
+        t0 = time()
         stampFunction = self.jazz._newStamp
         self.jazz = OaiJazz(self.tmpdir2("b"), persistentDelete=False)
         self.jazz._newStamp = stampFunction
@@ -325,6 +326,7 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.purge('id2')
         self.jazz.purge('id1')
         self.assertEquals(None, self.jazz.getLastStampId('aPrefix'))
+        print time() - t0
 
     def testIllegalSetRaisesException(self):
         # XSD: http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd
@@ -717,6 +719,29 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals("2012-10-04T09:21:04Z", stamp2zulutime("1349342464630008"))
         self.assertEquals("", stamp2zulutime(None))
         self.assertRaises(Exception, stamp2zulutime, "not-a-stamp")
+
+    def testPerformance(self):
+        for i in xrange(1000):
+            self.jazz.addOaiRecord('id%s' % i, metadataFormats=[('prefix','schema', 'namespace')])
+            if i % 10 == 0:
+                self.jazz.commit()
+        # self.jazz.handleShutdown()
+        self.jazz.commit()
+        sleep(1)
+        # jazz = OaiJazz(join(self.tempdir, "a"))
+        jazz = self.jazz
+
+        for i in xrange(10):
+            records = list(jazz.oaiSelect(prefix='prefix', batchSize=200))
+        print 'after warmup'
+        COUNT = 30
+        t0 = time()
+        for i in xrange(COUNT):
+            records = list(jazz.oaiSelect(prefix='prefix', batchSize=200))
+        print 'Took: %s' % ((time() - t0) / COUNT)
+        self.assertEquals(200, len(records))
+        print [r.identifier for r in records[:10]]
+        # print [str(r.stamp) for r in records]
 
     @stdout_replaced
     def testJazzWithShutdown(self):
