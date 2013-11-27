@@ -77,13 +77,13 @@ Error and Exception Conditions
         if not metadataPrefix in set(self.call.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
 
-        hasId = not self.call.getUnique(recordId) is None
-        if not hasId:
+        record = self.call.getRecord(recordId)
+
+        if not record:
             raise OaiException('idDoesNotExist')
 
-        hasPartname = metadataPrefix in set(self.call.getPrefixes(recordId))
-        isDeleted = self.call.isDeleted(recordId)
-        if not isDeleted and not hasPartname:
+        hasPartname = metadataPrefix in set(record.prefixes)
+        if not record.isDeleted and not hasPartname:
             raise OaiException('cannotDisseminateFormat')
 
     def _validateArguments(self, arguments):

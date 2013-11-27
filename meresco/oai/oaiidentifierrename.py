@@ -48,20 +48,9 @@ class OaiIdentifierRename(Transparent):
         return identifier[len(self._prefix):]
 
     def _append(self, record):
-        record.identifier = self._prefix + record.identifier
+        if record:
+            record.identifier = self._prefix + record.identifier
         return record
-
-    def isDeleted(self, identifier):
-        return self.call.isDeleted(self._strip(identifier))
-
-    def getUnique(self, identifier):
-        return self.call.getUnique(self._strip(identifier))
-
-    def getPrefixes(self, identifier):
-        return self.call.getPrefixes(self._strip(identifier))
-    
-    def getSets(self, identifier):
-        return self.call.getSets(self._strip(identifier))
 
     def write(self, sink, id, partName):
         return self.call.write(sink, self._strip(id), partName)
@@ -74,7 +63,7 @@ class OaiIdentifierRename(Transparent):
 
     def getRecord(self, identifier):
         return self._append(self.call.getRecord(self._strip(identifier)))
-    
+
     def oaiSelect(self, *args, **kwargs):
         return (self._append(record) for record in self.call.oaiSelect(*args, **kwargs))
-            
+

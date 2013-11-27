@@ -214,32 +214,15 @@ class OaiJazz(object):
         return collector.getTotalHits()
 
     def getRecord(self, identifier):
-        return Record(self._getDocument(identifier), preciseDatestamp=self._preciseDatestamp)
-
-    def isDeleted(self, identifier):
         doc = self._getDocument(identifier)
-        return doc.getField("tombstone") is not None
-
-    def getSets(self, identifier):
-        doc = self._getDocument(identifier)
-        if not doc:
-            return set([])
-        return set(doc.getValues("sets"))
-
-    def getPrefixes(self, identifier):
-        doc = self._getDocument(identifier)
-        if not doc:
-            return set([])
-        return set(doc.getValues("prefix"))
-
-    def getUnique(self, identifier):
-        return self._getStamp(identifier)
+        if doc is None:
+            return None
+        return Record(doc, preciseDatestamp=self._preciseDatestamp)
 
     def getDeletedRecordType(self):
         return "persistent" if self._persistentDelete else "transient"
 
     def getLastStampId(self, prefix='oai_dc'):
-        # onhandig in Lucene (traag)
         searcher = self._getSearcher()
         sort = Sort(SortField(None, SortField.Type.DOC, True))
         results = searcher.search(TermQuery(Term("prefix", prefix)), 1, sort)
@@ -273,7 +256,6 @@ class OaiJazz(object):
         self._suspended[clientIdentifier] = suspend
         yield suspend
         suspend.getResult()
-
 
     def _versionFormatCheck(self):
         versionFile = join(self._directory, "oai.version")
@@ -386,12 +368,43 @@ def getLucene(path):
 
 class Record(object):
     def __init__(self, doc, remaining=None, preciseDatestamp=False):
-        self.identifier = str(doc.getField("identifier").stringValue())
-        self.stamp = _stampFromDocument(doc)
-        self.setSpecs = doc.getValues('sets')
-        self.isDeleted = doc.getField("tombstone") is not None
+        self._doc = doc
         self._preciseDatestamp = preciseDatestamp
         self.recordsRemaining = remaining
+
+    @property
+    def identifier(self):
+        if not hasattr(self, '_identifier'):
+            self._identifier = str(self._doc.getField("identifier").stringValue())
+        return self._identifier
+
+    @identifier.setter
+    def identifier(self, value):
+        self._identifier = value
+
+    @property
+    def stamp(self):
+        if not hasattr(self, '_stamp'):
+            self._stamp = _stampFromDocument(self._doc)
+        return self._stamp
+
+    @property
+    def isDeleted(self):
+        if not hasattr(self, 'tombstone'):
+            self.tombstone = self._doc.getField("tombstone")
+        return self.tombstone is not None
+
+    @property
+    def prefixes(self):
+        if not hasattr(self, '_prefixes'):
+            self._prefixes = set(self._doc.getValues('prefix'))
+        return self._prefixes
+
+    @property
+    def sets(self):
+        if not hasattr(self, '_sets'):
+            self._sets = set(self._doc.getValues('sets'))
+        return self._sets
 
     def getDatestamp(self):
         return _stamp2zulutime(stamp=self.stamp, preciseDatestamp=self._preciseDatestamp)

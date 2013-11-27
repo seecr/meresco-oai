@@ -53,7 +53,7 @@ class OaiRecord(Transparent):
             yield '<metadata>'
             yield self.all.yieldRecord(record.identifier, metadataPrefix)
             yield '</metadata>'
-            
+
             provenance = compose(self.all.provenance(record.identifier))
             for line in decorate('<about>', provenance, '</about>'):
                 yield line
@@ -61,8 +61,7 @@ class OaiRecord(Transparent):
         yield '</record>'
 
     def _getSetSpecs(self, record):
-        sets = record.setSpecs
-        if sets:
-            return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in sets)
+        if record.sets:
+            return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in record.sets)
         return ''
 

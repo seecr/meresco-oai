@@ -42,20 +42,8 @@ class MockOaiJazz(object):
         self.oaiSelectArguments = (sets if sets else [], prefix, continueAfter, oaiFrom, oaiUntil, batchSize)
         return iter(self._selectAnswer)
 
-    def getUnique(self, id):
-        return 'Unique for test'
-
-    def getSets(self, id):
-        return self._setsAnswer
-
     def getDatestamp(self, id):
         return 'DATESTAMP_FOR_TEST'
-
-    def getPrefixes(self, id):
-        raise "STOP"
-
-    def isDeleted(self, id):
-        return id in self._deleted
 
     def getAllMetadataFormats(self):
         return [('oai_dc',None,None)]
@@ -100,8 +88,8 @@ class MockRecord(object):
     def __init__(self, identifier, remaining=0, stamp=123412341123456L, sets=None, prefixes=None, deleted=False):
         self.identifier = identifier
         self.stamp = stamp
-        self.setSpecs = ['set0', 'set1'] if sets is None else sets
-        self.prefixes = ['oai_dc'] if prefixes is None else prefixes
+        self.sets = set(['set0', 'set1']) if sets is None else sets
+        self.prefixes = set(['oai_dc']) if prefixes is None else prefixes
         self.isDeleted = deleted
         self.getDatestamp = lambda: '2011-03-25T10:45:00Z'
         self.recordsRemaining = remaining
