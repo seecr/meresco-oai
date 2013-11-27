@@ -36,40 +36,43 @@ import org.apache.lucene.index.NumericDocValues;
 
 public class MyCollector extends Collector {
 
-    int[] hits;
-    int collectedHits = 0;
-    int docBase;
-    long start;
-    long stop;
-    private NumericDocValues stamps;
+    private int[] hits;
+    private int hitCount = 0;
+    private int docBase;
+    private boolean shouldCountHits;
 
-    public MyCollector(int maxDocsToCollect, long start, long stop) {
+    public MyCollector(int maxDocsToCollect, boolean shouldCountHits) {
         this.hits = new int[maxDocsToCollect];
-        this.start = start;
-        this.stop = stop;
+        this.shouldCountHits = shouldCountHits;
     }
 
     public int[] hits() {
-        int[] hits = new int[this.collectedHits];
-        System.arraycopy(this.hits, 0, hits, 0, this.collectedHits);
-        return hits;
+        if (this.hitCount < this.hits.length) {
+            int[] hits = new int[this.hitCount];
+            System.arraycopy(this.hits, 0, hits, 0, this.hitCount);
+            this.hits = hits;
+        }
+        return this.hits;
+    }
+
+    public int totalHits() {
+        return this.hitCount;
     }
 
     @Override
     public void setNextReader(AtomicReaderContext context) throws IOException {
         this.docBase = context.docBase;
-        // this.stamps = context.reader().getNumericDocValues("stamp");
     }
 
     @Override
     public void collect(int doc) throws IOException {
-        if (collectedHits == this.hits.length) {
-            throw new CollectionTerminatedException();
+        hitCount++;
+        if (hitCount - 1 >= this.hits.length) {
+            if (!shouldCountHits)
+                throw new CollectionTerminatedException();
+        } else {
+            this.hits[hitCount - 1] = this.docBase + doc;
         }
-        // long stamp = this.stamps.get(doc);
-        // if (stamp >= start && stamp < stop) {
-        this.hits[collectedHits++] = this.docBase + doc;
-        // }
     }
 
     @Override

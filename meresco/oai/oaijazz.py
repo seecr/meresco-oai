@@ -97,7 +97,8 @@ class OaiJazz(object):
     def oaiSelect(
             self, sets=None, prefix='oai_dc', continueAfter='0',
             oaiFrom=None, oaiUntil=None,
-            setsMask=None, batchSize=DEFAULT_BATCH_SIZE + 1):
+            setsMask=None, batchSize=DEFAULT_BATCH_SIZE + 1,
+            shouldCountHits=False):
         searcher = self._getSearcher()
         query = BooleanQuery()
         if oaiFrom or continueAfter or oaiUntil:
@@ -115,14 +116,14 @@ class OaiJazz(object):
             for set_ in setsMask:
                 query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
 
-        collector = MyCollector(batchSize, long(start), None if stop is None else long(stop))
+        collector = MyCollector(batchSize, shouldCountHits)
         searcher.search(query, None, collector)
 
-        # results = searcher.search(query, batchSize)#, Sort(SortField("stamp", SortField.Type.LONG)))
-        totalHits = 201#results.totalHits
+        totalHits = collector.totalHits()
 
         for i, hit in enumerate(collector.hits(), start=1):
-            record = Record(searcher.doc(hit), remaining=totalHits - i, preciseDatestamp=self._preciseDatestamp)
+            remaining = totalHits - i if shouldCountHits else None
+            record = Record(searcher.doc(hit), remaining=remaining, preciseDatestamp=self._preciseDatestamp)
             if record.identifier not in self._latestModifications:
                 yield record
 
@@ -385,11 +386,10 @@ def getLucene(path):
 class Record(object):
     def __init__(self, doc, remaining=None, preciseDatestamp=False):
         self.identifier = str(doc.getField("identifier").stringValue())
-        # self.stamp = stamp
-        self.stamp=_stampFromDocument(doc)
-        self.setSpecs=doc.getValues('sets')
-        self.prefixes=doc.getValues('prefix')
-        self.isDeleted=doc.get("thumbstone") == "True"
+        self.stamp = _stampFromDocument(doc)
+        self.setSpecs = doc.getValues('sets')
+        self.prefixes = doc.getValues('prefix')
+        self.isDeleted = doc.get("thumbstone") == "True"
         self._preciseDatestamp = preciseDatestamp
         self.recordsRemaining = remaining
 

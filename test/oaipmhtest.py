@@ -207,7 +207,7 @@ class _OaiPmhTest(SeecrTestCase):
     def testIdentify(self):
         header, body = self._request(verb=['Identify'])
 
-        self.assertEquals("Content-Type: text/xml; charset=utf-8", header.split(CRLF)[-1]) 
+        self.assertEquals("Content-Type: text/xml; charset=utf-8", header.split(CRLF)[-1])
         self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
         self.assertEquals(['http://%s:9000/oai' % HOSTNAME], xpath(body, '/oai:OAI-PMH/oai:request/text()'))
         identify = xpath(body, '/oai:OAI-PMH/oai:Identify')[0]
@@ -216,7 +216,7 @@ class _OaiPmhTest(SeecrTestCase):
         self.assertEquals(['YYYY-MM-DDThh:mm:ssZ'], xpath(identify, 'oai:granularity/text()'))
         self.assertEquals(['1970-01-01T00:00:00Z'], xpath(identify, 'oai:earliestDatestamp/text()'))
         self.assertEquals(['persistent'], xpath(identify, 'oai:deletedRecord/text()'))
-        
+
         descriptions = xpath(body, '/oai:OAI-PMH/oai:Identify/oai:description')
         if self.prefix:
             self.assertEquals(2, len(descriptions))
@@ -235,7 +235,7 @@ class _OaiPmhTest(SeecrTestCase):
         ))
         header, body = self._request(verb=['Identify'])
         self.assertEquals(['transient'], xpath(body, '/oai:OAI-PMH/oai:Identify/oai:deletedRecord/text()'))
-        
+
     def testIdentifyWithDescription(self):
         self.oaipmh.addObserver(OaiBranding('http://meresco.org/files/images/meresco-logo-small.png', 'http://www.meresco.org/', 'Meresco'))
         header, body = self._request(verb=['Identify'])
@@ -249,7 +249,7 @@ class _OaiPmhTest(SeecrTestCase):
             self.assertEquals(2, len(descriptions))
         self.assertEquals(['Meresco'], xpath(descriptions[-2], 'toolkit:toolkit/toolkit:title/text()'))
         self.assertEquals(['Meresco'], xpath(descriptions[-1], 'branding:branding/branding:collectionIcon/branding:title/text()'))
-    
+
     def testWatermarking(self):
         class OaiWatermark(object):
             def oaiWatermark(this):
@@ -273,10 +273,10 @@ class _OaiPmhTest(SeecrTestCase):
 
     def testNoVerb(self):
         self.assertOaiError({}, additionalMessage='No "verb" argument found.', errorCode='badArgument')
-    
+
     def testNVerbs(self):
         self.assertOaiError({'verb': ['ListRecords', 'Indentify']}, additionalMessage='Argument "verb" may not be repeated.', errorCode='badArgument')
-        
+
     def testWrongVerb(self):
         self.assertOaiError({'verb': ['Nonsense']}, additionalMessage='Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', errorCode='badVerb')
 
