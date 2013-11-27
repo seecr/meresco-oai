@@ -735,7 +735,8 @@ class OaiJazzTest(SeecrTestCase):
         t0 = time()
         for i in xrange(COUNT):
             records = list(jazz.oaiSelect(prefix='prefix', batchSize=200))
-        print 'Took: %s' % ((time() - t0) / COUNT)
+        print 'Took: %s' % ((time() - t0))
+        print 'Took per batch: %s' % ((time() - t0) / COUNT)
         self.assertEquals(200, len(records))
         print [r.identifier for r in records[:10]]
         # print [str(r.stamp) for r in records]

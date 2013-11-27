@@ -33,6 +33,11 @@ import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.CollectionTerminatedException;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.index.NumericDocValues;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.DocumentStoredFieldVisitor;
+import org.apache.lucene.search.IndexSearcher;
+import java.util.Set;
+import java.util.HashSet;
 
 public class MyCollector extends Collector {
 
@@ -53,6 +58,20 @@ public class MyCollector extends Collector {
             this.hits = hits;
         }
         return this.hits;
+    }
+
+    public Document[] docs(IndexSearcher searcher) throws IOException {
+        Set<String> fieldsToVisit = new HashSet<String>(4);
+        fieldsToVisit.add("identifier");
+        fieldsToVisit.add("stamp");
+        fieldsToVisit.add("sets");
+        fieldsToVisit.add("tombstone");
+        int[] hits = this.hits();
+        Document[] docs = new Document[hits.length];
+        for (int i=0; i<hits.length; i++) {
+            docs[i] = searcher.doc(hits[i], fieldsToVisit);
+        }
+        return docs;
     }
 
     public int totalHits() {

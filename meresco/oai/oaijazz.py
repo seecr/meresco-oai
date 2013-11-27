@@ -62,8 +62,9 @@ from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, Num
 from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
 from org.apache.lucene.index import DirectoryReader, Term
 from org.apache.lucene.store import FSDirectory
-from org.apache.lucene.document import LongDocValuesField
+from org.apache.lucene.document import NumericDocValuesField, StoredField
 from org.apache.lucene.index.sorter import SortingMergePolicy, NumericDocValuesSorter
+
 
 from meresco_oai import initVM
 OAI_VM = initVM()
@@ -121,9 +122,9 @@ class OaiJazz(object):
 
         totalHits = collector.totalHits()
 
-        for i, hit in enumerate(collector.hits(), start=1):
+        for i, doc in enumerate(collector.docs(searcher), start=1):
             remaining = totalHits - i if shouldCountHits else None
-            record = Record(searcher.doc(hit), remaining=remaining, preciseDatestamp=self._preciseDatestamp)
+            record = Record(doc, remaining=remaining, preciseDatestamp=self._preciseDatestamp)
             if record.identifier not in self._latestModifications:
                 yield record
 
@@ -137,11 +138,11 @@ class OaiJazz(object):
             doc = Document()
             doc.add(StringField("identifier", identifier, Field.Store.YES))
         else:
-            doc.removeFields("thumbstone")  # FIXME: should be 'tombstone' (binary incompatible)
+            doc.removeFields("tombstone")
             doc.removeFields("stamp")
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
-        doc.add(LongDocValuesField("stamp", long(newStamp)))
+        doc.add(NumericDocValuesField("stamp", long(newStamp)))
         if metadataFormats:
             oldPrefixes = set(doc.getValues("prefix"))
             for prefix, schema, namespace in metadataFormats:
@@ -179,10 +180,11 @@ class OaiJazz(object):
             doc.add(StringField("identifier", identifier, Field.Store.YES))
         for prefix in self._deletePrefixes:
             doc.add(StringField("prefix", prefix, Field.Store.YES))
-        doc.add(StringField("thumbstone", "True", Field.Store.YES))
+        doc.add(StoredField("tombstone", 1))
+        doc.add(NumericDocValuesField("tombstone", long(1)))
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
-        doc.add(LongDocValuesField("stamp", long(newStamp)))
+        doc.add(NumericDocValuesField("stamp", long(newStamp)))
         self._writer.updateDocument(Term("identifier", identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume()
@@ -216,7 +218,7 @@ class OaiJazz(object):
 
     def isDeleted(self, identifier):
         doc = self._getDocument(identifier)
-        return doc.get("thumbstone") == "True"
+        return doc.getField("tombstone") is not None
 
     def getSets(self, identifier):
         doc = self._getDocument(identifier)
@@ -361,7 +363,6 @@ class OaiJazz(object):
         else:
             self._data = dict(prefixes={}, sets={})
 
-
 # helper methods
 
 def getReader(path):
@@ -388,7 +389,7 @@ class Record(object):
         self.identifier = str(doc.getField("identifier").stringValue())
         self.stamp = _stampFromDocument(doc)
         self.setSpecs = doc.getValues('sets')
-        self.isDeleted = doc.get("thumbstone") == "True"
+        self.isDeleted = doc.getField("tombstone") is not None
         self._preciseDatestamp = preciseDatestamp
         self.recordsRemaining = remaining
 
@@ -415,8 +416,6 @@ def _stamp2zulutime(stamp, preciseDatestamp=False):
 
 def _stampFromDocument(doc):
     return doc.getField("stamp").numericValue().longValue()
-
-
 
 class ForcedResumeException(Exception):
     pass
