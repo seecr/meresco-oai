@@ -6,7 +6,7 @@
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -33,7 +33,6 @@ from shutil import copytree
 from seecr.test import SeecrTestCase
 from meresco.components import PersistentSortedIntegerList
 from meresco.components.integerlist import IntegerList
-from meresco.oai import OaiJazz
 
 mypath = dirname(abspath(__file__))
 binDir = join(dirname(mypath), 'bin')
@@ -58,7 +57,6 @@ class ConvertOaiV1ToV2Test(SeecrTestCase):
                 join(self.tempdir, 'oai_conversion_v1_to_v2'),
                 join(self.tempdir, 'oai_conversion_v1_to_v2.log'),
             ))
-        print open(join(self.tempdir, 'oai_conversion_v1_to_v2.log')).read()
         expectedList = PersistentSortedIntegerList(join(self.tempdir, 'forAssertEquals'))
         for i in xrange(10 ** 3):
             expectedList.append(i)

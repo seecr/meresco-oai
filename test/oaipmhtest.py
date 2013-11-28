@@ -80,10 +80,12 @@ class _OaiPmhTest(SeecrTestCase):
         self.jazz.close()
         SeecrTestCase.tearDown(self)
 
-    def _request(self, from_=None, path=None, **arguments):
+    def _request(self, from_=None, path=None, xcount=None, validate=True, **arguments):
         httpMethod = getattr(self, 'httpMethod', 'GET')
         if from_:
             arguments['from'] = from_
+        if xcount:
+            arguments['x-count'] = xcount
         RequestURI = 'http://example.org/oai'
         queryString = urlencode(arguments, doseq=True)
         if httpMethod == 'GET':
@@ -103,7 +105,8 @@ class _OaiPmhTest(SeecrTestCase):
                 path='/oai' if path is None else path,
             ))).split(CRLF * 2)
         parsedBody = parse(StringIO(str(body)))
-        assertValidOai(parsedBody)
+        if validate:
+            assertValidOai(parsedBody)
         return header, parsedBody
 
     def testBugListRecordsReturnsDoubleValueOnNoRecordsMatch(self):
@@ -135,6 +138,13 @@ class _OaiPmhTest(SeecrTestCase):
         records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
         self.assertEquals(10, len(records))
         self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
+
+    def testListRecordsWithXCount(self):
+        header, body = self._request(verb=['ListRecords'], metadataPrefix=['oai_dc'], xcount=['True'], validate=False)
+        records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
+        self.assertEquals(10, len(records))
+        recordsRemaining = int(xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/@recordsRemaining')[0])
+        self.assertEquals(10, recordsRemaining)
 
     def testGetRecordNotAvailable(self):
         header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=['doesNotExist'])

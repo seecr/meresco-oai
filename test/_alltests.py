@@ -13,7 +13,7 @@
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
 # Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -52,6 +52,7 @@ simplefilter('default')
 from convertoaiv1tov2test import ConvertOaiV1ToV2Test
 from convertoaiv2tov3test import ConvertOaiV2ToV3Test
 from convertoaiv3tov4test import ConvertOaiV3ToV4Test
+from convertoaiv5tov6test import ConvertOaiV5ToV6Test
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest

@@ -64,6 +64,7 @@ from org.apache.lucene.index import DirectoryReader, Term
 from org.apache.lucene.store import FSDirectory
 from org.apache.lucene.document import NumericDocValuesField, StoredField
 from org.apache.lucene.index.sorter import SortingMergePolicy, NumericDocValuesSorter
+from org.apache.lucene.util import BytesRef
 
 
 from meresco_oai import initVM
@@ -74,7 +75,7 @@ from org.meresco.oai import MyCollector
 DEFAULT_BATCH_SIZE = 200
 
 class OaiJazz(object):
-    version = '5'
+    version = '6'
 
     def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
         self._directory = aDirectory
@@ -180,7 +181,7 @@ class OaiJazz(object):
             doc.add(StringField("identifier", identifier, Field.Store.YES))
         for prefix in self._deletePrefixes:
             doc.add(StringField("prefix", prefix, Field.Store.YES))
-        doc.add(StoredField("tombstone", 1))
+        doc.add(StoredField("tombstone", BytesRef()))
         doc.add(NumericDocValuesField("tombstone", long(1)))
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))

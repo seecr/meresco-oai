@@ -30,7 +30,6 @@
 #
 ## end license ##
 
-from weightless.core import Yield
 from meresco.components.http.utils import serverErrorPlainText, successNoContentPlainText
 from meresco.core.observable import Observable
 
@@ -209,7 +208,8 @@ Error and Exception Conditions
             continueAfter=continueAfter,
             oaiFrom=from_,
             oaiUntil=until,
-            batchSize=self._batchSize + 1) # +1 so we can see if there is more for a resumptionToken
+            batchSize=self._batchSize + 1,# +1 so we can see if there is more for a resumptionToken
+            shouldCountHits='x-count' in validatedArguments)
         try:
             firstRecord = records.next()
             return chain(iter([firstRecord]), records)
