@@ -1,3 +1,4 @@
 jcc (>= 2.16)
 python-setuptools
 gcc
+pylucene (>= 4.3.0)
