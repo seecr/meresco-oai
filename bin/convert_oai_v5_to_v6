@@ -38,7 +38,7 @@ for path in glob('../deps.d/*'):                  #DO_NOT_DISTRIBUTE
 sysPath.insert(0,'..')                            #DO_NOT_DISTRIBUTE
 
 import sys
-from os.path import join, isfile
+from os.path import join, isfile, isdir
 from os import makedirs, listdir, rename, removedirs, remove
 
 from lucene import initVM
@@ -79,14 +79,21 @@ def _getNewLucene(path):
 def convert(path):
     writer, reader, searcher = _getLucene(path)
     newTempDir = join(path, 'tempNew')
+    if isdir(newTempDir):
+        print "Previous convert failed. Please remove %s" % newTempDir
+        exit(1)
     makedirs(newTempDir)
     writerNew, _, _ = _getNewLucene(newTempDir)
-    topDocs = searcher.search(MatchAllDocsQuery(), reader.maxDoc(), Sort(SortField("stamp", SortField.Type.LONG)))
-
     maxDoc = reader.maxDoc()
+
+    scoreDocs = []
+    if maxDoc:
+        topDocs = searcher.search(MatchAllDocsQuery(), maxDoc, Sort(SortField("stamp", SortField.Type.LONG)))
+        scoreDocs = topDocs.scoreDocs
+
     print "About to convert %s documents" % maxDoc
 
-    for i, hit in enumerate(topDocs.scoreDocs):
+    for i, hit in enumerate(scoreDocs):
         if i % 1000 == 0:
             print "%s" % (maxDoc - i)
         document = searcher.doc(hit.doc)
