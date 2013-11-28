@@ -711,6 +711,37 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals("", stamp2zulutime(None))
         self.assertRaises(Exception, stamp2zulutime, "not-a-stamp")
 
+    def testOaiSelectIsAlwaysSortedOnStamp(self):
+        self.jazz = OaiJazz(join(self.tempdir, "b"))
+        for i in range(1000):
+            self.jazz.addOaiRecord("%s" % i, metadataFormats=[('prefix', 'schema', 'namespace')])
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        self.assertEquals(l, sorted(l))
+        self.assertEquals(1000, len(l))
+
+        self.jazz.commit()
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        self.assertEquals(l, sorted(l))
+        self.assertEquals(1000, len(l))
+
+        self.jazz.addOaiRecord("a", metadataFormats=[('prefix', 'schema', 'namespace')])
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        self.assertEquals(l, sorted(l))
+        self.assertEquals(1001, len(l))
+
+        self.jazz.addOaiRecord("b", metadataFormats=[('prefix', 'schema', 'namespace')])
+        self.jazz.commit()
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        self.assertEquals(l, sorted(l))
+        self.assertEquals(1002, len(l))
+
+        self.jazz._writer.close()
+
+        self.jazz = OaiJazz(join(self.tempdir, "b"))
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        self.assertEquals(l, sorted(l))
+        self.assertEquals(1002, len(l))
+
     def xtestSelectPerformance(self):
         for i in xrange(1000):
             self.jazz.addOaiRecord('id%s' % i, metadataFormats=[('prefix','schema', 'namespace')])
