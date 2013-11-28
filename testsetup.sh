@@ -5,6 +5,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -39,6 +40,7 @@ VERSION="x.y.z"
 for pyversion in $pyversions; do
     definePythonVars $pyversion
     echo "###### $pyversion, $PYTHON"
+    (cd $mydir/src; ./build.sh ${SITEPACKAGES}/meresco/oai)
     ${PYTHON} setup.py install --root tmp
 done
 cp -r test tmp/test

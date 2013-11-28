@@ -10,7 +10,7 @@
 # Copyright (C) 2009-2010 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -42,6 +42,7 @@ setup(
         'bin/convert_oai_v1_to_v2',
         'bin/convert_oai_v2_to_v3',
         'bin/convert_oai_v3_to_v4',
+        'bin/convert_oai_v5_to_v6',
     ],
     version = '%VERSION%',
     url = 'http://www.cq2.nl',
