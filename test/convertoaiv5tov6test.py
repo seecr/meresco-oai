@@ -35,6 +35,7 @@ from org.apache.lucene.util import Version
 from org.apache.lucene.analysis.core import WhitespaceAnalyzer
 from org.apache.lucene.store import FSDirectory
 from java.io import File
+from simplejson import load
 
 mypath = dirname(abspath(__file__))
 binDir = join(dirname(mypath), 'bin')
@@ -82,5 +83,7 @@ class ConvertOaiV5ToV6Test(SeecrTestCase):
 
         self.assertEquals(130, len(stampValues))
         self.assertEquals(stampValues, sorted(set(stampValues)))
+
+        self.assertEquals({"prefixes": {"rdf": ["", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"]}, "sets": {"consumentenbond": "consumentenbond", "krantenbank": "krantenbank", "dsdp-ihlia": "dsdp-ihlia", "gids": "gids", "nbd-biblion": "nbd-biblion", "seecr": "seecr", "winklerprins": "winklerprins", "gutenberg": "gutenberg", "dsdp-uitburo": "dsdp-uitburo", "seecr2": "seecr2", "webggc.oclc.nl": "webggc.oclc.nl", "cdr": "cdr"}}, load(open(join(datadir, 'data.json'))))
 
         self.assertEquals('6', open(join(datadir, 'oai.version')).read())

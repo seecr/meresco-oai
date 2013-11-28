@@ -82,14 +82,20 @@ def convert(path):
     makedirs(newTempDir)
     writerNew, _, _ = _getNewLucene(newTempDir)
     topDocs = searcher.search(MatchAllDocsQuery(), reader.maxDoc(), Sort(SortField("stamp", SortField.Type.LONG)))
-    for hit in topDocs.scoreDocs:
+
+    maxDoc = reader.maxDoc()
+    print "About to convert %s documents" % maxDoc
+
+    for i, hit in enumerate(topDocs.scoreDocs):
+        if i % 1000 == 0:
+            print "%s" % (maxDoc - i)
         document = searcher.doc(hit.doc)
         identifier = document.get("identifier")
         newStamp = document.getField("stamp").numericValue().longValue()
         prefixes = document.getValues("prefix")
         fullSetSpecs = document.getValues("sets")
         tombstone = document.get("thumbstone") == 'True'
-        # print hit
+
         doc = Document()
         doc.add(StringField("identifier", identifier, Field.Store.YES))
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
@@ -104,12 +110,15 @@ def convert(path):
     writerNew.commit()
     writerNew.close()
 
+    writer.close()
+
     for f in listdir(path):
-        if isfile(join(path, f)):
+        if isfile(join(path, f)) and f != 'data.json':
             remove(join(path, f))
     for f in listdir(newTempDir):
         rename(join(newTempDir, f), join(path, f))
     removedirs(newTempDir)
+
 
 def main():
     if len(sys.argv) != 2:
