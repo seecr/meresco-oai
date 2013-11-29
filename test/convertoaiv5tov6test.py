@@ -51,6 +51,7 @@ class ConvertOaiV5ToV6Test(SeecrTestCase):
                 datadir,
                 join(self.tempdir, 'oai_conversion_v5_to_v6.log'),
             ))
+        # print open(join(self.tempdir, 'oai_conversion_v5_to_v6.log')).read()
 
         directory = FSDirectory.open(File(datadir))
         analyzer = WhitespaceAnalyzer(Version.LUCENE_43)
