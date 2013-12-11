@@ -96,7 +96,7 @@ def convert(path):
     print "About to convert %s documents" % total
 
     for i, hit in enumerate(scoreDocs):
-        if i % 1 == 0:
+        if i % 1000 == 0:
             print "%s" % (total - i)
         document = searcher.doc(hit.doc)
         identifier = document.get("identifier")
