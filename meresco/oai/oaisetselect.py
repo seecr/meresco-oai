@@ -38,9 +38,8 @@ class OaiSetSelect(Transparent):
         Transparent.__init__(self)
         self._setsList = setsList
 
-    def oaiSelect(self, sets=[], *args, **kwargs):
-        if not sets:
-            sets = []
+    def oaiSelect(self, sets=None, *args, **kwargs):
+        sets = [] if sets is None else sets
         sets += self._setsList
         return self.call.oaiSelect(sets=sets, *args, **kwargs)
 
