@@ -125,29 +125,27 @@ class OaiJazz(object):
         collector = MyCollector(batchSize, shouldCountHits)
         searcher.search(query, None, collector)
 
-
         return self._OaiSelectResult(docs=collector.docs(searcher),
-            shouldCountHits=shouldCountHits,
-            moreRecordsAvailable=collector.moreRecordsAvailable,
-            totalHits = collector.totalHits(),
-            batchSize = batchSize,
-            parent=self,
+                collector=collector,
+                parent=self,
             )
 
     class _OaiSelectResult(object):
-        def __init__(inner, docs, shouldCountHits, moreRecordsAvailable, totalHits, batchSize, parent):
+        def __init__(inner, docs, collector, parent):
             inner.docs = docs
-            # inner.shouldCountHits = shouldCountHits
-            inner.recordsRemaining = max(0, totalHits - batchSize) if shouldCountHits else None
+            inner.moreRecordsAvailable = collector.moreRecordsAvailable
+            inner.recordsRemaining = collector.remainingRecords()
             inner.parent = parent
             inner.records = inner._records()
-            inner.numberOfRecordsInBatch = min(batchSize, totalHits)
-            inner.moreRecordsAvailable = moreRecordsAvailable
-            inner.continueAfter = None if len(docs) == 0 else Record(docs[-1], inner.parent._preciseDatestamp).stamp
+            inner.numberOfRecordsInBatch = len(docs)
+            inner.continueAfter = None if len(docs) == 0 else inner._record(docs[-1]).stamp
+
+        def _record(inner, doc):
+            return Record(doc, inner.parent._preciseDatestamp)
 
         def _records(inner):
             for doc in inner.docs:
-                record = Record(doc, preciseDatestamp=inner.parent._preciseDatestamp)
+                record = inner._record(doc)
                 if record.identifier not in inner.parent._latestModifications:
                     yield record
 

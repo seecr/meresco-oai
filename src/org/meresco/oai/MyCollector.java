@@ -46,9 +46,11 @@ public class MyCollector extends Collector {
     private int docBase;
     private boolean shouldCountHits;
     public boolean moreRecordsAvailable = false;
+    public int maxDocsToCollect;
 
 
     public MyCollector(int maxDocsToCollect, boolean shouldCountHits) {
+        this.maxDocsToCollect = maxDocsToCollect;
         this.hits = new int[maxDocsToCollect];
         this.shouldCountHits = shouldCountHits;
     }
@@ -74,6 +76,13 @@ public class MyCollector extends Collector {
             docs[i] = searcher.doc(hits[i], fieldsToVisit);
         }
         return docs;
+    }
+
+    public int remainingRecords() {
+        if (this.shouldCountHits) {
+            return Math.max(0, this.totalHits() - this.maxDocsToCollect);
+        }
+        return -1;
     }
 
     public int totalHits() {
