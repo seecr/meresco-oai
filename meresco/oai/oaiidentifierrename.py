@@ -65,5 +65,7 @@ class OaiIdentifierRename(Transparent):
         return self._append(self.call.getRecord(self._strip(identifier)))
 
     def oaiSelect(self, *args, **kwargs):
-        return (self._append(record) for record in self.call.oaiSelect(*args, **kwargs))
+        result = self.call.oaiSelect(*args, **kwargs)
+        result.records = (self._append(record) for record in result.records)
+        return result
 
