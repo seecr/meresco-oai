@@ -207,7 +207,7 @@ class OaiIntegrationTest(SeecrTestCase):
                  oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
 
         result = XML(buf.getvalue().split(CRLF*2)[-1])
-        resumptionToken = xpathFirst(result, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken/text()')             
+        resumptionToken = xpathFirst(result, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken/text()')
         self.assertFalse(resumptionToken is None)
 
 

@@ -219,7 +219,7 @@ Error and Exception Conditions
         for record in result.records:
             yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'])
 
-        if result.moreRecordsAvailable or 'x-wait' in validatedArguments:            
+        if result.moreRecordsAvailable or 'x-wait' in validatedArguments:
             if 'x-count' in validatedArguments:
                 yield '<resumptionToken recordsRemaining="%s">' % result.recordsRemaining
             else:
@@ -233,5 +233,4 @@ Error and Exception Conditions
         else:
             if 'resumptionToken' in validatedArguments:
                 yield '<resumptionToken/>'
-
 
