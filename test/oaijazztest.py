@@ -96,8 +96,8 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord(identifier='oai://1234?34', sets=[], metadataFormats=[('prefix', 'schema', 'namespace')])
         self.jazz.close()
         myJazz = OaiJazz(self.tmpdir2("a"))
-        records = myJazz.oaiSelect(prefix='prefix')
-        self.assertEquals('oai://1234?34', records.next().identifier)
+        result = myJazz.oaiSelect(prefix='prefix')
+        self.assertEquals('oai://1234?34', result.records.next().identifier)
 
     def testAddOaiRecordEmptyIdentifier(self):
         self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord("", metadataFormats=[('prefix', 'schema', 'namespace')]))
@@ -170,10 +170,10 @@ class OaiJazzTest(SeecrTestCase):
         jazz = OaiJazz(self.tmpdir2("b"), alwaysDeleteInPrefixes=["aprefix"])
         jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         list(compose(jazz.delete('notExisting')))
-        self.assertEquals(['notExisting'], [record.identifier for record in jazz.oaiSelect(prefix='aprefix')])
-        self.assertEquals(['existing'], [record.identifier for record in jazz.oaiSelect(prefix='prefix')])
+        self.assertEquals(['notExisting'], recordIds(jazz.oaiSelect(prefix='aprefix')))
+        self.assertEquals(['existing'], recordIds(jazz.oaiSelect(prefix='prefix')))
         list(compose(jazz.delete('existing')))
-        self.assertEquals(['notExisting', 'existing'], [record.identifier for record in jazz.oaiSelect(prefix='aprefix')])
+        self.assertEquals(['notExisting', 'existing'], recordIds(jazz.oaiSelect(prefix='aprefix')))
 
     def testPurgeRecord(self):
         self.jazz = OaiJazz(self.tmpdir2("b"), persistentDelete=False)
@@ -183,7 +183,7 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.close()
         jazz2 = OaiJazz(self.tmpdir2("b"))
         self.assertEquals(None, jazz2.getRecord('existing'))
-        self.assertEquals([], list(jazz2.oaiSelect(prefix='prefix')))
+        self.assertEquals([], recordIds(jazz2.oaiSelect(prefix='prefix')))
 
     def testPurgeNotAllowedIfDeletesArePersistent(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
@@ -237,7 +237,7 @@ class OaiJazzTest(SeecrTestCase):
 
         jazz3 = OaiJazz(self.tmpdir2("b"), persistentDelete=False)
         jazz3.purge(u'ë')
-        self.assertEquals([], list(jazz3.oaiSelect(prefix='prefix', sets=['setSpec'])))
+        self.assertEquals([], recordIds(jazz3.oaiSelect(prefix='prefix', sets=['setSpec'])))
 
     def testWeirdSetOrPrefixNamesDoNotMatter(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('/%^!@#$   \n\t','schema', 'namespace')], sets=[('set%2Spec\n\n', 'setName')])
@@ -248,7 +248,7 @@ class OaiJazzTest(SeecrTestCase):
     def testOaiSelectWithFromAfterEndOfTime(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
         result = self.jazz.oaiSelect(prefix='oai_dc', oaiFrom='9999-01-01T00:00:00Z')
-        self.assertEquals(0,len(list(result)))
+        self.assertEquals(0, len(recordIds(result)))
 
     def testDeleteIncrementsDatestampAndUnique(self):
         self.jazz.addOaiRecord('23', metadataFormats=[('oai_dc','schema', 'namespace')])
@@ -375,35 +375,90 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['00001'], recordIds(result))
 
     def testListRecords(self):
-        #BooleanQuery.setMaxClauseCount(10) # Cause an early TooManyClauses exception.
         self.addDocuments(50)
         result = self.jazz.oaiSelect(prefix='oai_dc')
-        self.assertEquals('00001', result.next().identifier)
+        self.assertEquals('00001', result.records.next().identifier)
         result = self.jazz.oaiSelect(prefix='oai_dc', continueAfter=str(self.jazz.getRecord('00001').stamp))
-        self.assertEquals('00002', result.next().identifier)
+        self.assertEquals('00002', result.records.next().identifier)
 
     def testChangedIdentifiersInOaiSelect(self):
-        for i in range(1,5):
+        for i in range(1,7):
             self._addRecord(i)
         result = []
-        select = self.jazz.oaiSelect(prefix='oai_dc')
-        for r in select:
-            result.append(r.identifier)
-        self.assertEquals(['00001', '00002', '00003', '00004'], result)
+        oaiSelectResult = self.jazz.oaiSelect(prefix='oai_dc', batchSize=4)
+        for r in oaiSelectResult.records:
+            result.append(r)
+        self.assertEquals(['00001', '00002', '00003', '00004'], [r.identifier for r in result])
 
         result = []
-        select = self.jazz.oaiSelect(prefix='oai_dc')
-        result.append(select.next().identifier)
-        result.append(select.next().identifier)
+        oaiSelectResult = self.jazz.oaiSelect(prefix='oai_dc', batchSize=4)
+        result.append(oaiSelectResult.records.next())
+        result.append(oaiSelectResult.records.next())
         self._addRecord(3)
-        for r in select:
-            result.append(r.identifier)
-        self.assertEquals(['00001', '00002', '00004'], result)
+        for r in oaiSelectResult.records:
+            result.append(r)
+        self.assertEquals(['00001', '00002', '00004'], [r.identifier for r in result])
         result = []
-        select = self.jazz.oaiSelect(prefix='oai_dc')
-        for r in select:
-            result.append(r.identifier)
-        self.assertEquals(['00001', '00002', '00004', '00003'], result)
+        oaiSelectResult = self.jazz.oaiSelect(prefix='oai_dc', batchSize=4)
+        for r in oaiSelectResult.records:
+            result.append(r)
+        self.assertEquals(['00001', '00002', '00004', '00005'], [r.identifier for r in result])
+
+    def testBatchWithMoreRemaining(self):
+        for i in range(7):
+            self._addRecord(i+1)
+        result = []
+        oaiSelectResult = self.jazz.oaiSelect(prefix='oai_dc', batchSize=4, shouldCountHits=True)
+        for r in oaiSelectResult.records:
+            result.append(r)
+        self.assertEquals(['00001', '00002', '00003', '00004'], [r.identifier for r in result])
+        self.assertEquals(4, oaiSelectResult.numberOfRecordsInBatch)
+        self.assertTrue(oaiSelectResult.moreRecordsAvailable)
+        record4 = result[-1]
+        self.assertEquals('00004', record4.identifier)
+        self.assertEquals(record4.stamp, oaiSelectResult.continueAfter)
+        self.assertEquals(3, oaiSelectResult.recordsRemaining)
+
+    def testEmptyBatch(self):
+        result = []
+        oaiSelectResult = self.jazz.oaiSelect(prefix='oai_dc', batchSize=40, shouldCountHits=True)
+        for r in oaiSelectResult.records:
+            result.append(r)
+        self.assertEquals([], [r.identifier for r in result])
+        self.assertEquals(0, oaiSelectResult.numberOfRecordsInBatch)
+        self.assertFalse(oaiSelectResult.moreRecordsAvailable)
+        self.assertEquals(None, oaiSelectResult.continueAfter)
+        self.assertEquals(0, oaiSelectResult.recordsRemaining)
+
+    def testBatchWithLessRecordsThanBatchsize(self):
+        for i in range(4):
+            self._addRecord(i+1)
+        result = []
+        oaiSelectResult = self.jazz.oaiSelect(prefix='oai_dc', batchSize=40, shouldCountHits=True)
+        for r in oaiSelectResult.records:
+            result.append(r)
+        self.assertEquals(['00001', '00002', '00003', '00004'], [r.identifier for r in result])
+        self.assertEquals(4, oaiSelectResult.numberOfRecordsInBatch)
+        self.assertFalse(oaiSelectResult.moreRecordsAvailable)
+        record4 = result[-1]
+        self.assertEquals('00004', record4.identifier)
+        self.assertEquals(record4.stamp, oaiSelectResult.continueAfter)
+        self.assertEquals(0, oaiSelectResult.recordsRemaining)
+
+    def testBatchWithExactBatchsizeNrOfRecords(self):
+        for i in range(4):
+            self._addRecord(i+1)
+        result = []
+        oaiSelectResult = self.jazz.oaiSelect(prefix='oai_dc', batchSize=4, shouldCountHits=True)
+        for r in oaiSelectResult.records:
+            result.append(r)
+        self.assertEquals(['00001', '00002', '00003', '00004'], [r.identifier for r in result])
+        self.assertEquals(4, oaiSelectResult.numberOfRecordsInBatch)
+        self.assertFalse(oaiSelectResult.moreRecordsAvailable)
+        record4 = result[-1]
+        self.assertEquals('00004', record4.identifier)
+        self.assertEquals(record4.stamp, oaiSelectResult.continueAfter)
+        self.assertEquals(0, oaiSelectResult.recordsRemaining)
 
     def testAddOaiRecordWithNoMetadataFormats(self):
         try:
@@ -433,18 +488,18 @@ class OaiJazzTest(SeecrTestCase):
 
     def testListRecordsNoResults(self):
         result = self.jazz.oaiSelect(prefix='xxx')
-        self.assertEquals([], list(result))
+        self.assertEquals([], recordIds(result))
 
     def testAddSetInfo(self):
         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>%s</setSpec></header>'
         list(compose(self.oaiAddRecord.add(identifier='123', partname='oai_dc', lxmlNode=parseLxml(header % 1))))
         list(compose(self.oaiAddRecord.add(identifier='124', partname='oai_dc', lxmlNode=parseLxml(header % 2))))
         results = self.jazz.oaiSelect(sets=['1'], prefix='oai_dc')
-        self.assertEquals(1, len(list(results)))
+        self.assertEquals(1, len(recordIds(results)))
         results = self.jazz.oaiSelect(sets=['2'], prefix='oai_dc')
-        self.assertEquals(1, len(list(results)))
+        self.assertEquals(1, len(recordIds(results)))
         results = self.jazz.oaiSelect(prefix='oai_dc')
-        self.assertEquals(2, len(list(results)))
+        self.assertEquals(2, len(recordIds(results)))
 
     def testGetAndAllSets(self):
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix1', 'schema', 'namespace')],
@@ -497,7 +552,7 @@ class OaiJazzTest(SeecrTestCase):
                                 metadataFormats=[('prefix', 'schema', 'namespace')])
 
         result = self.jazz.oaiSelect(prefix='prefix', sets=['setSpec1'])
-        self.assertEquals(1, len(list(result)))
+        self.assertEquals(1, len(recordIds(result)))
 
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
 
@@ -521,7 +576,7 @@ class OaiJazzTest(SeecrTestCase):
         list(compose(self.oaiAddRecord.add(identifier='121', partname='lom', lxmlNode=parseLxml('<lom/>'))))
         list(compose(self.oaiAddRecord.add(identifier='122', partname='lom', lxmlNode=parseLxml('<lom/>'))))
         results = self.jazz.oaiSelect(prefix='oai_dc')
-        self.assertEquals(1, len(list(results)))
+        self.assertEquals(1, len(recordIds(results)))
         results = self.jazz.oaiSelect(prefix='lom')
         self.assertEquals(['124', '121','122'], recordIds(results))
 
@@ -575,9 +630,9 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('1', metadataFormats=[('prefix','schema', 'namespace')])
 
         result = self.jazz.oaiSelect(prefix='prefix', oaiFrom="2007-09-22T00:00:00Z")
-        self.assertEquals(3, len(list(result)))
+        self.assertEquals(3, len(recordIds(result)))
         result = self.jazz.oaiSelect(prefix='prefix', oaiFrom="2007-09-22T00:00:00Z", oaiUntil="2007-09-23T23:59:59Z")
-        self.assertEquals(2, len(list(result)))
+        self.assertEquals(2, len(recordIds(result)))
 
     def testOaiSelectWithContinuAt(self):
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
@@ -693,19 +748,6 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals([True], resumed)
         self.assertEquals({}, self.jazz._suspended)
 
-    def testRecordsRemaining(self):
-        self.jazz.addOaiRecord('id1', metadataFormats=[('prefix','schema', 'namespace')])
-        self.jazz.addOaiRecord('id2', metadataFormats=[('prefix','schema', 'namespace')])
-        self.jazz.addOaiRecord('id3', metadataFormats=[('prefix','schema', 'namespace')])
-        self.jazz.addOaiRecord('id4', metadataFormats=[('prefix','schema', 'namespace')])
-        records = list(self.jazz.oaiSelect(prefix='prefix', batchSize=2, shouldCountHits=True))
-        self.assertEquals(3, records[0].recordsRemaining)
-        self.assertEquals(2, records[1].recordsRemaining)
-        records = list(self.jazz.oaiSelect(prefix='prefix', batchSize=2, continueAfter=records[1].stamp, shouldCountHits=True))
-        self.assertEquals(1, records[0].recordsRemaining)
-        self.assertEquals(0, records[1].recordsRemaining)
-
-
     def testStamp2Zulutime(self):
         self.assertEquals("2012-10-04T09:21:04Z", stamp2zulutime("1349342464630008"))
         self.assertEquals("", stamp2zulutime(None))
@@ -715,30 +757,30 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz = OaiJazz(join(self.tempdir, "b"))
         for i in range(1000):
             self.jazz.addOaiRecord("%s" % i, metadataFormats=[('prefix', 'schema', 'namespace')])
-        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000).records]
         self.assertEquals(l, sorted(l))
         self.assertEquals(1000, len(l))
 
         self.jazz.commit()
-        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000).records]
         self.assertEquals(l, sorted(l))
         self.assertEquals(1000, len(l))
 
         self.jazz.addOaiRecord("a", metadataFormats=[('prefix', 'schema', 'namespace')])
-        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000).records]
         self.assertEquals(l, sorted(l))
         self.assertEquals(1001, len(l))
 
         self.jazz.addOaiRecord("b", metadataFormats=[('prefix', 'schema', 'namespace')])
         self.jazz.commit()
-        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000).records]
         self.assertEquals(l, sorted(l))
         self.assertEquals(1002, len(l))
 
         self.jazz._writer.close()
 
         self.jazz = OaiJazz(join(self.tempdir, "b"))
-        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000)]
+        l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000).records]
         self.assertEquals(l, sorted(l))
         self.assertEquals(1002, len(l))
 
@@ -774,8 +816,8 @@ class OaiJazzTest(SeecrTestCase):
         jazz.handleShutdown()
         jazz.close()
         jazz = OaiJazz(self.tmpdir2("b"))
-        self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix'))))
-        self.assertEquals(1, len(list(jazz.oaiSelect(prefix='prefix', sets=['A']))))
+        self.assertEquals(1, len(recordIds(jazz.oaiSelect(prefix='prefix'))))
+        self.assertEquals(1, len(recordIds(jazz.oaiSelect(prefix='prefix', sets=['A']))))
         self.assertTrue(jazz.getRecord('identifier').isDeleted)
 
     def testJazzWithoutCommit(self):
@@ -789,5 +831,5 @@ class OaiJazzTest(SeecrTestCase):
         except Exception, e:
             self.assertTrue("no segments" in str(e), str(e))
 
-def recordIds(records):
-    return [record.identifier for record in records]
+def recordIds(oaiSelectResult):
+    return [record.identifier for record in oaiSelectResult.records]

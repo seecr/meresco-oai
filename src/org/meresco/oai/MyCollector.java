@@ -45,6 +45,8 @@ public class MyCollector extends Collector {
     private int hitCount = 0;
     private int docBase;
     private boolean shouldCountHits;
+    public boolean moreRecordsAvailable = false;
+
 
     public MyCollector(int maxDocsToCollect, boolean shouldCountHits) {
         this.hits = new int[maxDocsToCollect];
@@ -85,12 +87,13 @@ public class MyCollector extends Collector {
 
     @Override
     public void collect(int doc) throws IOException {
-        hitCount++;
-        if (hitCount - 1 >= this.hits.length) {
-            if (!shouldCountHits)
+        this.hitCount++;
+        if (this.hitCount > this.hits.length) {
+            this.moreRecordsAvailable = true;
+            if (!this.shouldCountHits)
                 throw new CollectionTerminatedException();
         } else {
-            this.hits[hitCount - 1] = this.docBase + doc;
+            this.hits[this.hitCount - 1] = this.docBase + doc;
         }
     }
 

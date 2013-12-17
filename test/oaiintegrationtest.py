@@ -37,8 +37,10 @@ from lucene import getVMEnv
 
 from meresco.core import Observable
 from meresco.components.http import ObservableHttpServer
+from meresco.components.http.utils import CRLF
 from meresco.components import StorageComponent, XmlParseLxml, PeriodicDownload
 from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
+from meresco.xml import xpathFirst
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.utils import getRequest
@@ -47,6 +49,8 @@ from weightless.io import Reactor
 from weightless.core import be, compose
 
 from meresco.components import lxmltostring
+from StringIO import StringIO
+from lxml.etree import XML
 
 
 class OaiIntegrationTest(SeecrTestCase):
@@ -176,6 +180,36 @@ class OaiIntegrationTest(SeecrTestCase):
                 oaiJazz.close()
 
         self.assertEquals([204] * 2, statusCodes)
+
+    def testUpdateRecordWhileSendingData(self):
+        batchSize = 3
+        oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+        self._addOaiRecords(storageComponent, oaiJazz, count=batchSize + 10)
+        dna = be((Observable(),
+            (OaiPmh(repositoryName='test', adminEmail='no@example.org', batchSize=batchSize),
+                (storageComponent,),
+                (oaiJazz,),
+            )
+        ))
+        kwargs = dict(
+            Method='GET',
+            Headers={'Host': 'myserver'},
+            port=1234,
+            path='/oaipmh.pl',
+            arguments=dict(verb=['ListIdentifiers'], metadataPrefix=['prefix']),
+            )
+        stream = compose(dna.all.handleRequest(**kwargs))
+        buf = StringIO()
+        for stuff in stream:
+            buf.write(stuff)
+            if 'identifier>id0<' in stuff:
+                 oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
+
+        result = XML(buf.getvalue().split(CRLF*2)[-1])
+        resumptionToken = xpathFirst(result, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken/text()')             
+        self.assertFalse(resumptionToken is None)
+
 
     def testNearRealtimeOaiSavesState(self):
         observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})

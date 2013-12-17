@@ -112,7 +112,7 @@ Error and Exception Conditions
         while True:
             try:
                 responseDate = zuluTime()
-                records = self._preProcess(validatedArguments, **httpkwargs)
+                result = self._preProcess(validatedArguments, **httpkwargs)
                 break
             except OaiException, e:
                 if validatedArguments.get("x-wait", 'False') == 'True' and \
@@ -137,7 +137,7 @@ Error and Exception Conditions
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
-        yield self._process(verb, records, validatedArguments, **httpkwargs)
+        yield self._process(verb, result, validatedArguments, **httpkwargs)
         yield '</%s>' % verb
 
         yield oaiFooter()
@@ -202,39 +202,36 @@ Error and Exception Conditions
         validatedArguments['until'] = until
         validatedArguments['set'] = set_
         validatedArguments['metadataPrefix'] = metadataPrefix
-        records = self.call.oaiSelect(
+        result = self.call.oaiSelect(
             sets=[set_] if set_ else None,
             prefix=metadataPrefix,
             continueAfter=continueAfter,
             oaiFrom=from_,
             oaiUntil=until,
-            batchSize=self._batchSize + 1,# +1 so we can see if there is more for a resumptionToken
+            batchSize=self._batchSize,
             shouldCountHits='x-count' in validatedArguments)
-        try:
-            firstRecord = records.next()
-            return chain(iter([firstRecord]), records)
-        except StopIteration:
+        if result.numberOfRecordsInBatch == 0:
             raise OaiException('noRecordsMatch')
+        return result
 
-    def _process(self, verb, records, validatedArguments, **httpkwargs):
+    def _process(self, verb, result, validatedArguments, **httpkwargs):
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
-        for record in islice(records, 0, self._batchSize):
+        for record in result.records:
             yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'])
 
-        try:
-            if not 'x-wait' in validatedArguments:
-                records.next()
+        if result.moreRecordsAvailable or 'x-wait' in validatedArguments:            
             if 'x-count' in validatedArguments:
-                yield '<resumptionToken recordsRemaining="%s">' % record.recordsRemaining
+                yield '<resumptionToken recordsRemaining="%s">' % result.recordsRemaining
             else:
                 yield '<resumptionToken>'
             yield '%s</resumptionToken>' % ResumptionToken(
                     metadataPrefix=validatedArguments['metadataPrefix'],
-                    continueAfter=record.stamp,
+                    continueAfter=result.continueAfter,
                     from_=validatedArguments['from'],
                     until=validatedArguments['until'],
-                    set_=validatedArguments['set'])
-        except StopIteration:
+                        set_=validatedArguments['set'])
+        else:
             if 'resumptionToken' in validatedArguments:
                 yield '<resumptionToken/>'
+
 
