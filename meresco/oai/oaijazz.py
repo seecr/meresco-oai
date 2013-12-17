@@ -298,7 +298,7 @@ class OaiJazz(object):
         modifications = len(self._latestModifications)
         if modifications == 0:
             return self._searcher
-        if identifier and str(identifier) not in self._latestModifications and modifications < 100000:
+        if identifier and str(identifier) not in self._latestModifications and modifications < 10000:
             return self._searcher
         newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
         if newreader:
