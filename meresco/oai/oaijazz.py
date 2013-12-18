@@ -70,7 +70,7 @@ from org.apache.lucene.util import BytesRef
 from meresco_oai import initVM
 OAI_VM = initVM()
 
-from org.meresco.oai import MyCollector
+from org.meresco.oai import OaiSortingCollector
 
 DEFAULT_BATCH_SIZE = 200
 
@@ -122,7 +122,8 @@ class OaiJazz(object):
             for set_ in setsMask:
                 query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
 
-        collector = MyCollector(batchSize, shouldCountHits)
+
+        collector = OaiSortingCollector(batchSize, shouldCountHits)
         searcher.search(query, None, collector)
 
         return self._OaiSelectResult(docs=collector.docs(searcher),
