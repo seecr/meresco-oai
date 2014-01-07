@@ -58,7 +58,7 @@ public class OaiSortingCollector extends Collector {
 
     public OaiSortingCollector(int maxDocsToCollect, boolean shouldCountHits) throws IOException {
         this.topDocsCollector = TopFieldCollector.create(new Sort(new SortField("stamp", SortField.Type.LONG)), maxDocsToCollect, false, false, false, false);
-        this.earlyCollector = new EarlyTerminatingSortingCollector(this.topDocsCollector, new NumericDocValuesSorter("stamp", true), maxDocsToCollect);
+        this.earlyCollector = new EarlyTerminatingSortingCollector(this.topDocsCollector, new NumericDocValuesSorter("stamp", true), maxDocsToCollect + 1);
         this.maxDocsToCollect = maxDocsToCollect;
         this.shouldCountHits = shouldCountHits;
     }
