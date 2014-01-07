@@ -306,6 +306,21 @@ class OaiJazzTest(SeecrTestCase):
         list(compose(self.jazz.delete('id1')))
         self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
 
+    def testMoreRecordsAvailable(self):
+        def reopen():
+            "Reopen everytime to force merging and causing an edge case to happen."
+            self.jazz.close()
+            self.jazz = OaiJazz(join(self.tempdir, "a"))
+        for i in range(1,6):
+            self.jazz.addOaiRecord('id%s' % i, metadataFormats=[('aPrefix', 'schema', 'namespace')], sets=[('set1', 'setName')])
+            reopen()
+        for i in range(6,12):
+            self.jazz.addOaiRecord('id%s' % i, metadataFormats=[('aPrefix', 'schema', 'namespace')], sets=[('set2', 'setName')])
+            reopen()
+        result = self.jazz.oaiSelect(prefix='aPrefix', sets=['set1'], batchSize=2)
+        self.assertTrue(result.moreRecordsAvailable)
+
+
     def testGetLastStampId(self):
         stampFunction = self.jazz._newStamp
         self.jazz = OaiJazz(self.tmpdir2("b"), persistentDelete=False)

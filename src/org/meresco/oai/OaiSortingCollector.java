@@ -3,8 +3,8 @@
  * "Meresco Oai" are components to build Oai repositories, based on
  * "Meresco Core" and "Meresco Components".
  *
- * Copyright (C) 2013 Seecr (Seek You Too B.V.) http://seecr.nl
- * Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+ * Copyright (C) 2013-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+ * Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
  *
  * This file is part of "Meresco Oai"
  *
