@@ -10,8 +10,8 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -45,32 +45,40 @@ from weightless.io import Suspend
 from json import load, dump
 from warnings import warn
 
-maxheap = getenv('PYLUCENE_MAXHEAP')
-if not maxheap:
-    maxheap = '4g'
-    warn("Using '4g' as maxheap for lucene.initVM(). To override use PYLUCENE_MAXHEAP environment variable.")
-from lucene import initVM, getVMEnv
-try:
-    VM = initVM(maxheap=maxheap)#, vmargs='-agentlib:hprof=heap=sites')
-except ValueError:
-    VM = getVMEnv()
+imported = False
+def lazyImport():
+    global imported
+    if imported:
+        return
+    imported = True
+    maxheap = getenv('PYLUCENE_MAXHEAP')
+    if not maxheap:
+        maxheap = '4g'
+        warn("Using '4g' as maxheap for lucene.initVM(). To override use PYLUCENE_MAXHEAP environment variable.")
+    from lucene import initVM, getVMEnv
+    try:
+        VM = initVM(maxheap=maxheap)#, vmargs='-agentlib:hprof=heap=sites')
+    except ValueError:
+        VM = getVMEnv()
 
-from java.lang import Long
-from java.io import File
-from org.apache.lucene.document import Document, StringField, Field, LongField
-from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery
-from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
-from org.apache.lucene.index import DirectoryReader, Term
-from org.apache.lucene.store import FSDirectory
-from org.apache.lucene.document import NumericDocValuesField, StoredField
-from org.apache.lucene.index.sorter import SortingMergePolicy, NumericDocValuesSorter
-from org.apache.lucene.util import BytesRef
+    from java.lang import Long
+    from java.io import File
+    from org.apache.lucene.document import Document, StringField, Field, LongField
+    from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery
+    from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
+    from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
+    from org.apache.lucene.store import FSDirectory
+    from org.apache.lucene.document import NumericDocValuesField, StoredField
+    from org.apache.lucene.index.sorter import SortingMergePolicy, NumericDocValuesSorter
+    from org.apache.lucene.util import BytesRef, Version
+    from org.apache.lucene.analysis.core import WhitespaceAnalyzer
 
+    from meresco_oai import initVM
+    OAI_VM = initVM()
 
-from meresco_oai import initVM
-OAI_VM = initVM()
+    from org.meresco.oai import OaiSortingCollector
 
-from org.meresco.oai import OaiSortingCollector
+    globals().update(locals())
 
 DEFAULT_BATCH_SIZE = 200
 
@@ -78,6 +86,7 @@ class OaiJazz(object):
     version = '6'
 
     def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
+        lazyImport()
         self._directory = aDirectory
         if not isdir(aDirectory):
             makedirs(aDirectory)
@@ -373,9 +382,6 @@ def getReader(path):
     return DirectoryReader.open(FSDirectory.open(File(path)))
 
 def getLucene(path):
-    from org.apache.lucene.analysis.core import WhitespaceAnalyzer
-    from org.apache.lucene.index import IndexWriter, IndexWriterConfig
-    from org.apache.lucene.util import Version
     directory = FSDirectory.open(File(path))
     analyzer = WhitespaceAnalyzer(Version.LUCENE_43)
     config = IndexWriterConfig(Version.LUCENE_43, analyzer)

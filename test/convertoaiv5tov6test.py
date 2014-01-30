@@ -3,8 +3,8 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -29,6 +29,12 @@ from os.path import dirname, join, abspath, isdir
 from shutil import copytree
 
 from seecr.test import SeecrTestCase
+
+from lucene import initVM, getVMEnv
+try:
+    VM = initVM()
+except ValueError:
+    VM = getVMEnv()
 from org.apache.lucene.index import IndexWriterConfig, IndexWriter, MultiDocValues
 from org.apache.lucene.search import IndexSearcher
 from org.apache.lucene.util import Version
