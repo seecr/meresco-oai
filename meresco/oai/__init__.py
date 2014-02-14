@@ -59,3 +59,4 @@ from oaidownloadprocessor import OaiDownloadProcessor
 from updateadapter import UpdateAdapterFromOaiDownloadProcessor
 from oaibranding import OaiBranding
 from resumptiontoken import ResumptionToken
+from sequentialstorage import SequentialStorage

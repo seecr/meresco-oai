@@ -71,6 +71,7 @@ from oaitooltest import OaiToolTest
 from resumptiontokentest import ResumptionTokenTest
 from streaminglxmltest import StreamingLxmlTest
 from updateadaptertest import UpdateAdapterTest
+from sequentialstoragetest import SequentialStorageTest
 
 if __name__ == '__main__':
     unittest.main()
