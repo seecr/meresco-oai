@@ -2,6 +2,7 @@ from os.path import join
 from os import listdir
 from collections import defaultdict
 
+SENTINEL = "-------\n"
 
 class SequentialStorage(object):
     def __init__(self, path):
@@ -22,6 +23,7 @@ class SequentialStorage(object):
                 % (key, self._lastKeys[part]))
         self._lastKeys[part] = key
         f = self._getStream(part)
+        f.write(SENTINEL)
         f.write(key + '\n')
         f.write(data + '\n')
         f.flush()
@@ -32,9 +34,48 @@ class SequentialStorage(object):
         f = self._getStream(part)
         f.seek(0)
         while True:
+            sentinel = f.readline()
             key_ = f.readline().strip()
             if key_ == '':
                 raise KeyError
             data = f.readline().strip()
             if  key_ == key:
                 return data
+
+    def __len__(self):
+        return self._getStream("oai_dc").tell() / len(SENTINEL)
+
+    def __getitem__(self, i):
+        f = self._getStream("oai_dc")
+        size = f.tell()
+        f.seek(i * len(SENTINEL))
+        sentinel = "not yet found"
+        while sentinel != '':
+            sentinel = f.readline()
+            if sentinel == SENTINEL:
+                identifier = f.readline().strip()
+                data = f.readline().strip()
+                return identifier, data
+        raise IndexError
+
+# from Python lib
+def bisect_left(a, x, lo=0, hi=None):
+    """Return the index where to insert item x in list a, assuming a is sorted.
+
+    The return value i is such that all e in a[:i] have e < x, and all e in
+    a[i:] have e >= x.  So if x already appears in the list, a.insert(x) will
+    insert just before the leftmost x already there.
+
+    Optional args lo (default 0) and hi (default len(a)) bound the
+    slice of a to be searched.
+    """
+
+    if lo < 0:
+        raise ValueError('lo must be non-negative')
+    if hi is None:
+        hi = len(a)
+    while lo < hi:
+        mid = (lo+hi)//2
+        if a[mid] < x: lo = mid+1
+        else: hi = mid
+    return lo

@@ -7,7 +7,7 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testA(self):
         s = SequentialStorage(self.tempdir)
-        self.assertTrue(s)
+        self.assertTrue(s != None)
 
     def testWriteFilePerPart(self):
         s = SequentialStorage(self.tempdir)
@@ -57,6 +57,34 @@ class SequentialStorageTest(SeecrTestCase):
     def testSentinalWritten(self):
         s = SequentialStorage(self.tempdir)
         s.add("3", "na", "na")
-        self.assertEquals("--------\n3\nna\n", open(join(self.tempdir, 'na')).read())
+        self.assertEquals("-------\n3\nna\n", open(join(self.tempdir, 'na')).read())
     
 
+    def testGetItem(self):
+        # getitem need not be completely correct for bisect to work
+        # the functionality below is good enough I suppose.
+        # As a side effect, it solves back scanning! We let
+        # bisect do that for us.
+        s = SequentialStorage(self.tempdir)
+        self.assertEquals(0, len(s)) # artificial
+        s.add("2", "oai_dc", "<data>two</data>")
+        s.add("4", "oai_dc", "<data>four</data>")
+        s.add("7", "oai_dc", "<data>seven</data>")
+        self.assertEquals(10, len(s)) # artificial
+        self.assertEquals(("2", "<data>two</data>"), s[0])
+        self.assertEquals(("4", "<data>four</data>"), s[1])
+        self.assertEquals(("4", "<data>four</data>"), s[2])
+        self.assertEquals(("4", "<data>four</data>"), s[3])
+        self.assertEquals(("7", "<data>seven</data>"), s[4])
+        self.assertEquals(("7", "<data>seven</data>"), s[5])
+        self.assertEquals(("7", "<data>seven</data>"), s[6])
+        # hmm, we expect index 0-9 to work based on len()
+        self.assertRaises(IndexError, lambda: s[7])
+
+    def testIndexItem(self):
+        s = SequentialStorage(self.tempdir)
+        self.assertEquals(0, len(s)) # artificial
+        s.add("2", "oai_dc", "<data>two</data>")
+        s.add("4", "oai_dc", "<data>four</data>")
+        s.add("7", "oai_dc", "<data>seven</data>")
+        s.index("4") 
