@@ -49,6 +49,12 @@ class SequentialStorageTest(SeecrTestCase):
         except ValueError, e:
             self.assertEquals("key 2 must be greater than last key 4", str(e))
 
+    def testKeyIsMonotonicallyIncreasingAfterReload(self):
+        s = SequentialMultiStorage(self.tempdir)
+        s.add("3", "na",  "na")
+        s = SequentialMultiStorage(self.tempdir)
+        self.assertRaises(ValueError, lambda: s.add("2", "na", "na"))
+
     def testMonotonicityNotRequiredOverDifferentParts(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("2", "oai_dc", "<data/>")
@@ -56,8 +62,8 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testSentinalWritten(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("3", "na", "na")
-        self.assertEquals("-------\n3\nna\n", open(join(self.tempdir, 'na')).read())
+        s.add("3", "na", "data")
+        self.assertEquals("----\n3\n4\ndata\n", open(join(self.tempdir, 'na')).read())
 
     def testGetItem(self):
         # getitem need not be completely correct for bisect to work
@@ -90,3 +96,31 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals("<data>four</data>", s.index("4"))
         self.assertEquals("<data>two</data>", s.index("2"))
         self.assertEquals("<data>seven</data>", s.index("7"))
+
+    def testIndexWithVerySmallAndVEryLargeRecord(self):
+        s = SequentialStorage(self.tempdir + "test")
+        self.assertEquals(0, len(s)) # artificial
+        s.add("2", "<data>short</data>")
+        s.add("4", "<data>long</data>" * 1000)
+        self.assertEquals(2130, len(s)) # artificial
+        self.assertEquals("<data>short</data>", s.index("2"))
+        self.assertEquals("<data>long</data><da", s.index("4")[:20])
+       
+    def testNewLineInData(self):
+        s = SequentialStorage(self.tempdir + "test")
+        s.add("4", "here follows\na new line")
+        self.assertEquals("here follows\na new line", s.index("4"))
+       
+    def testSentinelInData(self):
+        from meresco.oai.sequentialstorage import SENTINEL
+        s = SequentialStorage(self.tempdir + "test")
+        s.add("2", "<data>two</data>")
+        s.add("5", ("abc%sxyz" % SENTINEL) * 10)
+        s.add("7", "<data>seven</data>")
+        s.add("9", "<data>nine</data>")
+        self.assertEquals("abc----\nxyzabc----\nx", s.index("5")[:20])
+        self.assertEquals("<data>seven</data>", s.index("7"))
+
+    def testValidPartName(self):
+        s = SequentialMultiStorage(self.tempdir)
+        s.add("2", "ma/am", "data")

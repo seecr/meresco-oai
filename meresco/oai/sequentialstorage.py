@@ -1,10 +1,12 @@
 from os.path import join
 from os import listdir
 from collections import defaultdict
+from escaping import escapeFilename
 
-SENTINEL = "-------\n"
+SENTINEL = "----\n"
+BLOCKSIZE = len(SENTINEL) + 3
 
-class Key(object):
+class KeyIndex(object):
     def __init__(self, src):
         self._src = src
     def __len__(self):
@@ -21,6 +23,7 @@ class SequentialMultiStorage(object):
 
     def _getStorage(self, name):
         if name not in self._storage:
+            name = escapeFilename(name)
             self._storage[name] = SequentialStorage(join(self._path, name))
         return self._storage[name]
 
@@ -33,8 +36,12 @@ class SequentialMultiStorage(object):
 class SequentialStorage(object):
     def __init__(self, fileName):
         self._f = open(fileName, "a+")
-        self._lastKey = None
-        self._index = Key(self)
+        self._index = KeyIndex(self)
+        if len(self):
+            lastindex = bisect_left(self._index, "zzzzzzzzzzz")
+            self._lastKey = self[lastindex - 1][0]
+        else:
+            self._lastKey = None
 
     def add(self, key, data):
         if key <= self._lastKey:
@@ -43,22 +50,27 @@ class SequentialStorage(object):
         self._lastKey = key
         self._f.write(SENTINEL)
         self._f.write(key + '\n')
+        self._f.write("%s\n" % len(data))
         self._f.write(data + '\n')
         self._f.flush()
 
     def __len__(self):
         self._f.seek(0, 2)
-        return self._f.tell() / len(SENTINEL)
+        return self._f.tell() / BLOCKSIZE
 
     def __getitem__(self, i):
         size = self._f.tell()
-        self._f.seek(i * len(SENTINEL))
+        self._f.seek(i * BLOCKSIZE)
         sentinel = "not yet found"
         while sentinel != '':
             sentinel = self._f.readline()
             if sentinel == SENTINEL:
                 identifier = self._f.readline().strip()
-                data = self._f.readline().strip()
+                try:
+                    length = int(self._f.readline().strip())
+                except ValueError:
+                    continue
+                data = self._f.read(length)
                 return identifier, data
         raise IndexError
 
