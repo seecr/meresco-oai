@@ -124,3 +124,5 @@ class SequentialStorageTest(SeecrTestCase):
     def testValidPartName(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("2", "ma/am", "data")
+        s = SequentialMultiStorage(self.tempdir)
+        self.assertEquals("data", s.get("2", "ma/am"))
