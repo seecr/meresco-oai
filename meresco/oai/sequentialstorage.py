@@ -2,9 +2,10 @@ from os.path import join
 from os import listdir
 from collections import defaultdict
 from escaping import escapeFilename
+from zlib import compress, decompress
 
 SENTINEL = "----\n"
-BLOCKSIZE = len(SENTINEL) + 3
+BLOCKSIZE = len(SENTINEL) + 8 + 4 # min length guaranteed not to skip records
 
 class KeyIndex(object):
     def __init__(self, src):
@@ -35,7 +36,7 @@ class SequentialMultiStorage(object):
 
 class SequentialStorage(object):
     def __init__(self, fileName):
-        self._f = open(fileName, "a+")
+        self._f = open(fileName, "ab+")
         self._index = KeyIndex(self)
         if len(self):
             lastindex = bisect_left(self._index, "zzzzzzzzzzz")
@@ -45,11 +46,11 @@ class SequentialStorage(object):
 
     def add(self, key, data):
         if key <= self._lastKey:
-            raise ValueError("key %s must be greater than last key %s" 
-                % (key, self._lastKey))
+            raise ValueError("key %s must be greater than last key %s" % (key, self._lastKey))
         self._lastKey = key
         self._f.write(SENTINEL)
         self._f.write(key + '\n')
+        data = compress(data)
         self._f.write("%s\n" % len(data))
         self._f.write(data + '\n')
         self._f.flush()
@@ -71,7 +72,7 @@ class SequentialStorage(object):
                 except ValueError:
                     continue
                 data = self._f.read(length)
-                return identifier, data
+                return identifier, decompress(data)
         raise IndexError
 
     def index(self, key):

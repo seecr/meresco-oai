@@ -1,0 +1,73 @@
+<rdf:Description xmlns:bibo="http://purl.org/ontology/bibo/" rdf:about="http://data.bibliotheek.nl/CDR/JK93872">
+<rdf:type rdf:resource="http://dbpedia.org/resource/Sound"/>
+<rdf:type rdf:resource="http://dbpedia.org/ontology/Album"/>
+<dcterms:identifier rdf:resource="http://data.bibliotheek.nl/CDR/JK93872"/>
+<dcterms:identifier rdf:resource="urn:ppn:365936871"/>
+<dcterms:identifier>74321-633012</dcterms:identifier>
+<dcterms:identifier>0743216330126</dcterms:identifier>
+<skos:exactMatch rdf:resource="urn:ppn:365936871"/>
+<dcterms:title>Vlieg met me mee; cd-single</dcterms:title>
+<dcterms:date>1998</dcterms:date>
+<dcterms:extent>1 cd-single (000806)</dcterms:extent>
+<dcterms:creator>Oosterhuis, Trijntje</dcterms:creator>
+<rdfs:seeAlso rdf:resource="http://media.cdr.nl/COVER/SMALL/FRONT/JK93872.jpg"/>
+<rdfs:seeAlso rdf:resource="http://media.cdr.nl/COVER/SMALL/BACK/JK93872.jpg"/>
+<dcterms:format>142 x 124 mm</dcterms:format>
+<lh:item rdf:resource="urn:ppn:365936871"/>
+<nbcbooks:subtitle>cd-single</nbcbooks:subtitle>
+<ggc:countryOfPublication>xx</ggc:countryOfPublication>
+<ggc:pp001apetail_0>482</ggc:pp001apetail_0>
+<ggc:pp001A_0>2224:05-10-13</ggc:pp001A_0>
+<ggc:pp001B_0>2224:05-10-13</ggc:pp001B_0>
+<ggc:pp001B_t>14:15:47.000</ggc:pp001B_t>
+<ggc:pp001D_0>2224:05-10-13</ggc:pp001D_0>
+<ggc:pp002apetail_0>Gax</ggc:pp002apetail_0>
+<ggc:pp002C_2>rdacontent/dut</ggc:pp002C_2>
+<ggc:pp002C_a>uitgevoerde muziek</ggc:pp002C_a>
+<ggc:pp002C_b>prm</ggc:pp002C_b>
+<ggc:pp002D_2>rdamedia/dut</ggc:pp002D_2>
+<ggc:pp002D_a>audio</ggc:pp002D_a>
+<ggc:pp002D_b>s</ggc:pp002D_b>
+<ggc:pp002E_2>rdacarrier/dut</ggc:pp002E_2>
+<ggc:pp002E_a>audiodisc</ggc:pp002E_a>
+<ggc:pp002E_b>sd</ggc:pp002E_b>
+<ggc:pp002E_2>obdrager</ggc:pp002E_2>
+<ggc:pp002E_a>compact disc</ggc:pp002E_a>
+<ggc:pp002E_b>CD</ggc:pp002E_b>
+<ggc:pp003apetail_0>365936871</ggc:pp003apetail_0>
+<ggc:pp003B_0>JK93872</ggc:pp003B_0>
+<ggc:pp003B_a>CDR</ggc:pp003B_a>
+<ggc:pp004E_0>74321-633012</ggc:pp004E_0>
+<ggc:pp004E_f>€ 3.00</ggc:pp004E_f>
+<ggc:pp004E_l>Ariola</ggc:pp004E_l>
+<ggc:pp004E_0>0743216330126</ggc:pp004E_0>
+<ggc:pp004E_l>EAN</ggc:pp004E_l>
+<ggc:pp007N_0>960697314</ggc:pp007N_0>
+<ggc:pp007N_l>CDR</ggc:pp007N_l>
+<ggc:pp009P_0>image/jpeg</ggc:pp009P_0>
+<ggc:pp009P_a>http://media.cdr.nl/COVER/SMALL/FRONT/JK93872.jpg</ggc:pp009P_a>
+<ggc:pp009P_r>Stichting Centrale Discotheek Rotterdam</ggc:pp009P_r>
+<ggc:pp009P_s>email: info@cdr.nl</ggc:pp009P_s>
+<ggc:pp009P_y>Voorkant album</ggc:pp009P_y>
+<ggc:pp009P_z>Before use contact info@cdr.nl</ggc:pp009P_z>
+<ggc:pp009P_0>image/jpeg</ggc:pp009P_0>
+<ggc:pp009P_a>http://media.cdr.nl/COVER/SMALL/BACK/JK93872.jpg</ggc:pp009P_a>
+<ggc:pp009P_r>Stichting Centrale Discotheek Rotterdam</ggc:pp009P_r>
+<ggc:pp009P_s>email: info@cdr.nl</ggc:pp009P_s>
+<ggc:pp009P_y>Achterkant album</ggc:pp009P_y>
+<ggc:pp009P_z>Before use contact info@cdr.nl</ggc:pp009P_z>
+<ggc:pp010E_b>dut</ggc:pp010E_b>
+<ggc:pp011apetail_a>1998</ggc:pp011apetail_a>
+<ggc:pp013apetail_0>78</ggc:pp013apetail_0>
+<ggc:pp019apetail_a>xx</ggc:pp019apetail_a>
+<ggc:pp021A_a>@Vlieg met me mee</ggc:pp021A_a>
+<ggc:pp021A_d>cd-single</ggc:pp021A_d>
+<ggc:pp021A_h>Trijntje Oosterhuis</ggc:pp021A_h>
+<ggc:pp028A_B>prf</ggc:pp028A_B>
+<ggc:pp028A_a>Oosterhuis</ggc:pp028A_a>
+<ggc:pp028A_d>Trijntje</ggc:pp028A_d>
+<ggc:pp033A_n>[s.n]</ggc:pp033A_n>
+<ggc:pp033A_p>[S.l.]</ggc:pp033A_p>
+<ggc:pp034D_a>1 cd-single (000806)</ggc:pp034D_a>
+<ggc:pp034I_a>142 x 124 mm</ggc:pp034I_a>
+</rdf:Description>
