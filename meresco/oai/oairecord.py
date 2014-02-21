@@ -51,7 +51,10 @@ class OaiRecord(Transparent):
 
         if not record.isDeleted:
             yield '<metadata>'
-            yield self.all.yieldRecord(record.identifier, metadataPrefix)
+            if hasattr(record, "data"):
+                yield record.data
+            else:
+                yield self.all.yieldRecord(record.identifier, metadataPrefix)
             yield '</metadata>'
 
             provenance = compose(self.all.provenance(record.identifier))

@@ -159,7 +159,7 @@ class OaiJazz(object):
                 if record.identifier not in inner.parent._latestModifications:
                     yield record
 
-    def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
+    def addOaiRecord(self, identifier, sets=None, metadataFormats=None, **_):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         msg = 'No metadataFormat specified for record with identifier "%s"' % identifier
@@ -196,6 +196,7 @@ class OaiJazz(object):
         self._writer.updateDocument(Term("identifier", identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume()
+        return newStamp
 
     @asyncreturn
     def delete(self, identifier):

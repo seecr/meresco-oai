@@ -32,6 +32,7 @@
 
 from meresco.components.http.utils import serverErrorPlainText, successNoContentPlainText
 from meresco.core.observable import Observable
+from weightless.core import NoneOfTheObserversRespond
 
 from resumptiontoken import resumptionTokenFromString, ResumptionToken
 from oaitool import ISO8601, ISO8601Exception
@@ -214,8 +215,18 @@ Error and Exception Conditions
         return result
 
     def _process(self, verb, result, validatedArguments, **httpkwargs):
+        records = list(result.records)
+        mdp = validatedArguments['metadataPrefix']
+        try:
+            data = self.call.iterData(mdp, records[0].stamp, records[-1].stamp)
+            for i, (key, d) in enumerate(data):
+                assert records[i].stamp == int(key)
+                records[i].data = d
+        except NoneOfTheObserversRespond:
+            pass
+
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
-        for record in result.records:
+        for record in records:
             yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'])
 
         if result.moreRecordsAvailable or 'x-wait' in validatedArguments:

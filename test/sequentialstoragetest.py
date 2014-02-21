@@ -35,6 +35,7 @@ class SequentialStorageTest(SeecrTestCase):
         s = SequentialMultiStorage(self.tempdir)
         s.add("id01", "oai_dc", "<data>1</data>")
         s.add("id02", "oai_dc", "<data>2</data>")
+        s.flush()
         sReopened = SequentialMultiStorage(self.tempdir)
         self.assertEquals('<data>1</data>', sReopened.get('id01', 'oai_dc'))
         self.assertEquals('<data>2</data>', sReopened.get('id02', 'oai_dc'))
@@ -52,6 +53,7 @@ class SequentialStorageTest(SeecrTestCase):
     def testKeyIsMonotonicallyIncreasingAfterReload(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("3", "na",  "na")
+        s.flush()
         s = SequentialMultiStorage(self.tempdir)
         self.assertRaises(ValueError, lambda: s.add("2", "na", "na"))
 
@@ -60,9 +62,19 @@ class SequentialStorageTest(SeecrTestCase):
         s.add("2", "oai_dc", "<data/>")
         s.add("2", "rdf", "<rdf/>")
 
+    def testNumericalKeys(self):
+        s = SequentialMultiStorage(self.tempdir)
+        s.add(2, "oai_dc", "<two/>")
+        s.add(4, "oai_dc", "<four/>")
+        s.add(7, "oai_dc", "<seven/>")
+        self.assertEquals([('2', '<two/>'), ('4', '<four/>')], list(s.iterData("oai_dc", 1, 5)))
+        self.assertEquals([('7', '<seven/>')], list(s.iterData("oai_dc", 5, 9)))
+        self.assertEquals("<two/>", s.get(2, "oai_dc"))
+
     def testSentinalWritten(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("3", "na", "data")
+        s.flush()
         self.assertEquals("----\n3\n12\nx\x9cKI,I\x04\x00\x04\x00\x01\x9b\n",
                 open(join(self.tempdir, 'na')).read())
 
@@ -96,6 +108,17 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals("<data>two</data>", s.index("2"))
         self.assertEquals("<data>seven</data>", s.index("7"))
 
+    def testIndexNotFound(self):
+        s = SequentialStorage(self.tempdir + "test")
+        self.assertRaises(IndexError, lambda: s.index("2"))
+        s.add("2", "<data>two</data>")
+        self.assertRaises(IndexError, lambda: s.index("1"))
+        self.assertRaises(IndexError, lambda: s.index("3"))
+        s.add("4", "<data>four</data>")
+        self.assertRaises(IndexError, lambda: s.index("1"))
+        self.assertRaises(IndexError, lambda: s.index("3"))
+        self.assertRaises(IndexError, lambda: s.index("5"))
+
     def testIndexWithVerySmallAndVEryLargeRecord(self):
         s = SequentialStorage(self.tempdir + "test")
         self.assertEquals(0, len(s)) # artificial
@@ -123,6 +146,7 @@ class SequentialStorageTest(SeecrTestCase):
     def testValidPartName(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("2", "ma/am", "data")
+        s.flush()
         s = SequentialMultiStorage(self.tempdir)
         self.assertEquals("data", s.get("2", "ma/am"))
 
@@ -140,4 +164,51 @@ class SequentialStorageTest(SeecrTestCase):
         bz2_ratio = ratio('trijntje.xml', bz2.compress)
         self.assertTrue(2.5 < bz2_ratio < 2.6, bz2_ratio)
         self.assertTrue(3.2 < zlib_ratio < 3.3, zlib_ratio)
+
+    def testIterator(self):
+        s = SequentialStorage(self.tempdir + "test")
+        s.add("2", "<data>two</data>")
+        s.add("4", "<data>four</data>")
+        s.add("7", "<data>seven</data>")
+        s.add("9", "<data>nine</data>")
+        i = s.iter("3")
+        self.assertEquals(('4', "<data>four</data>"), i.next())
+        self.assertEquals(('7', "<data>seven</data>"), i.next())
+        self.assertEquals(('9', "<data>nine</data>"), i.next())
+        self.assertRaises(StopIteration, lambda: i.next())
+
+    def testTwoAlternatingIterators(self):
+        s = SequentialStorage(self.tempdir + "test")
+        s.add("2", "<data>two</data>")
+        s.add("4", "<data>four</data>")
+        s.add("7", "<data>seven</data>")
+        s.add("9", "<data>nine</data>")
+        i1 = s.iter("4")
+        i2 = s.iter("7")
+        self.assertEquals(("7", "<data>seven</data>"), i2.next())
+        self.assertEquals(("4", "<data>four</data>"), i1.next())
+        self.assertEquals(("9", "<data>nine</data>"), i2.next())
+        self.assertEquals(("7", "<data>seven</data>"), i1.next())
+        self.assertRaises(StopIteration, lambda: i2.next())
+        self.assertEquals(("9", "<data>nine</data>"), i1.next())
+        self.assertRaises(StopIteration, lambda: i1.next())
+
+    def testIteratorUntil(self):
+        s = SequentialStorage(self.tempdir + "test")
+        s.add("2", "two")
+        s.add("4", "four")
+        s.add("7", "seven")
+        s.add("9", "nine")
+        i = s.iter("0", "5")
+        self.assertEquals([('2', "two"), ('4', "four")], list(i))
+        i = s.iter("4", "7") #inclusive????
+        self.assertEquals([('4', "four"), ('7', "seven")], list(i))
+        i = s.iter("5", "99")
+        self.assertEquals([('7', "seven"), ('9', "nine")], list(i))
+
+    def testReadOnlyKeyWhileSearching(self):
+        pass
+
+    # _index kan weg
+    # flush -> handle shutdown
 

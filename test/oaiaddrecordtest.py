@@ -30,10 +30,9 @@
 ## end license ##
 
 from seecr.test import SeecrTestCase, CallTrace
-
-from meresco.oai import OaiAddRecord
-
-from weightless.core import compose
+from meresco.oai import OaiAddRecord, OaiAddRecordWithDefaults, OaiJazz, SequentialMultiStorage
+from weightless.core import compose, consume
+from os import makedirs
 
 from StringIO import StringIO
 from lxml.etree import parse
@@ -131,4 +130,23 @@ class OaiAddRecordTest(SeecrTestCase):
     def testIncompletePrefixInfo(self):
         list(compose(self.subject.add('457', 'dc2', parseLxml('<oai_dc/>'))))
         self.assertEquals([('dc2', '', '')], self.observer.calledMethods[0].kwargs['metadataFormats'])
+
+    def testUseSequentialStorage(self):
+        addrecord = OaiAddRecord(useSequentialStorage=True)
+        jazz =  OaiJazz(self.tempdir)
+        addrecord.addObserver(jazz)
+        makedirs(self.tempdir + '/1')
+        storage = SequentialMultiStorage(self.tempdir + '/1')
+        addrecord.addObserver(storage)
+        t0 = jazz._newStamp()
+        consume(addrecord.add("id0", "oai_dc", parseLxml("<xml/>")))
+        consume(addrecord.add("id0", "other", parseLxml("<json/>")))
+        t1 = jazz._newStamp()
+        t, data = storage.iterData("oai_dc", 0, 9999999999999).next()
+        self.assertTrue(t0 < int(t) < t1, t)
+        self.assertEquals("<xml/>", data)
+        t, data = storage.iterData("other", 0, 9999999999999).next()
+        self.assertTrue(t0 < int(t) < t1, t)
+        self.assertEquals("<json/>", data)
+        
 

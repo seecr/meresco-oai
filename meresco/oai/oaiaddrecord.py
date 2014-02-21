@@ -32,11 +32,23 @@
 
 from meresco.core import Transparent, asyncreturn
 from lxml.etree import iselement
+from meresco.components import lxmltostring
 
 
-class OaiAddRecordWithDefaults(Transparent):
-    def __init__(self, metadataFormats=None, sets=None):
-        Transparent.__init__(self)
+class OaiAddRecordBase(Transparent):
+    def __init__(self, useSequentialStorage=False):
+        super(OaiAddRecordBase, self).__init__()
+        self._useSequentialStorage = useSequentialStorage
+
+    def add(self, identifier, sets, metadataFormats, lxmlNode, **kwargs):
+        stamp = self.call.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
+        if self._useSequentialStorage:
+            for prefix, schema, namespace in metadataFormats:
+                self.do.add(stamp, prefix, lxmltostring(lxmlNode))
+
+class OaiAddRecordWithDefaults(OaiAddRecordBase):
+    def __init__(self, metadataFormats=None, sets=None, **kwargs):
+        super(OaiAddRecordWithDefaults, self).__init__(**kwargs)
         self._sets = self._prepare(sets)
         self._metadataFormats = self._prepare(metadataFormats)
 
@@ -48,10 +60,9 @@ class OaiAddRecordWithDefaults(Transparent):
 
     @asyncreturn
     def add(self, identifier, **kwargs):
-        self.do.addOaiRecord(identifier=identifier, sets=self._sets(identifier=identifier, **kwargs), metadataFormats=self._metadataFormats(identifier=identifier, **kwargs))
+        super(OaiAddRecordWithDefaults, self).add(identifier=identifier, sets=self._sets(identifier=identifier, **kwargs), metadataFormats=self._metadataFormats(identifier=identifier, **kwargs), **kwargs)
 
-
-class OaiAddRecord(Transparent):
+class OaiAddRecord(OaiAddRecordBase):
     @asyncreturn
     def add(self, identifier, partname, lxmlNode):
         record = lxmlNode if iselement(lxmlNode) else lxmlNode.getroot()
@@ -64,7 +75,7 @@ class OaiAddRecord(Transparent):
         schema = dict(zip(ns2xsd[::2],ns2xsd[1::2])).get(namespace, '')
         schema, namespace = self._magicSchemaNamespace(record.prefix, partname, schema, namespace)
         metadataFormats=[(partname, schema, namespace)]
-        self.do.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
+        super(OaiAddRecord, self).add(identifier, sets, metadataFormats, lxmlNode)
 
     def _magicSchemaNamespace(self, prefix, name, schema, namespace):
         searchForPrefix = prefix or name

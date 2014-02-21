@@ -8,12 +8,35 @@ SENTINEL = "----\n"
 BLOCKSIZE = len(SENTINEL) + 8 + 4 # min length guaranteed not to skip records
 
 class KeyIndex(object):
+
     def __init__(self, src):
         self._src = src
+
     def __len__(self):
         return len(self._src)
+
     def __getitem__(self, i):
         return self._src[i][0]
+
+
+class Iter(object):
+
+    def __init__(self, src, start, stop):
+        self._fp = BLOCKSIZE * bisect_left(src._index, str(start))
+        self._src = src
+        self._stop = str(stop)
+
+    def next(self):
+        self._src._f.seek(self._fp)
+        key, data = self._src._readNext()
+        self._fp = self._src._f.tell()
+        if self._stop and key > self._stop:
+            raise StopIteration
+        return key, data
+
+    def __iter__(self):
+        return self
+
 
 class SequentialMultiStorage(object):
     def __init__(self, path):
@@ -34,6 +57,13 @@ class SequentialMultiStorage(object):
     def get(self, key, name):
         return self._getStorage(name).index(key)
 
+    def iterData(self, name, start, stop):
+        return self._getStorage(name).iter(start, stop)
+
+    def flush(self):
+        for storage in self._storage.itervalues():
+            storage.flush()
+
 class SequentialStorage(object):
     def __init__(self, fileName):
         self._f = open(fileName, "ab+")
@@ -45,23 +75,24 @@ class SequentialStorage(object):
             self._lastKey = None
 
     def add(self, key, data):
+        key = str(key)
         if key <= self._lastKey:
             raise ValueError("key %s must be greater than last key %s" % (key, self._lastKey))
         self._lastKey = key
         self._f.write(SENTINEL)
-        self._f.write(key + '\n')
+        self._f.write("%s\n" % key)
         data = compress(data)
         self._f.write("%s\n" % len(data))
         self._f.write(data + '\n')
+
+    def flush(self):
         self._f.flush()
 
     def __len__(self):
         self._f.seek(0, 2)
         return self._f.tell() / BLOCKSIZE
 
-    def __getitem__(self, i):
-        size = self._f.tell()
-        self._f.seek(i * BLOCKSIZE)
+    def _readNext(self):
         sentinel = "not yet found"
         while sentinel != '':
             sentinel = self._f.readline()
@@ -72,12 +103,27 @@ class SequentialStorage(object):
                 except ValueError:
                     continue
                 data = self._f.read(length)
+                assert len(data) == length
                 return identifier, decompress(data)
-        raise IndexError
+        raise StopIteration
+
+    def __getitem__(self, i):
+        self._f.seek(i * BLOCKSIZE)
+        try:
+            return self._readNext()
+        except StopIteration:
+            raise IndexError
 
     def index(self, key):
+        key = str(key)
         i = bisect_left(self._index, key)
-        return self[i][1]
+        found_key, data = self[i]
+        if found_key != key:
+            raise IndexError
+        return data
+
+    def iter(self, start, stop=None):
+        return Iter(self, start, stop)
 
 # from Python lib
 def bisect_left(a, x, lo=0, hi=None):

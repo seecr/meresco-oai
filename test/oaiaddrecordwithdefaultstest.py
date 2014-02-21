@@ -25,20 +25,20 @@
 #
 ## end license ##
 
-from seecr.test import CallTrace
+from seecr.test import CallTrace, SeecrTestCase
 from unittest import TestCase
+from weightless.core import compose, consume
+from meresco.oai import OaiAddRecordWithDefaults, OaiJazz, SequentialMultiStorage
+from os import makedirs
+from lxml.etree import XML as parseLxml
 
-from weightless.core import compose
-from meresco.oai import OaiAddRecordWithDefaults
-
-
-class OaiAddRecordWithDefaultsTest(TestCase):
+class OaiAddRecordWithDefaultsTest(SeecrTestCase):
     def testAdd(self):
         subject = OaiAddRecordWithDefaults(sets=[('setSpec', 'setName')], metadataFormats=[('prefix','schema','namespace')])
         observer = CallTrace('oaijazz')
         subject.addObserver(observer)
 
-        list(compose(subject.add('id', ignored="kwarg")))
+        list(compose(subject.add('id', ignored="kwarg", lxmlNode="na")))
 
         self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
         self.assertEquals({'identifier':'id',
@@ -52,7 +52,7 @@ class OaiAddRecordWithDefaultsTest(TestCase):
         observer = CallTrace('oaijazz')
         subject.addObserver(observer)
 
-        list(compose(subject.add('id', ignored="kwarg")))
+        list(compose(subject.add('id', ignored="kwarg", lxmlNode="data")))
 
         self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
         self.assertEquals({'identifier':'id',
@@ -61,7 +61,19 @@ class OaiAddRecordWithDefaultsTest(TestCase):
             observer.calledMethods[0].kwargs)
         self.assertEquals(['sets', 'metadataFormats'], methodObject.calledMethodNames())
         for method in methodObject.calledMethods:
-            self.assertEquals({'identifier':'id', 'ignored':'kwarg'}, method.kwargs)
+            self.assertEquals({'identifier':'id', 'ignored':'kwarg', 'lxmlNode':"data"}, method.kwargs)
 
+    def testUseSequentialStorageWithOaiAddRecordWithDefaults(self):
+        addrecord = OaiAddRecordWithDefaults(metadataFormats=[('part1', '?', '?'), ('part2', '?', '?')], useSequentialStorage=True)
+        jazz =  OaiJazz(self.tempdir)
+        addrecord.addObserver(jazz)
+        makedirs(self.tempdir + '/1')
+        storage = SequentialMultiStorage(self.tempdir + '/1')
+        addrecord.addObserver(storage)
+        consume(addrecord.add("id0", lxmlNode=parseLxml("<xml/>")))
+        t, data = storage.iterData("part1", 0, 9999999999999).next()
+        self.assertEquals("<xml/>", data)
+        t, data = storage.iterData("part2", 0, 9999999999999).next()
+        self.assertEquals("<xml/>", data)
 
 
