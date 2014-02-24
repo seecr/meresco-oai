@@ -79,7 +79,10 @@ class SequentialMultiStorage(object):
             self._storage[name] = SequentialStorage(join(self._path, name))
         return self._storage[name]
 
-    def add(self, key, name, data):
+    def add(self, identifier, partname, data):
+        self.addData(key=identifier, name=partname, data=data)
+
+    def addData(self, key, name, data):
         self._getStorage(name).add(key, data)
 
     def getData(self, key, name):

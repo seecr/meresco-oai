@@ -40,11 +40,12 @@ class OaiAddRecordBase(Transparent):
         super(OaiAddRecordBase, self).__init__()
         self._useSequentialStorage = useSequentialStorage
 
-    def add(self, identifier, sets, metadataFormats, data, **kwargs):
+    def add(self, identifier, sets, metadataFormats, **kwargs):
         stamp = self.call.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
         if self._useSequentialStorage:
             for prefix, schema, namespace in metadataFormats:
-                self.do.add(stamp, prefix, data)
+                kwargs.pop('partname', None)
+                self.do.add(identifier=stamp, partname=prefix, **kwargs)
 
 class OaiAddRecordWithDefaults(OaiAddRecordBase):
     def __init__(self, metadataFormats=None, sets=None, **kwargs):
@@ -75,7 +76,7 @@ class OaiAddRecord(OaiAddRecordBase):
         schema = dict(zip(ns2xsd[::2],ns2xsd[1::2])).get(namespace, '')
         schema, namespace = self._magicSchemaNamespace(record.prefix, partname, schema, namespace)
         metadataFormats=[(partname, schema, namespace)]
-        super(OaiAddRecord, self).add(identifier, sets, metadataFormats, lxmltostring(lxmlNode))
+        super(OaiAddRecord, self).add(identifier, sets, metadataFormats, lxmlNode=lxmlNode)
 
     def _magicSchemaNamespace(self, prefix, name, schema, namespace):
         searchForPrefix = prefix or name
