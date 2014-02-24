@@ -5,8 +5,8 @@
 #
 # Copyright (C) 2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -45,14 +45,15 @@ class OaiRecord(Transparent):
     def oaiRecordHeader(self, record, **kwargs):
         yield self._oaiRecordHeader(record=record)
 
-    def oaiRecord(self, record, metadataPrefix):
+    def oaiRecord(self, record, metadataPrefix, data):
         yield '<record>'
         yield self._oaiRecordHeader(record)
 
         if not record.isDeleted:
             yield '<metadata>'
-            if hasattr(record, "data"):
-                yield record.data
+            data = data.get(str(record.stamp))
+            if data:
+                yield data
             else:
                 yield self.all.yieldRecord(record.identifier, metadataPrefix)
             yield '</metadata>'

@@ -217,16 +217,14 @@ Error and Exception Conditions
     def _process(self, verb, result, validatedArguments, **httpkwargs):
         records = list(result.records)
         mdp = validatedArguments['metadataPrefix']
+        data = {}
         try:
             data = dict(self.call.iterData(mdp, records[0].stamp, records[-1].stamp))
-            for record in records:
-                if not record.isDeleted:
-                    record.data = data[str(record.stamp)]
         except NoneOfTheObserversRespond:
             pass
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
         for record in records:
-            yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'])
+            yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'], data=data)
 
         if result.moreRecordsAvailable or 'x-wait' in validatedArguments:
             if 'x-count' in validatedArguments:

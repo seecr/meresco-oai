@@ -71,11 +71,12 @@ Error and Exception Conditions
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
+        data = {}
         try:
-            record.data = self.call.getData(record.stamp, metadataPrefix)
+            data = dict(self.call.iterData(metadataPrefix, record.stamp, record.stamp))
         except NoneOfTheObserversRespond:
             pass
-        yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix)
+        yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix, data=data)
         yield '</%s>' % verb
         yield oaiFooter()
 

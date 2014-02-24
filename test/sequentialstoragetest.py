@@ -236,7 +236,7 @@ class SequentialStorageTest(SeecrTestCase):
         i = s.iter("5", "99")
         self.assertEquals([('7', "seven"), ('9', "nine")], list(i))
 
-    def testReadSpeed(self):
+    def xxxtestReadSpeed(self):
         from random import random, randint
         from time import time
         count = 1000000
