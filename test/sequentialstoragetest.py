@@ -28,6 +28,7 @@ class SequentialStorageTest(SeecrTestCase):
     def testReadWriteData(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("id01", "oai_dc", "<data/>")
+        s.flush()
         sReopened = SequentialMultiStorage(self.tempdir)
         self.assertEquals('<data/>', s.get('id01', 'oai_dc'))
 
@@ -88,14 +89,17 @@ class SequentialStorageTest(SeecrTestCase):
         s.add("2", "<data>two is nice</data>")
         s.add("4", "<data>four goes fine</data>")
         s.add("7", "<data>seven seems ok</data>")
-        self.assertEquals(7, len(s)) # artificial
+        self.assertEquals(11, len(s)) # artificial
         self.assertEquals(("2", "<data>two is nice</data>"), s[0])
         self.assertEquals(("4", "<data>four goes fine</data>"), s[1])
         self.assertEquals(("4", "<data>four goes fine</data>"), s[2])
-        self.assertEquals(("7", "<data>seven seems ok</data>"), s[3])
+        self.assertEquals(("4", "<data>four goes fine</data>"), s[3])
         self.assertEquals(("7", "<data>seven seems ok</data>"), s[4])
-        # hmm, we expect index 0-6 to work based on len()
-        self.assertRaises(IndexError, lambda: s[5])
+        self.assertEquals(("7", "<data>seven seems ok</data>"), s[5])
+        self.assertEquals(("7", "<data>seven seems ok</data>"), s[6])
+        self.assertEquals(("7", "<data>seven seems ok</data>"), s[7])
+        # hmm, we expect index 0-10 to work based on len()
+        self.assertRaises(IndexError, lambda: s[8])
 
     def testIndexItem(self):
         s = SequentialStorage(self.tempdir + "test")
@@ -103,7 +107,7 @@ class SequentialStorageTest(SeecrTestCase):
         s.add("2", "<data>two</data>")
         s.add("4", "<data>four</data>")
         s.add("7", "<data>seven</data>")
-        self.assertEquals(5, len(s)) # artificial
+        self.assertEquals(8, len(s)) # artificial
         self.assertEquals("<data>four</data>", s.index("4"))
         self.assertEquals("<data>two</data>", s.index("2"))
         self.assertEquals("<data>seven</data>", s.index("7"))
@@ -124,7 +128,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals(0, len(s)) # artificial
         s.add("2", "<data>short</data>")
         s.add("4", ''.join("<%s>" % i for i in xrange(10000)))
-        self.assertEquals(1301, len(s)) # artificial
+        self.assertEquals(2011, len(s)) # artificial
         self.assertEquals("<data>short</data>", s.index("2"))
         self.assertEquals("<0><1><2><3><4><5><6", s.index("4")[:20])
        
@@ -137,7 +141,7 @@ class SequentialStorageTest(SeecrTestCase):
         from meresco.oai.sequentialstorage import SENTINEL
         s = SequentialStorage(self.tempdir + "test")
         s.add("2", "<data>two</data>")
-        s.add("5", ("abc%sxyz" % SENTINEL) * 10)
+        s.add("5", ("abc%sxyz" % (SENTINEL+'\n')) * 10)
         s.add("7", "<data>seven</data>")
         s.add("9", "<data>nine</data>")
         self.assertEquals("abc----\nxyzabc----\nx", s.index("5")[:20])
@@ -205,6 +209,36 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals([('4', "four"), ('7', "seven")], list(i))
         i = s.iter("5", "99")
         self.assertEquals([('7', "seven"), ('9', "nine")], list(i))
+
+    def testReadSpeed(self):
+        from random import random, randint
+        from time import time
+        count = 1000000
+        s = SequentialStorage(self.tempdir + '/test')
+        data = ''.join(str(random()) for f in xrange(300))
+        self.assertTrue(4000 < len(data) < 5000, len(data))
+        bytesWritten = 0
+        t0 = time()
+        for i in xrange(count, count+count):
+            bytesWritten += len(data)
+            s.add(str(i), data)
+            if i % 1000 == 0:
+                t1 = time()
+                recordsPerSecond = (i-count)/(t1-t0)
+                bytesPerSecond = bytesWritten/(t1-t0)
+                print bytesWritten, recordsPerSecond, bytesPerSecond
+                if bytesWritten > 2*10**9: break
+        n = 0
+        t0 = time()
+        print count, i
+        for j in xrange(10000):
+            data = s.index(str(randint(count, i)))
+            n += 1
+            t1 = time()
+            if j % 1000 == 0:
+                lookupsPerSecond = n / (t1-t0)
+                print lookupsPerSecond
+        print "lookups:", n, "time:", (t1-t0), "lookups/second:", n/(t1-t0)
 
     def testReadOnlyKeyWhileSearching(self):
         pass
