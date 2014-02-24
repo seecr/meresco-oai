@@ -72,7 +72,7 @@ Error and Exception Conditions
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
         try:
-            record.data = self.call.getData(record.identifier, record.stamp, metadataPrefix)
+            record.data = self.call.getData(record.stamp, metadataPrefix)
         except NoneOfTheObserversRespond:
             pass
         yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix)
