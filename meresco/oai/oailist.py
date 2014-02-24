@@ -218,13 +218,12 @@ Error and Exception Conditions
         records = list(result.records)
         mdp = validatedArguments['metadataPrefix']
         try:
-            data = self.call.iterData(mdp, records[0].stamp, records[-1].stamp)
-            for i, (key, d) in enumerate(data):
-                assert records[i].stamp == int(key)
-                records[i].data = d
+            data = dict(self.call.iterData(mdp, records[0].stamp, records[-1].stamp))
+            for record in records:
+                if not record.isDeleted:
+                    record.data = data[str(record.stamp)]
         except NoneOfTheObserversRespond:
             pass
-
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
         for record in records:
             yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'])

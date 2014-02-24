@@ -3,9 +3,9 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -26,11 +26,9 @@
 ## end license ##
 
 from seecr.test import CallTrace, SeecrTestCase
-from unittest import TestCase
 from weightless.core import compose, consume
 from meresco.oai import OaiAddRecordWithDefaults, OaiJazz, SequentialMultiStorage
 from os import makedirs
-from lxml.etree import XML as parseLxml
 
 class OaiAddRecordWithDefaultsTest(SeecrTestCase):
     def testAdd(self):
@@ -38,7 +36,7 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
         observer = CallTrace('oaijazz')
         subject.addObserver(observer)
 
-        list(compose(subject.add('id', ignored="kwarg", lxmlNode="na")))
+        list(compose(subject.add('id', ignored="kwarg", data="na")))
 
         self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
         self.assertEquals({'identifier':'id',
@@ -52,7 +50,7 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
         observer = CallTrace('oaijazz')
         subject.addObserver(observer)
 
-        list(compose(subject.add('id', ignored="kwarg", lxmlNode="data")))
+        list(compose(subject.add('id', ignored="kwarg", data="data")))
 
         self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
         self.assertEquals({'identifier':'id',
@@ -61,16 +59,16 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
             observer.calledMethods[0].kwargs)
         self.assertEquals(['sets', 'metadataFormats'], methodObject.calledMethodNames())
         for method in methodObject.calledMethods:
-            self.assertEquals({'identifier':'id', 'ignored':'kwarg', 'lxmlNode':"data"}, method.kwargs)
+            self.assertEquals({'identifier':'id', 'ignored':'kwarg', 'data':"data"}, method.kwargs)
 
-    def testUseSequentialStorageWithOaiAddRecordWithDefaults(self):
+    def testUseSequentialStorage(self):
         addrecord = OaiAddRecordWithDefaults(metadataFormats=[('part1', '?', '?'), ('part2', '?', '?')], useSequentialStorage=True)
         jazz =  OaiJazz(self.tempdir)
         addrecord.addObserver(jazz)
         makedirs(self.tempdir + '/1')
         storage = SequentialMultiStorage(self.tempdir + '/1')
         addrecord.addObserver(storage)
-        consume(addrecord.add("id0", lxmlNode=parseLxml("<xml/>")))
+        consume(addrecord.add("id0", data="<xml/>"))
         t, data = storage.iterData("part1", 0, 9999999999999).next()
         self.assertEquals("<xml/>", data)
         t, data = storage.iterData("part2", 0, 9999999999999).next()
