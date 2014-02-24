@@ -44,18 +44,18 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testGetForUnknownPart(self):
         s = SequentialMultiStorage(self.tempdir)
-        self.assertRaises(IndexError, lambda: s.get('unknown', 'oai_dc'))
+        self.assertRaises(IndexError, lambda: s.getData('unknown', 'oai_dc'))
 
     def testGetForUnknownIdentifier(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("id01", "oai_dc", "x")
-        self.assertRaises(IndexError, lambda: s.get('unknown', 'oai_dc'))
+        self.assertRaises(IndexError, lambda: s.getData('unknown', 'oai_dc'))
 
     def testReadWriteData(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("id01", "oai_dc", "<data/>")
         sReopened = SequentialMultiStorage(self.tempdir)
-        self.assertEquals('<data/>', s.get('id01', 'oai_dc'))
+        self.assertEquals('<data/>', s.getData('id01', 'oai_dc'))
 
     def testReadWriteIdentifier(self):
         s = SequentialMultiStorage(self.tempdir)
@@ -63,8 +63,8 @@ class SequentialStorageTest(SeecrTestCase):
         s.add("id02", "oai_dc", "<data>2</data>")
         s.flush()
         sReopened = SequentialMultiStorage(self.tempdir)
-        self.assertEquals('<data>1</data>', sReopened.get('id01', 'oai_dc'))
-        self.assertEquals('<data>2</data>', sReopened.get('id02', 'oai_dc'))
+        self.assertEquals('<data>1</data>', sReopened.getData('id01', 'oai_dc'))
+        self.assertEquals('<data>2</data>', sReopened.getData('id02', 'oai_dc'))
 
     def testKeyIsMonotonicallyIncreasing(self):
         s = SequentialMultiStorage(self.tempdir)
@@ -95,7 +95,7 @@ class SequentialStorageTest(SeecrTestCase):
         s.add(7, "oai_dc", "<seven/>")
         self.assertEquals([('2', '<two/>'), ('4', '<four/>')], list(s.iterData("oai_dc", 1, 5)))
         self.assertEquals([('7', '<seven/>')], list(s.iterData("oai_dc", 5, 9)))
-        self.assertEquals("<two/>", s.get(2, "oai_dc"))
+        self.assertEquals("<two/>", s.getData(2, "oai_dc"))
 
     def testSentinalWritten(self):
         s = SequentialMultiStorage(self.tempdir)
@@ -174,7 +174,7 @@ class SequentialStorageTest(SeecrTestCase):
         s.add("2", "ma/am", "data")
         s.flush()
         s = SequentialMultiStorage(self.tempdir)
-        self.assertEquals("data", s.get("2", "ma/am"))
+        self.assertEquals("data", s.getData("2", "ma/am"))
 
     def testCompression(self):
         import zlib, bz2

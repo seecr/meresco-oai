@@ -81,7 +81,7 @@ class SequentialMultiStorage(object):
     def add(self, key, name, data):
         self._getStorage(name).add(key, data)
 
-    def get(self, key, name):
+    def getData(self, key, name):
         return self._getStorage(name).index(key)
 
     def iterData(self, name, start, stop):
@@ -147,6 +147,8 @@ class SequentialStorage(object):
         found_key, data = self[i]
         if found_key != key:
             raise IndexError
+        print 'index for key', key, data
+        from sys import stdout; stdout.flush()
         return data
 
     def iter(self, start, stop=None):
