@@ -147,8 +147,6 @@ class SequentialStorage(object):
         found_key, data = self[i]
         if found_key != key:
             raise IndexError
-        print 'index for key', key, data
-        from sys import stdout; stdout.flush()
         return data
 
     def iter(self, start, stop=None):

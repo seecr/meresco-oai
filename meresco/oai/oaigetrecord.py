@@ -8,9 +8,9 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -33,6 +33,7 @@
 from meresco.core.observable import Observable
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
+from weightless.core import NoneOfTheObserversRespond
 
 class OaiGetRecord(Observable):
     """4.1 GetRecord
@@ -61,7 +62,8 @@ Error and Exception Conditions
             validatedArguments = self._validateArguments(arguments)
             recordId = validatedArguments['identifier']
             metadataPrefix = validatedArguments['metadataPrefix']
-            self._validateValues(recordId, metadataPrefix)
+            record = self.call.getRecord(recordId)
+            self._validateValues(record, metadataPrefix)
         except OaiException, e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
             return
@@ -69,15 +71,17 @@ Error and Exception Conditions
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
-        yield self.all.oaiRecord(record=self.call.getRecord(recordId), metadataPrefix=metadataPrefix)
+        try:
+            record.data = self.call.getData(record.identifier, record.stamp, metadataPrefix)
+        except NoneOfTheObserversRespond:
+            pass
+        yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix)
         yield '</%s>' % verb
         yield oaiFooter()
 
-    def _validateValues(self, recordId, metadataPrefix):
+    def _validateValues(self, record, metadataPrefix):
         if not metadataPrefix in set(self.call.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
-
-        record = self.call.getRecord(recordId)
 
         if not record:
             raise OaiException('idDoesNotExist')
