@@ -1,7 +1,33 @@
+## begin license ##
+#
+# "Meresco Oai" are components to build Oai repositories, based on
+# "Meresco Core" and "Meresco Components".
+#
+# Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+#
+# This file is part of "Meresco Oai"
+#
+# "Meresco Oai" is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# "Meresco Oai" is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with "Meresco Oai"; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+#
+## end license ##
+
 from seecr.test import SeecrTestCase
 from meresco.oai import SequentialStorage, SequentialMultiStorage
 
-from os.path import join, isfile
+from os.path import join, isfile, isdir
 
 class SequentialStorageTest(SeecrTestCase):
 
@@ -15,7 +41,7 @@ class SequentialStorageTest(SeecrTestCase):
         s.add("id02", "rdf", "<rdf/>")
         self.assertTrue(isfile(join(self.tempdir, "oai_dc")))
         self.assertTrue(isfile(join(self.tempdir, "rdf")))
-  
+
     def testGetForUnknownPart(self):
         s = SequentialMultiStorage(self.tempdir)
         self.assertRaises(IndexError, lambda: s.get('unknown', 'oai_dc'))
@@ -31,7 +57,7 @@ class SequentialStorageTest(SeecrTestCase):
         sReopened = SequentialMultiStorage(self.tempdir)
         self.assertEquals('<data/>', s.get('id01', 'oai_dc'))
 
-    def testReadWriteIdentifier(self): 
+    def testReadWriteIdentifier(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("id01", "oai_dc", "<data>1</data>")
         s.add("id02", "oai_dc", "<data>2</data>")
@@ -127,12 +153,12 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals(1301, len(s)) # artificial
         self.assertEquals("<data>short</data>", s.index("2"))
         self.assertEquals("<0><1><2><3><4><5><6", s.index("4")[:20])
-       
+
     def testNewLineInData(self):
         s = SequentialStorage(self.tempdir + "test")
         s.add("4", "here follows\na new line")
         self.assertEquals("here follows\na new line", s.index("4"))
-       
+
     def testSentinelInData(self):
         from meresco.oai.sequentialstorage import SENTINEL
         s = SequentialStorage(self.tempdir + "test")
@@ -205,6 +231,11 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals([('4', "four"), ('7', "seven")], list(i))
         i = s.iter("5", "99")
         self.assertEquals([('7', "seven"), ('9', "nine")], list(i))
+
+    def testDirectoryCreatedIfNotExists(self):
+        SequentialMultiStorage(join(self.tempdir, "storage"))
+        self.assertTrue(isdir(join(self.tempdir, "storage")))
+
 
     def testReadOnlyKeyWhileSearching(self):
         pass
