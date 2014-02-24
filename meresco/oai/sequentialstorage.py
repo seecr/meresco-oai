@@ -30,8 +30,9 @@ from collections import defaultdict
 from escaping import escapeFilename
 from zlib import compress, decompress
 
-SENTINEL = "----\n"
-BLOCKSIZE = len(SENTINEL) + 8 + 4 # min length guaranteed not to skip records
+SENTINEL = "----"
+RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
+BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
 
 class KeyIndex(object):
 
@@ -106,11 +107,11 @@ class SequentialStorage(object):
         if key <= self._lastKey:
             raise ValueError("key %s must be greater than last key %s" % (key, self._lastKey))
         self._lastKey = key
-        self._f.write(SENTINEL)
-        self._f.write("%s\n" % key)
+        sentinel = SENTINEL
         data = compress(data)
-        self._f.write("%s\n" % len(data))
-        self._f.write(data + '\n')
+        length = len(data)
+        record = RECORD % locals()
+        self._f.write(record) # one write is a little bit faster
 
     def flush(self):
         self._f.flush()
@@ -123,7 +124,7 @@ class SequentialStorage(object):
         sentinel = "not yet found"
         while sentinel != '':
             sentinel = self._f.readline()
-            if sentinel == SENTINEL:
+            if sentinel.strip() == SENTINEL:
                 identifier = self._f.readline().strip()
                 try:
                     length = int(self._f.readline().strip())
