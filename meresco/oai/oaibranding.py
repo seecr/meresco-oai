@@ -26,10 +26,9 @@
 # 
 ## end license ##
 
-from meresco.core import Observable
 from xml.sax.saxutils import escape as escapeXml
 
-class OaiBranding(Observable):
+class OaiBranding(object):
    
     def __init__(self, url, link=None, title=None):
         self._url = url
