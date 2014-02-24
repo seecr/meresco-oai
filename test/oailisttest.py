@@ -9,8 +9,8 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -34,18 +34,19 @@ from StringIO import StringIO
 from xml.sax.saxutils import escape as escapeXml
 from lxml.etree import parse
 from uuid import uuid4
+from os import makedirs
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced
 
-from weightless.core import compose, Yield
+from weightless.core import compose, Yield, NoneOfTheObserversRespond, asString
 from meresco.components.http.utils import CRLF
 
 from meresco.oai.oailist import OaiList
-from meresco.oai import OaiJazz
+from meresco.oai import OaiJazz, SequentialMultiStorage
 
-from mockoaijazz import MockRecord
 from meresco.oai.resumptiontoken import ResumptionToken
+from meresco.oai.oairecord import OaiRecord
 
 
 class OaiListTest(SeecrTestCase):
@@ -63,7 +64,7 @@ class OaiListTest(SeecrTestCase):
         self.observer.methods['getAllPrefixes'] = self.oaiJazz.getAllPrefixes
         self.observer.methods['oaiSelect'] = self.oaiJazz.oaiSelect
         def iterData(*args):
-            return []
+            raise NoneOfTheObserversRespond('No one', 0)
         self.observer.methods['iterData'] = iterData
         self.oaiList.addObserver(self.observer)
         self.clientId = str(uuid4())
@@ -89,10 +90,6 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
 
     def testListRecordsWithSequentialMultiStorage(self):
-        from meresco.oai import SequentialMultiStorage
-        from meresco.oai.oairecord import OaiRecord
-        from weightless.core import asString
-        from os import makedirs
         oaijazz = OaiJazz(self.tempdir + '/1')
         oailist = OaiList(batchSize=2)
         makedirs(self.tempdir + "/2")

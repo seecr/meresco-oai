@@ -9,8 +9,8 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2012 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -40,11 +40,11 @@ class OaiAddRecordBase(Transparent):
         super(OaiAddRecordBase, self).__init__()
         self._useSequentialStorage = useSequentialStorage
 
-    def add(self, identifier, sets, metadataFormats, lxmlNode, **kwargs):
+    def add(self, identifier, sets, metadataFormats, data, **kwargs):
         stamp = self.call.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
         if self._useSequentialStorage:
             for prefix, schema, namespace in metadataFormats:
-                self.do.add(stamp, prefix, lxmltostring(lxmlNode))
+                self.do.add(stamp, prefix, data)
 
 class OaiAddRecordWithDefaults(OaiAddRecordBase):
     def __init__(self, metadataFormats=None, sets=None, **kwargs):
@@ -75,7 +75,7 @@ class OaiAddRecord(OaiAddRecordBase):
         schema = dict(zip(ns2xsd[::2],ns2xsd[1::2])).get(namespace, '')
         schema, namespace = self._magicSchemaNamespace(record.prefix, partname, schema, namespace)
         metadataFormats=[(partname, schema, namespace)]
-        super(OaiAddRecord, self).add(identifier, sets, metadataFormats, lxmlNode)
+        super(OaiAddRecord, self).add(identifier, sets, metadataFormats, lxmltostring(lxmlNode))
 
     def _magicSchemaNamespace(self, prefix, name, schema, namespace):
         searchForPrefix = prefix or name
