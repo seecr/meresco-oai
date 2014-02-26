@@ -32,11 +32,13 @@
 
 from seecr.test import SeecrTestCase, CallTrace
 from meresco.oai import OaiAddRecord, OaiJazz, SequentialMultiStorage
-from weightless.core import compose, consume
+from weightless.core import compose, consume, be
 from os import makedirs
 
 from StringIO import StringIO
 from lxml.etree import parse
+from meresco.core import Observable
+from meresco.components import XmlPrintLxml
 
 def parseLxml(aString):
     return parse(StringIO(aString)).getroot()
@@ -133,15 +135,23 @@ class OaiAddRecordTest(SeecrTestCase):
         self.assertEquals([('dc2', '', '')], self.observer.calledMethods[0].kwargs['metadataFormats'])
 
     def testUseSequentialStorage(self):
+
         addrecord = OaiAddRecord(useSequentialStorage=True)
         jazz =  OaiJazz(self.tempdir)
-        addrecord.addObserver(jazz)
         makedirs(self.tempdir + '/1')
         storage = SequentialMultiStorage(self.tempdir + '/1')
-        addrecord.addObserver(storage)
+        observable = be((Observable(),
+                (addrecord,
+                    (jazz,),
+                    (XmlPrintLxml(fromKwarg='lxmlNode', toKwarg='data', pretty_print=False),
+                        (storage,)
+                    )
+                )
+            ))
+
         t0 = jazz._newStamp()
-        consume(addrecord.add("id0", "oai_dc", parseLxml("<xml/>")))
-        consume(addrecord.add("id0", "other", parseLxml("<json/>")))
+        consume(observable.all.add("id0", "oai_dc", parseLxml("<xml/>")))
+        consume(observable.all.add("id0", "other", parseLxml("<json/>")))
         t1 = jazz._newStamp()
         t, data = storage.iterData("oai_dc", 0, 9999999999999).next()
         self.assertTrue(t0 < int(t) < t1, t)

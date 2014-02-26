@@ -9,8 +9,8 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -49,9 +49,9 @@ class OaiRecordTest(SeecrTestCase):
         self.oaiRecord.addObserver(self.observer)
         self.observer.returnValues['yieldRecord'] = (f for f in ['<da','ta/>'])
         self.observer.returnValues['provenance'] = (f for f in [])
-        
+
     def testRecord(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc')))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', data={})))
 
         self.assertEqualsWS("""<record>
 <header>
@@ -66,8 +66,25 @@ class OaiRecordTest(SeecrTestCase):
 </record>""", result)
         self.assertEquals(["yieldRecord('id', 'oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
 
+    def testRecordWithData(self):
+        record = MockRecord('id')
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=record, metadataPrefix='oai_dc', data={str(record.stamp):"<the>data</the>"})))
+
+        self.assertEqualsWS("""<record>
+<header>
+    <identifier>id</identifier>
+    <datestamp>2011-03-25T10:45:00Z</datestamp>
+    <setSpec>set0</setSpec>
+    <setSpec>set1</setSpec>
+</header>
+<metadata>
+    <the>data</the>
+</metadata>
+</record>""", result)
+        self.assertEquals(["provenance('id')"], [str(m) for m in self.observer.calledMethods])
+
     def testRecordIsDeleted(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', deleted=True), metadataPrefix='oai_dc')))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', deleted=True), metadataPrefix='oai_dc', data={})))
 
         self.assertEqualsWS("""<record>
 <header status="deleted">
@@ -80,7 +97,7 @@ class OaiRecordTest(SeecrTestCase):
         self.assertEquals([], [str(m) for m in self.observer.calledMethods])
 
     def testRecordsWithoutSets(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', sets=[]), metadataPrefix='oai_dc')))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', sets=[]), metadataPrefix='oai_dc', data={})))
 
         self.assertEqualsWS("""<record>
 <header>
@@ -95,7 +112,7 @@ class OaiRecordTest(SeecrTestCase):
 
     def testRecordWithProvenance(self):
         self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc')))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', data={})))
 
         self.assertEqualsWS("""<record>
 <header>
@@ -113,7 +130,7 @@ class OaiRecordTest(SeecrTestCase):
 
     def testDeletedRecordWithProvenance(self):
         self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id&0', deleted=True), metadataPrefix='oai_dc')))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id&0', deleted=True), metadataPrefix='oai_dc', data={})))
 
         self.assertEqualsWS("""<record>
 <header status="deleted">
@@ -127,7 +144,7 @@ class OaiRecordTest(SeecrTestCase):
 
 
     def testRecordForListIdentifiers(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecordHeader(record=MockRecord('id'), metadataPrefix='oai_dc')))
+        result = ''.join(compose(self.oaiRecord.oaiRecordHeader(record=MockRecord('id'), metadataPrefix='oai_dc', data={})))
 
         self.assertEqualsWS("""<header>
     <identifier>id</identifier>
