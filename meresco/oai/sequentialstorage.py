@@ -35,23 +35,28 @@ from meresco.core import asyncnoreturnvalue
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
 BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
+DEFAULT_CACHESIZE = 100000
 
 class KeyIndex(object):
 
-    def __init__(self, src):
+    def __init__(self, src, maxSize):
         self._src = src
         self._cache = {}
+        self._keys = []
+        self._maxSize = maxSize
 
     def __len__(self):
         return len(self._src)
 
-    def __getitem__(self, i):
-        if i in self._cache:
-            return self._cache[i]
-        else:
-            index = self._src[i][0]
-            self._cache[i] = index
-            return index
+    def __getitem__(self, key):
+        if key in self._cache:
+            return self._cache[key]
+        index = self._src[key][0]
+        self._cache[key] = index
+        self._keys.append(key)
+        if len(self._keys) > self._maxSize:
+            del self._cache[self._keys.pop(0)]
+        return index
 
 
 class Iter(object):
@@ -80,17 +85,18 @@ class Iter(object):
 
 
 class SequentialMultiStorage(object):
-    def __init__(self, path):
+    def __init__(self, path, maxCacheSize=DEFAULT_CACHESIZE):
         self._path = path
         isdir(self._path) or makedirs(self._path)
         self._storage = {}
+        self._maxCacheSize = maxCacheSize
         for name in listdir(path):
             self._getStorage(name)
 
     def _getStorage(self, name):
         if name not in self._storage:
             name = escapeFilename(name)
-            self._storage[name] = SequentialStorage(join(self._path, name))
+            self._storage[name] = SequentialStorage(join(self._path, name), maxCacheSize=self._maxCacheSize)
         return self._storage[name]
 
     @asyncnoreturnvalue
@@ -111,9 +117,9 @@ class SequentialMultiStorage(object):
             storage.flush()
 
 class SequentialStorage(object):
-    def __init__(self, fileName):
+    def __init__(self, fileName, maxCacheSize):
         self._f = open(fileName, "ab+")
-        self._index = KeyIndex(self)
+        self._index = KeyIndex(self, maxSize=maxCacheSize)
         if len(self):
             lastindex = bisect_left(self._index, "zzzzzzzzzzz")
             self._lastKey = self[lastindex - 1][0]

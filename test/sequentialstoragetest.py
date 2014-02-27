@@ -79,7 +79,7 @@ class SequentialStorageTest(SeecrTestCase):
             self.assertEquals("key 2 must be greater than last key 4", str(e))
 
     def testNumbersAsString(self):
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         s.add( "2", "na")
         s.add("10", "na")
 
@@ -116,7 +116,7 @@ class SequentialStorageTest(SeecrTestCase):
         # the functionality below is good enough I suppose.
         # As a side effect, it solves back scanning! We let
         # bisect do that for us.
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         self.assertEquals(0, len(s)) # artificial
         s.add("2", "<data>two is nice</data>")
         s.add("4", "<data>four goes fine</data>")
@@ -134,7 +134,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(IndexError, lambda: s[8])
 
     def testIndexItem(self):
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         self.assertEquals(0, len(s)) # artificial
         s.add("2", "<data>two</data>")
         s.add("4", "<data>four</data>")
@@ -145,7 +145,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals("<data>seven</data>", s.index("7"))
 
     def testIndexNotFound(self):
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         self.assertRaises(IndexError, lambda: s.index("2"))
         s.add("2", "<data>two</data>")
         self.assertRaises(IndexError, lambda: s.index("1"))
@@ -156,7 +156,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(IndexError, lambda: s.index("5"))
 
     def testIndexWithVerySmallAndVEryLargeRecord(self):
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         self.assertEquals(0, len(s)) # artificial
         s.add("2", "<data>short</data>")
         s.add("4", ''.join("<%s>" % i for i in xrange(10000)))
@@ -165,13 +165,13 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals("<0><1><2><3><4><5><6", s.index("4")[:20])
 
     def testNewLineInData(self):
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         s.add("4", "here follows\na new line")
         self.assertEquals("here follows\na new line", s.index("4"))
 
     def testSentinelInData(self):
         from meresco.oai.sequentialstorage import SENTINEL
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         s.add("2", "<data>two</data>")
         s.add("5", ("abc%sxyz" % (SENTINEL+'\n')) * 10)
         s.add("7", "<data>seven</data>")
@@ -202,7 +202,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertTrue(3.2 < zlib_ratio < 3.3, zlib_ratio)
 
     def testIterator(self):
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         s.add("2", "<data>two</data>")
         s.add("4", "<data>four</data>")
         s.add("7", "<data>seven</data>")
@@ -214,7 +214,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(StopIteration, lambda: i.next())
 
     def testTwoAlternatingIterators(self):
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         s.add("2", "<data>two</data>")
         s.add("4", "<data>four</data>")
         s.add("7", "<data>seven</data>")
@@ -230,7 +230,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(StopIteration, lambda: i1.next())
 
     def testIteratorUntil(self):
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         s.add("2", "two")
         s.add("4", "four")
         s.add("6", "six")
@@ -268,7 +268,7 @@ class SequentialStorageTest(SeecrTestCase):
         from time import time
         from sys import getsizeof
         count = 1000000
-        s = SequentialStorage(self.tempfile)
+        s = SequentialStorage(self.tempfile, maxCacheSize=100)
         data = ''.join(str(random()) for f in xrange(300))
         self.assertTrue(4000 < len(data) < 5000, len(data))
         bytesWritten = 0
