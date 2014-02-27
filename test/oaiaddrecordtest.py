@@ -59,9 +59,9 @@ class OaiAddRecordTest(SeecrTestCase):
         self.assertEquals('id', self.observer.calledMethods[0].kwargs['identifier'])
         self.assertEquals([('partName', '', '')], self.observer.calledMethods[0].kwargs['metadataFormats'])
         self.assertEquals(set(), self.observer.calledMethods[0].kwargs['sets'])
-        kwargs = self.observer.calledMethods[1].kwargs 
+        kwargs = self.observer.calledMethods[1].kwargs
         self.assertTrue(lxmlNode is kwargs.pop('lxmlNode'))
-        self.assertEquals({'identifier':'id', 'partname':'partName'}, kwargs) 
+        self.assertEquals({'identifier':'id', 'partname':'partName'}, kwargs)
 
     def testAddSetInfo(self):
         header = parseLxml('<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>1</setSpec></header>')
@@ -154,10 +154,10 @@ class OaiAddRecordTest(SeecrTestCase):
         consume(observable.all.add("id0", "oai_dc", parseLxml("<xml/>")))
         consume(observable.all.add("id0", "other", parseLxml("<json/>")))
         t1 = jazz._newStamp()
-        t, data = storage.iterData("oai_dc", 0, 9999999999999).next()
+        t, data = storage.iterData("oai_dc", 0, None).next()
         self.assertTrue(t0 < int(t) < t1, t)
         self.assertEquals("<xml/>", data)
-        t, data = storage.iterData("other", 0, 9999999999999).next()
+        t, data = storage.iterData("other", 0, None).next()
         self.assertTrue(t0 < int(t) < t1, t)
         self.assertEquals("<json/>", data)
 

@@ -99,7 +99,7 @@ class OaiListTest(SeecrTestCase):
         oailist.addObserver(oaistorage)
         oailist.addObserver(oairecord)
         stamp = oaijazz.addOaiRecord("id0", (), metadataFormats=[('oai_dc', '', '')])
-        consume(oaistorage.add(str(stamp), "oai_dc", "data01"))
+        consume(oaistorage.add(stamp, "oai_dc", "data01"))
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
@@ -115,7 +115,7 @@ class OaiListTest(SeecrTestCase):
         oailist.addObserver(oairecord)
         for id in ['id0', 'id1', 'id1']:
             stamp = oaijazz.addOaiRecord(id, (), metadataFormats=[('oai_dc', '', '')])
-            consume(oaistorage.add(str(stamp), "oai_dc", "data_%s" % id))
+            consume(oaistorage.add(stamp, "oai_dc", "data_%s" % id))
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
         with stderr_replaced() as err:

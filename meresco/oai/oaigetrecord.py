@@ -71,9 +71,9 @@ Error and Exception Conditions
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
-        data = {}
+        data = None
         try:
-            data = dict(self.call.iterData(metadataPrefix, record.stamp, record.stamp, inclusive=True))
+            data = {int(record.stamp): self.call.getData(name=metadataPrefix, key=int(record.stamp))}
         except NoneOfTheObserversRespond:
             pass
         yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix, data=data)

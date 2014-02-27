@@ -68,7 +68,7 @@ class OaiRecordTest(SeecrTestCase):
 
     def testRecordWithData(self):
         record = MockRecord('id')
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=record, metadataPrefix='oai_dc', data={str(record.stamp):"<the>data</the>"})))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=record, metadataPrefix='oai_dc', data={int(record.stamp):"<the>data</the>"})))
 
         self.assertEqualsWS("""<record>
 <header>
