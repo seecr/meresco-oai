@@ -59,6 +59,7 @@ from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest
 from oaibrandingtest import OaiBrandingTest
 from oaidownloadprocessortest import OaiDownloadProcessorTest
 from oaierrortest import OaiErrorTest
+from oaigetrecordtest import OaiGetRecordTest
 from oaiintegrationtest import OaiIntegrationTest
 from oaijazztest import OaiJazzTest
 from oailisttest import OaiListTest

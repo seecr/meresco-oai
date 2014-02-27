@@ -73,7 +73,7 @@ Error and Exception Conditions
         yield '<%s>' % verb
         data = {}
         try:
-            data = dict(self.call.iterData(metadataPrefix, record.stamp, record.stamp))
+            data = dict(self.call.iterData(metadataPrefix, record.stamp, record.stamp, inclusive=True))
         except NoneOfTheObserversRespond:
             pass
         yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix, data=data)
