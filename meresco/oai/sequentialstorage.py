@@ -26,7 +26,7 @@
 
 from os.path import join, isdir
 from os import listdir, makedirs
-from collections import defaultdict
+from collections import OrderedDict
 from escaping import escapeFilename
 from zlib import compress, decompress
 from meresco.core import asyncnoreturnvalue
@@ -41,8 +41,7 @@ class KeyIndex(object):
 
     def __init__(self, src, maxSize):
         self._src = src
-        self._cache = {}
-        self._keys = []
+        self._cache = OrderedDict()
         self._maxSize = maxSize
 
     def __len__(self):
@@ -50,12 +49,13 @@ class KeyIndex(object):
 
     def __getitem__(self, key):
         if key in self._cache:
-            return self._cache[key]
+            result = self._cache.pop(key)
+            self._cache[key] = result
+            return result
         index = self._src[key][0]
         self._cache[key] = index
-        self._keys.append(key)
-        if len(self._keys) > self._maxSize:
-            del self._cache[self._keys.pop(0)]
+        if len(self._cache) > self._maxSize:
+            self._cache.popitem(0)
         return index
 
 

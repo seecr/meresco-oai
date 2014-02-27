@@ -24,7 +24,7 @@
 #
 ## end license ##
 
-from seecr.test import SeecrTestCase, CallTrace
+from seecr.test import SeecrTestCase
 
 from meresco.oai.sequentialstorage import KeyIndex
 
@@ -34,7 +34,7 @@ class KeyIndexTest(SeecrTestCase):
         class Source(object):
             def __getitem__(self, key):
                 requestedKeys.append(key)
-                return (1000 + key, 'ignored') 
+                return (1000 + key, 'ignored')
         keyIndex = KeyIndex(Source(), maxSize=3)
         self.assertEquals(1001, keyIndex[1])
         self.assertEquals(1002, keyIndex[2])
@@ -51,4 +51,4 @@ class KeyIndexTest(SeecrTestCase):
         self.assertEquals([1, 2, 3, 4, 1], requestedKeys)
 
         self.assertEquals(3, len(keyIndex._cache))
-        self.assertEquals(3, len(keyIndex._keys))
+        self.assertEquals([4,2,1], keyIndex._cache.keys())
