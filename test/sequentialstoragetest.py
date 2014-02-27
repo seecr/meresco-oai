@@ -26,6 +26,7 @@
 
 from seecr.test import SeecrTestCase
 from meresco.oai import SequentialStorage, SequentialMultiStorage
+from weightless.core import consume
 
 from os.path import join, isfile, isdir
 
@@ -37,8 +38,8 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testWriteFilePerPart(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("id01", "oai_dc", "<data/>")
-        s.add("id02", "rdf", "<rdf/>")
+        consume(s.add("id01", "oai_dc", "<data/>"))
+        consume(s.add("id02", "rdf", "<rdf/>"))
         self.assertTrue(isfile(join(self.tempdir, "oai_dc")))
         self.assertTrue(isfile(join(self.tempdir, "rdf")))
 
@@ -48,20 +49,20 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testGetForUnknownIdentifier(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("id01", "oai_dc", "x")
+        consume(s.add("id01", "oai_dc", "x"))
         self.assertRaises(IndexError, lambda: s.getData('unknown', 'oai_dc'))
 
     def testReadWriteData(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("id01", "oai_dc", "<data/>")
+        consume(s.add("id01", "oai_dc", "<data/>"))
         s.flush()
         sReopened = SequentialMultiStorage(self.tempdir)
         self.assertEquals('<data/>', s.getData('id01', 'oai_dc'))
 
     def testReadWriteIdentifier(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("id01", "oai_dc", "<data>1</data>")
-        s.add("id02", "oai_dc", "<data>2</data>")
+        consume(s.add("id01", "oai_dc", "<data>1</data>"))
+        consume(s.add("id02", "oai_dc", "<data>2</data>"))
         s.flush()
         sReopened = SequentialMultiStorage(self.tempdir)
         self.assertEquals('<data>1</data>', sReopened.getData('id01', 'oai_dc'))
@@ -69,10 +70,10 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testKeyIsMonotonicallyIncreasing(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("3", "na",  "na")
-        s.add("4", "na",  "na")
+        consume(s.add("3", "na",  "na"))
+        consume(s.add("4", "na",  "na"))
         try:
-            s.add("2", "na",  "na")
+            consume(s.add("2", "na",  "na"))
             self.fail()
         except ValueError, e:
             self.assertEquals("key 2 must be greater than last key 4", str(e))
@@ -84,28 +85,28 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testKeyIsMonotonicallyIncreasingAfterReload(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("3", "na",  "na")
+        consume(s.add("3", "na",  "na"))
         s.flush()
         s = SequentialMultiStorage(self.tempdir)
-        self.assertRaises(ValueError, lambda: s.add("2", "na", "na"))
+        self.assertRaises(ValueError, lambda: consume(s.add("2", "na", "na")))
 
     def testMonotonicityNotRequiredOverDifferentParts(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("2", "oai_dc", "<data/>")
-        s.add("2", "rdf", "<rdf/>")
+        consume(s.add("2", "oai_dc", "<data/>"))
+        consume(s.add("2", "rdf", "<rdf/>"))
 
     def testNumericalKeys(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add(2, "oai_dc", "<two/>")
-        s.add(4, "oai_dc", "<four/>")
-        s.add(7, "oai_dc", "<seven/>")
+        consume(s.add(2, "oai_dc", "<two/>"))
+        consume(s.add(4, "oai_dc", "<four/>"))
+        consume(s.add(7, "oai_dc", "<seven/>"))
         self.assertEquals([('2', '<two/>'), ('4', '<four/>')], list(s.iterData("oai_dc", 1, 5)))
         self.assertEquals([('7', '<seven/>')], list(s.iterData("oai_dc", 5, 9)))
         self.assertEquals("<two/>", s.getData(2, "oai_dc"))
 
     def testSentinalWritten(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("3", "na", "data")
+        consume(s.add("3", "na", "data"))
         s.flush()
         self.assertEquals("----\n3\n12\nx\x9cKI,I\x04\x00\x04\x00\x01\x9b\n",
                 open(join(self.tempdir, 'na')).read())
@@ -180,7 +181,7 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testValidPartName(self):
         s = SequentialMultiStorage(self.tempdir)
-        s.add("2", "ma/am", "data")
+        consume(s.add("2", "ma/am", "data"))
         s.flush()
         s = SequentialMultiStorage(self.tempdir)
         self.assertEquals("data", s.getData("2", "ma/am"))

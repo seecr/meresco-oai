@@ -39,7 +39,7 @@ from os import makedirs
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced
 
-from weightless.core import compose, Yield, NoneOfTheObserversRespond, asString
+from weightless.core import compose, Yield, NoneOfTheObserversRespond, asString, consume
 from meresco.components.http.utils import CRLF
 
 from meresco.oai.oailist import OaiList
@@ -99,7 +99,7 @@ class OaiListTest(SeecrTestCase):
         oailist.addObserver(oaistorage)
         oailist.addObserver(oairecord)
         stamp = oaijazz.addOaiRecord("id0", (), metadataFormats=[('oai_dc', '', '')])
-        oaistorage.add(str(stamp), "oai_dc", "data01")
+        consume(oaistorage.add(str(stamp), "oai_dc", "data01"))
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")

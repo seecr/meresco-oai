@@ -29,6 +29,8 @@ from os import listdir, makedirs
 from collections import defaultdict
 from escaping import escapeFilename
 from zlib import compress, decompress
+from meresco.core import asyncnoreturnvalue
+
 
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
@@ -91,6 +93,7 @@ class SequentialMultiStorage(object):
             self._storage[name] = SequentialStorage(join(self._path, name))
         return self._storage[name]
 
+    @asyncnoreturnvalue
     def add(self, identifier, partname, data):
         self.addData(key=identifier, name=partname, data=data)
 

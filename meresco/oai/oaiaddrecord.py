@@ -30,7 +30,7 @@
 #
 ## end license ##
 
-from meresco.core import Transparent, asyncreturn
+from meresco.core import Transparent
 from lxml.etree import iselement
 from meresco.components import lxmltostring
 
@@ -43,9 +43,11 @@ class OaiAddRecordBase(Transparent):
     def add(self, identifier, sets, metadataFormats, **kwargs):
         stamp = self.call.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
         if self._useSequentialStorage:
-            for prefix, schema, namespace in metadataFormats:
-                kwargs.pop('partname', None)
-                self.do.add(identifier=stamp, partname=prefix, **kwargs)
+            if len(metadataFormats) != 1:
+                raise ValueError('There can be only one "metadataFormats".')
+            prefix, schema, namespace = metadataFormats[0]
+            kwargs.pop('partname', None)
+            yield self.all.add(identifier=stamp, partname=prefix, **kwargs)
         else:
             yield self.all.add(identifier=identifier, **kwargs)
 

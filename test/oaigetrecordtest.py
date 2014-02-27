@@ -29,7 +29,7 @@ from meresco.oai import OaiJazz, SequentialMultiStorage
 from meresco.oai.oaigetrecord import OaiGetRecord
 from meresco.oai.oairecord import OaiRecord
 from uuid import uuid4
-from weightless.core import asString
+from weightless.core import asString, consume
 from lxml.etree import parse
 from StringIO import StringIO
 from meresco.xml.namespaces import xpath
@@ -53,7 +53,7 @@ class OaiGetRecordTest(SeecrTestCase):
         oaigetrecord.addObserver(oaistorage)
         oaigetrecord.addObserver(oairecord)
         stamp = oaijazz.addOaiRecord("id0", (), metadataFormats=[('oai_dc', '', '')])
-        oaistorage.add(str(stamp), "oai_dc", "data01")
+        consume(oaistorage.add(str(stamp), "oai_dc", "data01"))
         response = oaigetrecord.getRecord(arguments=dict(
                 verb=['GetRecord'],
                 metadataPrefix=['oai_dc'],

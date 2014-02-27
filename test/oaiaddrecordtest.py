@@ -52,21 +52,23 @@ class OaiAddRecordTest(SeecrTestCase):
         self.subject.addObserver(self.observer)
 
     def testAdd(self):
-        list(compose(self.subject.add('id', 'partName', parseLxml('<empty/>'))))
+        lxmlNode = parseLxml('<empty/>')
+        list(compose(self.subject.add('id', 'partName', lxmlNode)))
 
-        self.assertEquals(1,len(self.observer.calledMethods))
-        self.assertEquals('addOaiRecord', self.observer.calledMethods[0].name)
+        self.assertEquals(['addOaiRecord', 'add'], self.observer.calledMethodNames())
         self.assertEquals('id', self.observer.calledMethods[0].kwargs['identifier'])
         self.assertEquals([('partName', '', '')], self.observer.calledMethods[0].kwargs['metadataFormats'])
         self.assertEquals(set(), self.observer.calledMethods[0].kwargs['sets'])
+        kwargs = self.observer.calledMethods[1].kwargs 
+        self.assertTrue(lxmlNode is kwargs.pop('lxmlNode'))
+        self.assertEquals({'identifier':'id', 'partname':'partName'}, kwargs) 
 
     def testAddSetInfo(self):
         header = parseLxml('<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>1</setSpec></header>')
 
         list(compose(self.subject.add('123', 'oai_dc', header)))
 
-        self.assertEquals(1,len(self.observer.calledMethods))
-        self.assertEquals('addOaiRecord', self.observer.calledMethods[0].name)
+        self.assertEquals(['addOaiRecord', 'add'], self.observer.calledMethodNames())
         self.assertEquals('123', self.observer.calledMethods[0].kwargs['identifier'])
         self.assertEquals(set([('1','1')]), self.observer.calledMethods[0].kwargs['sets'])
         self.assertEquals([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[0].kwargs['metadataFormats'])
@@ -79,8 +81,7 @@ class OaiAddRecordTest(SeecrTestCase):
 
         list(compose(self.subject.add('123', 'oai_dc', header)))
 
-        self.assertEquals(1,len(self.observer.calledMethods))
-        self.assertEquals('addOaiRecord', self.observer.calledMethods[0].name)
+        self.assertEquals(['addOaiRecord', 'add'], self.observer.calledMethodNames())
         self.assertEquals('123', self.observer.calledMethods[0].kwargs['identifier'])
         self.assertEquals(set([('1','1')]), self.observer.calledMethods[0].kwargs['sets'])
         self.assertEquals([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[0].kwargs['metadataFormats'])
@@ -90,8 +91,7 @@ class OaiAddRecordTest(SeecrTestCase):
 
         list(compose(self.subject.add('123', 'oai_dc', header)))
 
-        self.assertEquals(1,len(self.observer.calledMethods))
-        self.assertEquals('addOaiRecord', self.observer.calledMethods[0].name)
+        self.assertEquals(['addOaiRecord', 'add'], self.observer.calledMethodNames())
         self.assertEquals('123', self.observer.calledMethods[0].kwargs['identifier'])
         self.assertEquals(set([('1','1')]), self.observer.calledMethods[0].kwargs['sets'])
         self.assertEquals([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[0].kwargs['metadataFormats'])
@@ -101,8 +101,9 @@ class OaiAddRecordTest(SeecrTestCase):
         list(compose(self.subject.add('123', 'oai_dc', parseLxml(header % 1))))
         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>%s</setSpec></header>'
         list(compose(self.subject.add('124', 'oai_dc', parseLxml(header % 1))))
+        self.assertEquals(['addOaiRecord', 'add', 'addOaiRecord', 'add'], self.observer.calledMethodNames())
         self.assertEquals([('oai_dc', '', "this.is.not.the.right.ns")], self.observer.calledMethods[0].kwargs['metadataFormats'])
-        self.assertEquals([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[1].kwargs['metadataFormats'])
+        self.assertEquals([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[2].kwargs['metadataFormats'])
 
     def testMultipleHierarchicalSets(self):
         spec = "<setSpec>%s</setSpec>"
@@ -117,7 +118,7 @@ class OaiAddRecordTest(SeecrTestCase):
              xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
         self.assertEquals([('oai_dc', 'http://oai_dc/dc.xsd', 'http://oai_dc')], self.observer.calledMethods[0].kwargs['metadataFormats'])
         list(compose(self.subject.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))))
-        self.assertEquals([('dc2', '', 'http://dc2')], self.observer.calledMethods[1].kwargs['metadataFormats'])
+        self.assertEquals([('dc2', '', 'http://dc2')], self.observer.calledMethods[2].kwargs['metadataFormats'])
 
     def testMetadataPrefixesFromRootTag(self):
         list(compose(self.subject.add('456', 'oai_dc', parseLxml('''<oai_dc:dc

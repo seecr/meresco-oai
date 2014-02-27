@@ -38,7 +38,7 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
 
         list(compose(subject.add('id', ignored="kwarg", data="na")))
 
-        self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
+        self.assertEquals(['addOaiRecord', 'add'], [m.name for m in observer.calledMethods])
         self.assertEquals({'identifier':'id',
             'sets': [('setSpec', 'setName')],
             'metadataFormats': [('prefix','schema','namespace')]},
@@ -52,7 +52,7 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
 
         list(compose(subject.add('id', ignored="kwarg", data="data")))
 
-        self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
+        self.assertEquals(['addOaiRecord', 'add'], [m.name for m in observer.calledMethods])
         self.assertEquals({'identifier':'id',
             'sets': [('setSpec', 'setName')],
             'metadataFormats': [('prefix','schema','namespace')]},
@@ -62,7 +62,7 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
             self.assertEquals({'identifier':'id', 'ignored':'kwarg', 'data':"data"}, method.kwargs)
 
     def testUseSequentialStorage(self):
-        addrecord = OaiAddRecordWithDefaults(metadataFormats=[('part1', '?', '?'), ('part2', '?', '?')], useSequentialStorage=True)
+        addrecord = OaiAddRecordWithDefaults(metadataFormats=[('part1', '?', '?')], useSequentialStorage=True)
         jazz =  OaiJazz(self.tempdir)
         addrecord.addObserver(jazz)
         makedirs(self.tempdir + '/1')
@@ -71,7 +71,11 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
         consume(addrecord.add("id0", data="<xml/>"))
         t, data = storage.iterData("part1", 0, 9999999999999).next()
         self.assertEquals("<xml/>", data)
-        t, data = storage.iterData("part2", 0, 9999999999999).next()
-        self.assertEquals("<xml/>", data)
+
+    def testUseSequentialStorageAcceptstExactlyOneMetadataFormat(self):
+        addrecord = OaiAddRecordWithDefaults(metadataFormats=[('part1', '?', '?'), ('part2', '?', '?')], useSequentialStorage=True)
+        jazz =  OaiJazz(self.tempdir)
+        addrecord.addObserver(jazz)
+        self.assertRaises(ValueError, lambda: consume(addrecord.add("id0", data="<xml/>")))
 
 
