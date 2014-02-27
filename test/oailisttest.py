@@ -35,6 +35,7 @@ from xml.sax.saxutils import escape as escapeXml
 from lxml.etree import parse
 from uuid import uuid4
 from os import makedirs
+from os.path import join
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced
@@ -90,10 +91,9 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
 
     def testListRecordsWithSequentialMultiStorage(self):
-        oaijazz = OaiJazz(self.tempdir + '/1')
+        oaijazz = OaiJazz(join(self.tempdir, '1'))
         oailist = OaiList(batchSize=2)
-        makedirs(self.tempdir + "/2")
-        oaistorage = SequentialMultiStorage(self.tempdir + "/2")
+        oaistorage = SequentialMultiStorage(join(self.tempdir, "2"))
         oailist.addObserver(oaijazz)
         oairecord = OaiRecord()
         oailist.addObserver(oaistorage)
@@ -104,6 +104,24 @@ class OaiListTest(SeecrTestCase):
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
         self.assertEquals("data01", xpath(parse(StringIO(body)), '//oai:metadata')[0].text)
+
+    def testListRecordsWithALotOfDeletedRecords(self):
+        oaijazz = OaiJazz(join(self.tempdir, '1'))
+        oailist = OaiList(batchSize=2)
+        oaistorage = SequentialMultiStorage(join(self.tempdir, "2"))
+        oailist.addObserver(oaijazz)
+        oairecord = OaiRecord()
+        oailist.addObserver(oaistorage)
+        oailist.addObserver(oairecord)
+        for id in ['id0', 'id1', 'id1']:
+            stamp = oaijazz.addOaiRecord(id, (), metadataFormats=[('oai_dc', '', '')])
+            consume(oaistorage.add(str(stamp), "oai_dc", "data_%s" % id))
+        response = oailist.listRecords(arguments=dict(
+                verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
+        with stderr_replaced() as err:
+            _, body = asString(response).split("\r\n\r\n")
+            self.assertEquals('Sequential vs OaiSelectResult ratio > 1.1: 3/2 = 1.500\n', err.getvalue())
+        self.assertEquals(["data_id0", "data_id1"], xpath(parse(StringIO(body)), '//oai:metadata/text()'))
 
 
     def testListIdentifiers(self):

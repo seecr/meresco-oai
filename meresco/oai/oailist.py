@@ -225,6 +225,15 @@ Error and Exception Conditions
                     stop=records[-1].stamp,
                     inclusive=True
                 ))
+            sequentialVsOaiSelectResultRatio = len(data) / float(result.numberOfRecordsInBatch)
+            if sequentialVsOaiSelectResultRatio > MAX_RATIO:
+                sys.stderr.write("Sequential vs OaiSelectResult ratio > {0:.1f}: {1:d}/{2:d} = {3:.3f}\n".format(
+                    MAX_RATIO,
+                    len(data),
+                    result.numberOfRecordsInBatch,
+                    sequentialVsOaiSelectResultRatio)
+                )
+                sys.stderr.flush()
         except NoneOfTheObserversRespond:
             pass
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
@@ -246,3 +255,4 @@ Error and Exception Conditions
             if 'resumptionToken' in validatedArguments:
                 yield '<resumptionToken/>'
 
+MAX_RATIO = 1.1
