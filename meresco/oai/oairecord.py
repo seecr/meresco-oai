@@ -51,8 +51,8 @@ class OaiRecord(Transparent):
 
         if not record.isDeleted:
             yield '<metadata>'
-            data = data.get(str(record.stamp))
-            if data:
+            data = None if data is None else data.get(str(record.stamp))
+            if not data is None:
                 yield data
             else:
                 yield self.all.yieldRecord(record.identifier, metadataPrefix)

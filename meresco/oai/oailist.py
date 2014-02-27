@@ -217,7 +217,7 @@ Error and Exception Conditions
     def _process(self, verb, result, validatedArguments, **httpkwargs):
         records = list(result.records)
         metadataPrefix = validatedArguments['metadataPrefix']
-        data = {}
+        data = None
         try:
             data = dict(self.call.iterData(
                     name=metadataPrefix,
