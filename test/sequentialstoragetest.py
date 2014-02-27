@@ -239,6 +239,7 @@ class SequentialStorageTest(SeecrTestCase):
     def xxxtestReadSpeed(self):
         from random import random, randint
         from time import time
+        from sys import getsizeof
         count = 1000000
         s = SequentialStorage(self.tempdir + '/test')
         data = ''.join(str(random()) for f in xrange(300))
@@ -253,17 +254,19 @@ class SequentialStorageTest(SeecrTestCase):
                 recordsPerSecond = (i-count)/(t1-t0)
                 bytesPerSecond = bytesWritten/(t1-t0)
                 print bytesWritten, recordsPerSecond, bytesPerSecond
-                if bytesWritten > 2*10**9: break
+                if bytesWritten > 0.5*10**9: break
         n = 0
         t0 = time()
         print count, i
-        for j in xrange(10000):
+        for j in xrange(50000):
             data = s.index(str(randint(count, i)))
             n += 1
             t1 = time()
             if j % 1000 == 0:
                 lookupsPerSecond = n / (t1-t0)
-                print lookupsPerSecond
+                c = s._index._cache
+                siz = getsizeof(c)
+                print lookupsPerSecond, len(c), siz, siz/len(c)
         print "lookups:", n, "time:", (t1-t0), "lookups/second:", n/(t1-t0)
 
     def testDirectoryCreatedIfNotExists(self):

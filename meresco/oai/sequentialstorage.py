@@ -38,12 +38,18 @@ class KeyIndex(object):
 
     def __init__(self, src):
         self._src = src
+        self._cache = {}
 
     def __len__(self):
         return len(self._src)
 
     def __getitem__(self, i):
-        return self._src[i][0]
+        if i in self._cache:
+            return self._cache[i]
+        else:
+            index = self._src[i][0]
+            self._cache[i] = index
+            return index
 
 
 class Iter(object):
