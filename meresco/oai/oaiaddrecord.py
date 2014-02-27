@@ -46,6 +46,8 @@ class OaiAddRecordBase(Transparent):
             for prefix, schema, namespace in metadataFormats:
                 kwargs.pop('partname', None)
                 self.do.add(identifier=stamp, partname=prefix, **kwargs)
+        else:
+            yield self.all.add(identifier=identifier, **kwargs)
 
 class OaiAddRecordWithDefaults(OaiAddRecordBase):
     def __init__(self, metadataFormats=None, sets=None, **kwargs):
@@ -59,12 +61,10 @@ class OaiAddRecordWithDefaults(OaiAddRecordBase):
             return lambda **kwargs: []
         return iterableOrCallable if callable(iterableOrCallable) else lambda **kwargs: iterableOrCallable
 
-    @asyncreturn
     def add(self, identifier, **kwargs):
-        super(OaiAddRecordWithDefaults, self).add(identifier=identifier, sets=self._sets(identifier=identifier, **kwargs), metadataFormats=self._metadataFormats(identifier=identifier, **kwargs), **kwargs)
+        yield super(OaiAddRecordWithDefaults, self).add(identifier=identifier, sets=self._sets(identifier=identifier, **kwargs), metadataFormats=self._metadataFormats(identifier=identifier, **kwargs), **kwargs)
 
 class OaiAddRecord(OaiAddRecordBase):
-    @asyncreturn
     def add(self, identifier, partname, lxmlNode):
         record = lxmlNode if iselement(lxmlNode) else lxmlNode.getroot()
         setSpecs = record.xpath('//oai:header/oai:setSpec/text()', namespaces=namespaces)
@@ -76,7 +76,7 @@ class OaiAddRecord(OaiAddRecordBase):
         schema = dict(zip(ns2xsd[::2],ns2xsd[1::2])).get(namespace, '')
         schema, namespace = self._magicSchemaNamespace(record.prefix, partname, schema, namespace)
         metadataFormats=[(partname, schema, namespace)]
-        super(OaiAddRecord, self).add(identifier, sets, metadataFormats, lxmlNode=lxmlNode)
+        yield super(OaiAddRecord, self).add(identifier, sets, metadataFormats, partname=partname, lxmlNode=lxmlNode)
 
     def _magicSchemaNamespace(self, prefix, name, schema, namespace):
         searchForPrefix = prefix or name
