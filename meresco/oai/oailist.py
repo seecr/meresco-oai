@@ -216,10 +216,15 @@ Error and Exception Conditions
 
     def _process(self, verb, result, validatedArguments, **httpkwargs):
         records = list(result.records)
-        mdp = validatedArguments['metadataPrefix']
+        metadataPrefix = validatedArguments['metadataPrefix']
         data = {}
         try:
-            data = dict(self.call.iterData(mdp, records[0].stamp, records[-1].stamp))
+            data = dict(self.call.iterData(
+                    name=metadataPrefix,
+                    start=records[0].stamp,
+                    stop=records[-1].stamp,
+                    inclusive=True
+                ))
         except NoneOfTheObserversRespond:
             pass
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"

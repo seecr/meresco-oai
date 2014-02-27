@@ -54,16 +54,22 @@ class KeyIndex(object):
 
 class Iter(object):
 
-    def __init__(self, src, start, stop):
-        self._fp = BLOCKSIZE * bisect_left(src._index, str(start))
+    def __init__(self, src, start, stop, inclusive=False):
+        self._offset = BLOCKSIZE * bisect_left(src._index, str(start))
         self._src = src
-        self._stop = str(stop)
+        if stop:
+            if inclusive:
+                self._shouldStop = lambda key: key > str(stop)
+            else:
+                self._shouldStop = lambda key: key >= str(stop)
+        else:
+            self._shouldStop = lambda key: False
 
     def next(self):
-        self._src._f.seek(self._fp)
+        self._src._f.seek(self._offset)
         key, data = self._src._readNext()
-        self._fp = self._src._f.tell()
-        if self._stop and key > self._stop:
+        self._offset = self._src._f.tell()
+        if self._shouldStop(key):
             raise StopIteration
         return key, data
 
@@ -94,8 +100,8 @@ class SequentialMultiStorage(object):
     def getData(self, key, name):
         return self._getStorage(name).index(key)
 
-    def iterData(self, name, start, stop):
-        return self._getStorage(name).iter(start, stop)
+    def iterData(self, name, start, stop, **kwargs):
+        return self._getStorage(name).iter(start, stop, **kwargs)
 
     def flush(self):
         for storage in self._storage.itervalues():
@@ -159,8 +165,8 @@ class SequentialStorage(object):
             raise IndexError
         return data
 
-    def iter(self, start, stop=None):
-        return Iter(self, start, stop)
+    def iter(self, start, stop=None, **kwargs):
+        return Iter(self, start, stop, **kwargs)
 
 # from Python lib
 def bisect_left(a, x, lo=0, hi=None):

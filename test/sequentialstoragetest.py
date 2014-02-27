@@ -77,6 +77,11 @@ class SequentialStorageTest(SeecrTestCase):
         except ValueError, e:
             self.assertEquals("key 2 must be greater than last key 4", str(e))
 
+    def testNumbersAsString(self):
+        s = SequentialStorage(self.tempdir + "/f")
+        s.add( "2", "na")
+        s.add("10", "na")
+
     def testKeyIsMonotonicallyIncreasingAfterReload(self):
         s = SequentialMultiStorage(self.tempdir)
         s.add("3", "na",  "na")
@@ -227,14 +232,16 @@ class SequentialStorageTest(SeecrTestCase):
         s = SequentialStorage(self.tempdir + "test")
         s.add("2", "two")
         s.add("4", "four")
+        s.add("6", "six")
         s.add("7", "seven")
+        s.add("8", "eight")
         s.add("9", "nine")
         i = s.iter("0", "5")
         self.assertEquals([('2', "two"), ('4', "four")], list(i))
-        i = s.iter("4", "7") #inclusive????
-        self.assertEquals([('4', "four"), ('7', "seven")], list(i))
+        i = s.iter("4", "7")  # Not inclusive
+        self.assertEquals([('4', "four"), ('6', "six")], list(i))
         i = s.iter("5", "99")
-        self.assertEquals([('7', "seven"), ('9', "nine")], list(i))
+        self.assertEquals([('6', "six"), ('7', "seven"), ('8', "eight"), ('9', "nine")], list(i))
 
     def xxxtestReadSpeed(self):
         from random import random, randint

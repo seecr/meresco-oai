@@ -63,7 +63,7 @@ class OaiListTest(SeecrTestCase):
         self.observer.methods['oaiRecordHeader'] = oaiRecord
         self.observer.methods['getAllPrefixes'] = self.oaiJazz.getAllPrefixes
         self.observer.methods['oaiSelect'] = self.oaiJazz.oaiSelect
-        def iterData(*args):
+        def iterData(**kwargs):
             raise NoneOfTheObserversRespond('No one', 0)
         self.observer.methods['iterData'] = iterData
         self.oaiList.addObserver(self.observer)
