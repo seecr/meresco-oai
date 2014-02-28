@@ -26,10 +26,12 @@
 
 from os.path import join, isdir
 from os import listdir, makedirs
-from collections import OrderedDict
 from escaping import escapeFilename
 from zlib import compress, decompress
+
 from meresco.core import asyncnoreturnvalue
+
+from ordereddict import OrderedDict
 
 
 SENTINEL = "----"
