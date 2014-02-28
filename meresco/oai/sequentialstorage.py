@@ -57,7 +57,7 @@ class SequentialMultiStorage(object):
         self._getStorage(name).add(key, data)
 
     def getData(self, key, name):
-        return self._getStorage(name).getData(key)
+        return self._getStorage(name)[key]
 
     def iterData(self, name, start, stop, **kwargs):
         return self._getStorage(name).iter(start, stop, **kwargs)
@@ -95,7 +95,7 @@ class SequentialStorage(object):
         record = RECORD % locals()
         self._f.write(record) # one write is a little bit faster
 
-    def getData(self, key):
+    def __getitem__(self, key):
         _intcheck(key)
         i = _bisect_left(self._index, key)
         found_key, data = self._keyData(i)
