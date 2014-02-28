@@ -34,64 +34,12 @@ from meresco.core import asyncnoreturnvalue
 from ordereddict import OrderedDict
 
 
-SENTINEL = "----"
-RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
-BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
-DEFAULT_CACHESIZE = 100000
-
-class KeyIndex(object):
-
-    def __init__(self, src, maxSize):
-        self._src = src
-        self._cache = OrderedDict()
-        self._maxSize = maxSize
-
-    def __len__(self):
-        return len(self._src)
-
-    def __getitem__(self, key):
-        if key in self._cache:
-            result = self._cache.pop(key)
-            self._cache[key] = result
-            return result
-        index = self._src[key][0]
-        self._cache[key] = index
-        if len(self._cache) > self._maxSize:
-            self._cache.popitem(0)
-        return index
-
-
-class Iter(object):
-
-    def __init__(self, src, start, stop, inclusive=False):
-        self._offset = BLOCKSIZE * bisect_left(src._index, start)
-        self._src = src
-        if stop:
-            if inclusive:
-                self._shouldStop = lambda key: key > stop
-            else:
-                self._shouldStop = lambda key: key >= stop
-        else:
-            self._shouldStop = lambda key: False
-
-    def next(self):
-        self._src._f.seek(self._offset)
-        key, data = self._src._readNext()
-        self._offset = self._src._f.tell()
-        if self._shouldStop(key):
-            raise StopIteration
-        return key, data
-
-    def __iter__(self):
-        return self
-
-
 class SequentialMultiStorage(object):
-    def __init__(self, path, maxCacheSize=DEFAULT_CACHESIZE):
+    def __init__(self, path, maxCacheSize=None):
         self._path = path
         isdir(self._path) or makedirs(self._path)
         self._storage = {}
-        self._maxCacheSize = maxCacheSize
+        self._maxCacheSize = maxCacheSize or DEFAULT_CACHESIZE
         for name in listdir(path):
             self._getStorage(name)
 
@@ -123,16 +71,15 @@ class SequentialMultiStorage(object):
         for storage in self._storage.itervalues():
             storage.flush()
 
-def _intcheck(value):
-    if type(value) is not int:
-        raise ValueError('Expected int')
+DEFAULT_CACHESIZE = 100000
+
 
 class SequentialStorage(object):
     def __init__(self, fileName, maxCacheSize):
         self._f = open(fileName, "ab+")
-        self._index = KeyIndex(self, maxSize=maxCacheSize)
+        self._index = _KeyIndex(self, maxSize=maxCacheSize)
         if len(self):
-            lastindex = bisect_left(self._index, "zzzzzzzzzzz")
+            lastindex = _bisect_left(self._index, "zzzzzzzzzzz")
             self._lastKey = self[lastindex - 1][0]
         else:
             self._lastKey = None
@@ -160,14 +107,14 @@ class SequentialStorage(object):
         while sentinel != '':
             sentinel = self._f.readline()
             if sentinel.strip() == SENTINEL:
-                identifier = int(self._f.readline().strip())
+                key = int(self._f.readline().strip())
                 try:
                     length = int(self._f.readline().strip())
                 except ValueError:
                     continue
                 data = self._f.read(length)
                 assert len(data) == length
-                return identifier, decompress(data)
+                return key, decompress(data)
         raise StopIteration
 
     def __getitem__(self, key):
@@ -180,7 +127,7 @@ class SequentialStorage(object):
 
     def index(self, key):
         _intcheck(key)
-        i = bisect_left(self._index, key)
+        i = _bisect_left(self._index, key)
         found_key, data = self[i]
         if found_key != key:
             raise IndexError
@@ -189,10 +136,64 @@ class SequentialStorage(object):
     def iter(self, start, stop=None, **kwargs):
         _intcheck(start)
         stop is None or _intcheck(stop)
-        return Iter(self, start, stop, **kwargs)
+        return _Iter(self, start, stop, **kwargs)
+
+
+class _Iter(object):
+    def __init__(self, src, start, stop, inclusive=False):
+        self._offset = BLOCKSIZE * _bisect_left(src._index, start)
+        self._src = src
+        if stop:
+            if inclusive:
+                self._shouldStop = lambda key: key > stop
+            else:
+                self._shouldStop = lambda key: key >= stop
+        else:
+            self._shouldStop = lambda key: False
+
+    def next(self):
+        self._src._f.seek(self._offset)
+        key, data = self._src._readNext()
+        self._offset = self._src._f.tell()
+        if self._shouldStop(key):
+            raise StopIteration
+        return key, data
+
+    def __iter__(self):
+        return self
+
+SENTINEL = "----"
+RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
+BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
+
+
+class _KeyIndex(object):
+    def __init__(self, src, maxSize):
+        self._src = src
+        self._cache = OrderedDict()
+        self._maxSize = maxSize
+
+    def __len__(self):
+        return len(self._src)
+
+    def __getitem__(self, key):
+        if key in self._cache:
+            result = self._cache.pop(key)
+            self._cache[key] = result
+            return result
+        index = self._src[key][0]
+        self._cache[key] = index
+        if len(self._cache) > self._maxSize:
+            self._cache.popitem(0)
+        return index
+
+
+def _intcheck(value):
+    if type(value) is not int:
+        raise ValueError('Expected int')
 
 # from Python lib
-def bisect_left(a, x, lo=0, hi=None):
+def _bisect_left(a, x, lo=0, hi=None):
     """Return the index where to insert item x in list a, assuming a is sorted.
 
     The return value i is such that all e in a[:i] have e < x, and all e in

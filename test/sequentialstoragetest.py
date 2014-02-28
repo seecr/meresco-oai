@@ -30,8 +30,8 @@ from weightless.core import consume
 
 from os.path import join, isfile, isdir
 
-class SequentialStorageTest(SeecrTestCase):
 
+class SequentialStorageTest(SeecrTestCase):
     def testA(self):
         s = SequentialMultiStorage(self.tempdir)
         self.assertTrue(s != None)

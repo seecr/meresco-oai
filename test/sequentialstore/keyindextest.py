@@ -26,7 +26,8 @@
 
 from seecr.test import SeecrTestCase
 
-from meresco.oai.sequentialstorage import KeyIndex
+from meresco.oai.sequentialstorage import _KeyIndex
+
 
 class KeyIndexTest(SeecrTestCase):
     def testMaxSize(self):
@@ -35,7 +36,7 @@ class KeyIndexTest(SeecrTestCase):
             def __getitem__(self, key):
                 requestedKeys.append(key)
                 return (1000 + key, 'ignored')
-        keyIndex = KeyIndex(Source(), maxSize=3)
+        keyIndex = _KeyIndex(Source(), maxSize=3)
         self.assertEquals(1001, keyIndex[1])
         self.assertEquals(1002, keyIndex[2])
         self.assertEquals([1, 2], requestedKeys)
