@@ -116,6 +116,11 @@ class SequentialMultiStorage(object):
         stop is None or intcheck(stop)
         return self._getStorage(name).iter(start, stop, **kwargs)
 
+    def handleShutdown(self):
+        print 'handle shutdown: saving SequentialMultiStorage %s' % self._path
+        from sys import stdout; stdout.flush()
+        self.flush()
+
     def flush(self):
         for storage in self._storage.itervalues():
             storage.flush()
