@@ -301,7 +301,7 @@ class OaiJazz(object):
         maxDoc = searcher.getIndexReader().maxDoc()
         if maxDoc < 1:
             return 0
-        return searcher.doc(maxDoc - 1).getField("stamp").numericValue().longValue()
+        return int(searcher.doc(maxDoc - 1).getField("stamp").numericValue().longValue())
 
     def _getSearcher(self, identifier=None):
         modifications = len(self._latestModifications)
@@ -456,7 +456,7 @@ def _stamp2zulutime(stamp, preciseDatestamp=False):
     return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp / DATESTAMP_FACTOR)), microseconds)
 
 def _stampFromDocument(doc):
-    return doc.getField("stamp").numericValue().longValue()
+    return int(doc.getField("stamp").numericValue().longValue())
 
 class ForcedResumeException(Exception):
     pass

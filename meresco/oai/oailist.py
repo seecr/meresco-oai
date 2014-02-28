@@ -221,8 +221,8 @@ Error and Exception Conditions
         try:
             data = dict(self.call.iterData(
                     name=metadataPrefix,
-                    start=int(records[0].stamp),
-                    stop=int(records[-1].stamp),
+                    start=records[0].stamp,
+                    stop=records[-1].stamp,
                     inclusive=True
                 ))
             sequentialVsOaiSelectResultRatio = len(data) / float(result.numberOfRecordsInBatch)
