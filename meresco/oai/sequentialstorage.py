@@ -104,16 +104,12 @@ class SequentialMultiStorage(object):
         self.addData(key=identifier, name=partname, data=data)
 
     def addData(self, key, name, data):
-        intcheck(key)
         self._getStorage(name).add(key, data)
 
     def getData(self, key, name):
-        intcheck(key)
         return self._getStorage(name).index(key)
 
     def iterData(self, name, start, stop, **kwargs):
-        intcheck(start)
-        stop is None or intcheck(stop)
         return self._getStorage(name).iter(start, stop, **kwargs)
 
     def handleShutdown(self):
@@ -125,13 +121,12 @@ class SequentialMultiStorage(object):
         for storage in self._storage.itervalues():
             storage.flush()
 
-def intcheck(value):
+def _intcheck(value):
     if type(value) is not int:
         raise ValueError('Expected int')
 
 class SequentialStorage(object):
-    def __init__(self, fileName, maxCacheSize, intcheck=intcheck):
-        self._intcheck = intcheck
+    def __init__(self, fileName, maxCacheSize):
         self._f = open(fileName, "ab+")
         self._index = KeyIndex(self, maxSize=maxCacheSize)
         if len(self):
@@ -141,7 +136,7 @@ class SequentialStorage(object):
             self._lastKey = None
 
     def add(self, key, data):
-        self._intcheck(key)
+        _intcheck(key)
         if key <= self._lastKey:
             raise ValueError("key %s must be greater than last key %s" % (key, self._lastKey))
         self._lastKey = key
@@ -174,7 +169,7 @@ class SequentialStorage(object):
         raise StopIteration
 
     def __getitem__(self, key):
-        self._intcheck(key)
+        _intcheck(key)
         self._f.seek(key * BLOCKSIZE)
         try:
             return self._readNext()
@@ -182,7 +177,7 @@ class SequentialStorage(object):
             raise IndexError
 
     def index(self, key):
-        self._intcheck(key)
+        _intcheck(key)
         i = bisect_left(self._index, key)
         found_key, data = self[i]
         if found_key != key:
@@ -190,8 +185,8 @@ class SequentialStorage(object):
         return data
 
     def iter(self, start, stop=None, **kwargs):
-        self._intcheck(start)
-        stop is None or self._intcheck(stop)
+        _intcheck(start)
+        stop is None or _intcheck(stop)
         return Iter(self, start, stop, **kwargs)
 
 # from Python lib
