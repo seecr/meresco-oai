@@ -24,11 +24,14 @@
 #
 ## end license ##
 
+from os.path import join, isfile, isdir
+
 from seecr.test import SeecrTestCase
-from meresco.oai import SequentialStorage, SequentialMultiStorage
+
 from weightless.core import consume
 
-from os.path import join, isfile, isdir
+from meresco.oai import SequentialStorage, SequentialMultiStorage
+from meresco.oai.sequentialstorage import SENTINEL
 
 
 class SequentialStorageTest(SeecrTestCase):
@@ -301,9 +304,51 @@ class SequentialStorageTest(SeecrTestCase):
         SequentialMultiStorage(join(self.tempdir, "storage"))
         self.assertTrue(isdir(join(self.tempdir, "storage")))
 
+    def testCorruptionTruncated(self):
+        filePath = join(self.tempdir, 'storage')
+        with open(filePath, 'ab') as f:
+            f.write("what\n")
+        s = SequentialStorage(filePath)
+        s.add(1, "record 1")
+        self.assertEquals([(1, 'record 1')], list(s.iter(start=0, stop=99)))
+        s.flush()
+        s = None
+        fileData = open(filePath).read()
+        self.assertTrue(fileData.startswith(SENTINEL + '\n1\n'), fileData)
+
+        filePath = join(self.tempdir, 'storage2')
+        with open(filePath, 'ab') as f:
+            f.write("whatever longer than block size\n")
+        s = SequentialStorage(filePath)
+        s.add(2, "record 2")
+        self.assertEquals([(2, 'record 2')], list(s.iter(start=0, stop=99)))
+        s.flush()
+        s = None
+        fileData = open(filePath).read()
+        self.assertTrue(fileData.startswith(SENTINEL + '\n2\n'), fileData)
+
+        with open(filePath, 'ab') as f:
+            f.write("whatever longer than block size\n")
+        s = SequentialStorage(filePath)
+        s.add(3, "record 3")
+        self.assertEquals([(2, 'record 2'), (3, 'record 3')], list(s.iter(start=0, stop=99)))
+        s.flush()
+        s = None
+        with open(filePath, 'ab') as f:
+            f.write(SENTINEL + "\n")
+        s = SequentialStorage(filePath)
+        s.add(4, "record 4")
+        self.assertEquals([(4, 'record 4')], list(s.iter(start=4, stop=99)))
+        s.flush()
+        s = None
+
+        with open(filePath, 'ab') as f:
+            f.truncate(f.tell() - 3)
+        s = SequentialStorage(filePath)
+        self.assertEquals([(3, 'record 3')], list(s.iter(start=3, stop=99)))
+
+
+
+
     def testReadOnlyKeyWhileSearching(self):
         pass
-
-    # _index kan weg
-    # flush -> handle shutdown
-

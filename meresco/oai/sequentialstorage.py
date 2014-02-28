@@ -27,7 +27,7 @@
 from os.path import join, isdir
 from os import listdir, makedirs
 from escaping import escapeFilename
-from zlib import compress, decompress
+from zlib import compress, decompress, error as ZlibError
 
 from meresco.core import asyncnoreturnvalue
 
@@ -39,7 +39,7 @@ class SequentialMultiStorage(object):
         self._path = path
         isdir(self._path) or makedirs(self._path)
         self._storage = {}
-        self._maxCacheSize = maxCacheSize or DEFAULT_CACHESIZE
+        self._maxCacheSize = maxCacheSize
         for name in listdir(path):
             self._getStorage(name)
 
@@ -71,18 +71,20 @@ class SequentialMultiStorage(object):
         for storage in self._storage.itervalues():
             storage.flush()
 
-DEFAULT_CACHESIZE = 100000
-
 
 class SequentialStorage(object):
-    def __init__(self, fileName, maxCacheSize):
+    def __init__(self, fileName, maxCacheSize=None):
         self._f = open(fileName, "ab+")
-        self._index = _KeyIndex(self, maxSize=maxCacheSize)
+        self._index = _KeyIndex(self, maxSize=maxCacheSize or DEFAULT_CACHESIZE)
+        self._lastKey = None
+        lastindex = 0
         if self._sizeInBlocks():
             lastindex = _bisect_left(self._index, LARGER_THAN_ANY_INT)
-            self._lastKey = self._keyData(lastindex - 1)[0]
+        if lastindex == 0:
+            self._f.truncate(0)
         else:
-            self._lastKey = None
+            self._lastKey = self._keyData(lastindex - 1)[0]
+            self._f.truncate()
 
     def add(self, key, data):
         _intcheck(key)
@@ -127,14 +129,18 @@ class SequentialStorage(object):
         while line != '':
             line = self._f.readline()
             if line.strip() == SENTINEL:
-                key = int(self._f.readline().strip())
                 try:
+                    key = int(self._f.readline().strip())
                     length = int(self._f.readline().strip())
                 except ValueError:
-                    continue
+                    break
                 data = self._f.read(length)
-                assert len(data) == length
-                return key, decompress(data)
+                self._f.read(1)  # newline after data
+                try:
+                    data = decompress(data)
+                except ZlibError:
+                    break
+                return key, data
         raise StopIteration
 
 
@@ -165,6 +171,7 @@ SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
 BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
 LARGER_THAN_ANY_INT = object()
+DEFAULT_CACHESIZE = 100000
 
 
 class _KeyIndex(object):
