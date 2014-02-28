@@ -6,8 +6,8 @@
 # Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -30,7 +30,7 @@
 from seecr.test import SeecrTestCase, CallTrace
 from oaischema import assertValidOai
 
-from meresco.oai import OaiPmh, OaiJazz, OaiBranding
+from meresco.oai import OaiPmh, OaiJazz, OaiBranding, SequentialMultiStorage
 from meresco.core import Observable
 from meresco.components.http.utils import CRLF
 from meresco.components import StorageComponent
@@ -49,21 +49,22 @@ class _OaiPmhTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
         self.jazz = jazz = OaiJazz(join(self.tempdir, 'jazz'))
-        storage = StorageComponent(join(self.tempdir, 'storage'))
+        if not getattr(self, 'sequentialstore', False):
+            self.storage = StorageComponent(join(self.tempdir, 'storage'))
+        else:
+            self.storage = SequentialMultiStorage(join(self.tempdir, 'sequential-store'))
         self.oaipmh = self.getOaiPmh()
         self.root = be((Observable(),
             (self.oaipmh,
                 (jazz,),
-                (storage,)
+                (self.storage,)
             )
         ))
         for i in xrange(20):
-            recordId = 'record:id:%02d' % i
+            identifier = recordId = 'record:id:%02d' % i
             metadataFormats = [('oai_dc', 'http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://www.openarchives.org/OAI/2.0/oai_dc/')]
-            list(compose(storage.add(identifier=recordId, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)))
             if i >= 10:
                 metadataFormats.append(('prefix2', 'http://example.org/prefix2/?format=xsd&prefix=2','http://example.org/prefix2/'))
-                list(compose(storage.add(identifier=recordId, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)))
             sets = []
             if i >= 5:
                 sets.append(('setSpec%s' % ((i//5)*5), 'setName'))
@@ -72,9 +73,16 @@ class _OaiPmhTest(SeecrTestCase):
             if 10 <= i < 15:
                 sets.append(('hierarchical', 'hierarchical toplevel only'))
             sleep(0.001) # avoid timestamps being equals on VMs
-            jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
+            stamp = jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
             if i % 5 == 0:
                 list(compose(jazz.delete(recordId)))
+
+            if hasattr(self, 'sequentialstore'):
+                identifier = stamp
+
+            list(compose(self.storage.add(identifier=identifier, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)))
+            if i >= 10:
+                list(compose(self.storage.add(identifier=identifier, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)))
 
     def tearDown(self):
         self.jazz.close()
@@ -386,6 +394,11 @@ class HttpPostOaiPmhTest(OaiPmhTest):
     def setUp(self):
         OaiPmhTest.setUp(self)
         self.httpMethod = 'POST'
+
+class OaiPmhWithSequentialStorageTest(OaiPmhTest):
+    def setUp(self):
+        self.sequentialstore = True
+        OaiPmhTest.setUp(self)
 
 
 def xpath(node, path):
