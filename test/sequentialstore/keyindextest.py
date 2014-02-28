@@ -33,7 +33,7 @@ class KeyIndexTest(SeecrTestCase):
     def testMaxSize(self):
         requestedKeys = []
         class Source(object):
-            def __getitem__(self, key):
+            def _keyData(self, key):
                 requestedKeys.append(key)
                 return (1000 + key, 'ignored')
         keyIndex = _KeyIndex(Source(), maxSize=3)

@@ -118,57 +118,57 @@ class SequentialStorageTest(SeecrTestCase):
         # As a side effect, it solves back scanning! We let
         # bisect do that for us.
         s = SequentialStorage(self.tempfile, maxCacheSize=100)
-        self.assertEquals(0, len(s)) # artificial
+        self.assertEquals(0, s._sizeInBlocks())
         s.add(2, "<data>two is nice</data>")
         s.add(4, "<data>four goes fine</data>")
         s.add(7, "<data>seven seems ok</data>")
-        self.assertEquals(11, len(s)) # artificial
-        self.assertEquals((2, "<data>two is nice</data>"), s[0])
-        self.assertEquals((4, "<data>four goes fine</data>"), s[1])
-        self.assertEquals((4, "<data>four goes fine</data>"), s[2])
-        self.assertEquals((4, "<data>four goes fine</data>"), s[3])
-        self.assertEquals((7, "<data>seven seems ok</data>"), s[4])
-        self.assertEquals((7, "<data>seven seems ok</data>"), s[5])
-        self.assertEquals((7, "<data>seven seems ok</data>"), s[6])
-        self.assertEquals((7, "<data>seven seems ok</data>"), s[7])
+        self.assertEquals(11, s._sizeInBlocks())
+        self.assertEquals((2, "<data>two is nice</data>"), s._keyData(0))
+        self.assertEquals((4, "<data>four goes fine</data>"), s._keyData(1))
+        self.assertEquals((4, "<data>four goes fine</data>"), s._keyData(2))
+        self.assertEquals((4, "<data>four goes fine</data>"), s._keyData(3))
+        self.assertEquals((7, "<data>seven seems ok</data>"), s._keyData(4))
+        self.assertEquals((7, "<data>seven seems ok</data>"), s._keyData(5))
+        self.assertEquals((7, "<data>seven seems ok</data>"), s._keyData(6))
+        self.assertEquals((7, "<data>seven seems ok</data>"), s._keyData(7))
         # hmm, we expect index 0-10 to work based on len()
-        self.assertRaises(IndexError, lambda: s[8])
+        self.assertRaises(IndexError, lambda: s._keyData(8))
 
     def testIndexItem(self):
         s = SequentialStorage(self.tempfile, maxCacheSize=100)
-        self.assertEquals(0, len(s)) # artificial
+        self.assertEquals(0, s._sizeInBlocks())
         s.add(2, "<data>two</data>")
         s.add(4, "<data>four</data>")
         s.add(7, "<data>seven</data>")
-        self.assertEquals(8, len(s)) # artificial
-        self.assertEquals("<data>four</data>", s.index(4))
-        self.assertEquals("<data>two</data>", s.index(2))
-        self.assertEquals("<data>seven</data>", s.index(7))
+        self.assertEquals(8, s._sizeInBlocks())
+        self.assertEquals("<data>four</data>", s.getData(4))
+        self.assertEquals("<data>two</data>", s.getData(2))
+        self.assertEquals("<data>seven</data>", s.getData(7))
 
     def testIndexNotFound(self):
         s = SequentialStorage(self.tempfile, maxCacheSize=100)
-        self.assertRaises(IndexError, lambda: s.index(2))
+        self.assertRaises(IndexError, lambda: s.getData(2))
         s.add(2, "<data>two</data>")
-        self.assertRaises(IndexError, lambda: s.index(1))
-        self.assertRaises(IndexError, lambda: s.index(3))
+        self.assertRaises(IndexError, lambda: s.getData(1))
+        self.assertRaises(IndexError, lambda: s.getData(3))
         s.add(4, "<data>four</data>")
-        self.assertRaises(IndexError, lambda: s.index(1))
-        self.assertRaises(IndexError, lambda: s.index(3))
-        self.assertRaises(IndexError, lambda: s.index(5))
+        self.assertRaises(IndexError, lambda: s.getData(1))
+        self.assertRaises(IndexError, lambda: s.getData(3))
+        self.assertRaises(IndexError, lambda: s.getData(5))
 
     def testIndexWithVerySmallAndVEryLargeRecord(self):
         s = SequentialStorage(self.tempfile, maxCacheSize=100)
-        self.assertEquals(0, len(s)) # artificial
+        self.assertEquals(0, s._sizeInBlocks())
         s.add(2, "<data>short</data>")
         s.add(4, ''.join("<%s>" % i for i in xrange(10000)))
-        self.assertEquals(2011, len(s)) # artificial
-        self.assertEquals("<data>short</data>", s.index(2))
-        self.assertEquals("<0><1><2><3><4><5><6", s.index(4)[:20])
+        self.assertEquals(2011, s._sizeInBlocks())
+        self.assertEquals("<data>short</data>", s.getData(2))
+        self.assertEquals("<0><1><2><3><4><5><6", s.getData(4)[:20])
 
     def testNewLineInData(self):
         s = SequentialStorage(self.tempfile, maxCacheSize=100)
         s.add(4, "here follows\na new line")
-        self.assertEquals("here follows\na new line", s.index(4))
+        self.assertEquals("here follows\na new line", s.getData(4))
 
     def testSentinelInData(self):
         from meresco.oai.sequentialstorage import SENTINEL
@@ -177,8 +177,8 @@ class SequentialStorageTest(SeecrTestCase):
         s.add(5, ("abc%sxyz" % (SENTINEL+'\n')) * 10)
         s.add(7, "<data>seven</data>")
         s.add(9, "<data>nine</data>")
-        self.assertEquals("abc----\nxyzabc----\nx", s.index(5)[:20])
-        self.assertEquals("<data>seven</data>", s.index(7))
+        self.assertEquals("abc----\nxyzabc----\nx", s.getData(5)[:20])
+        self.assertEquals("<data>seven</data>", s.getData(7))
 
     def testValidPartName(self):
         s = SequentialMultiStorage(self.tempdir)
@@ -287,7 +287,7 @@ class SequentialStorageTest(SeecrTestCase):
         t0 = time()
         print count, i
         for j in xrange(50000):
-            data = s.index(str(randint(count, i)))
+            data = s.getData(str(randint(count, i)))
             n += 1
             t1 = time()
             if j % 1000 == 0:

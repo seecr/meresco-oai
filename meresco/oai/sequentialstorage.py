@@ -57,7 +57,7 @@ class SequentialMultiStorage(object):
         self._getStorage(name).add(key, data)
 
     def getData(self, key, name):
-        return self._getStorage(name).index(key)
+        return self._getStorage(name).getData(key)
 
     def iterData(self, name, start, stop, **kwargs):
         return self._getStorage(name).iter(start, stop, **kwargs)
@@ -78,9 +78,9 @@ class SequentialStorage(object):
     def __init__(self, fileName, maxCacheSize):
         self._f = open(fileName, "ab+")
         self._index = _KeyIndex(self, maxSize=maxCacheSize)
-        if len(self):
-            lastindex = _bisect_left(self._index, "zzzzzzzzzzz")
-            self._lastKey = self[lastindex - 1][0]
+        if self._sizeInBlocks():
+            lastindex = _bisect_left(self._index, LARGER_THAN_ANY_INT)
+            self._lastKey = self._keyData(lastindex - 1)[0]
         else:
             self._lastKey = None
 
@@ -95,18 +95,38 @@ class SequentialStorage(object):
         record = RECORD % locals()
         self._f.write(record) # one write is a little bit faster
 
+    def getData(self, key):
+        _intcheck(key)
+        i = _bisect_left(self._index, key)
+        found_key, data = self._keyData(i)
+        if found_key != key:
+            raise IndexError
+        return data
+
+    def iter(self, start, stop=None, **kwargs):
+        _intcheck(start)
+        stop is None or _intcheck(stop)
+        return _Iter(self, start, stop, **kwargs)
+
     def flush(self):
         self._f.flush()
 
-    def __len__(self):
+    def _sizeInBlocks(self):
         self._f.seek(0, 2)
         return self._f.tell() / BLOCKSIZE
 
+    def _keyData(self, i):
+        self._f.seek(i * BLOCKSIZE)
+        try:
+            return self._readNext()
+        except StopIteration:
+            raise IndexError
+
     def _readNext(self):
-        sentinel = "not yet found"
-        while sentinel != '':
-            sentinel = self._f.readline()
-            if sentinel.strip() == SENTINEL:
+        line = "sentinel not yet found"
+        while line != '':
+            line = self._f.readline()
+            if line.strip() == SENTINEL:
                 key = int(self._f.readline().strip())
                 try:
                     length = int(self._f.readline().strip())
@@ -116,27 +136,6 @@ class SequentialStorage(object):
                 assert len(data) == length
                 return key, decompress(data)
         raise StopIteration
-
-    def __getitem__(self, key):
-        _intcheck(key)
-        self._f.seek(key * BLOCKSIZE)
-        try:
-            return self._readNext()
-        except StopIteration:
-            raise IndexError
-
-    def index(self, key):
-        _intcheck(key)
-        i = _bisect_left(self._index, key)
-        found_key, data = self[i]
-        if found_key != key:
-            raise IndexError
-        return data
-
-    def iter(self, start, stop=None, **kwargs):
-        _intcheck(start)
-        stop is None or _intcheck(stop)
-        return _Iter(self, start, stop, **kwargs)
 
 
 class _Iter(object):
@@ -165,6 +164,7 @@ class _Iter(object):
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
 BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
+LARGER_THAN_ANY_INT = object()
 
 
 class _KeyIndex(object):
@@ -174,18 +174,18 @@ class _KeyIndex(object):
         self._maxSize = maxSize
 
     def __len__(self):
-        return len(self._src)
+        return self._src._sizeInBlocks()
 
-    def __getitem__(self, key):
-        if key in self._cache:
-            result = self._cache.pop(key)
-            self._cache[key] = result
-            return result
-        index = self._src[key][0]
-        self._cache[key] = index
+    def __getitem__(self, i):
+        if i in self._cache:
+            key = self._cache.pop(i)
+            self._cache[i] = key
+            return key
+        key = self._src._keyData(i)[0]
+        self._cache[i] = key
         if len(self._cache) > self._maxSize:
             self._cache.popitem(0)
-        return index
+        return key
 
 
 def _intcheck(value):
