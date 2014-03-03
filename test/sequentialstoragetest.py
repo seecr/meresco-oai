@@ -94,6 +94,14 @@ class SequentialStorageTest(SeecrTestCase):
         s = SequentialMultiStorage(self.tempdir)
         self.assertRaises(ValueError, lambda: consume(s.add(2, "na", "na")))
 
+    def testLastKeyFoundInCaseOfLargeBlock(self):
+        s = SequentialStorage(self.tempfile)
+        s.add(1, 'record 1')
+        s.add(2, 'long record' * 1000) # compressed multiple times BLOCKSIZE
+        s.flush()
+        s = SequentialStorage(self.tempfile)
+        self.assertEquals(2, s._lastKey)
+
     def testMonotonicityNotRequiredOverDifferentParts(self):
         s = SequentialMultiStorage(self.tempdir)
         consume(s.add(2, "oai_dc", "<data/>"))
@@ -330,6 +338,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertTrue(isdir(join(self.tempdir, "storage")))
 
     def testCorruptionTruncated(self):
+        self.fail('being adapted to new situation w/o truncating in new test')
         filePath = join(self.tempdir, 'storage')
         with open(filePath, 'ab') as f:
             f.write("what\n")
@@ -372,8 +381,71 @@ class SequentialStorageTest(SeecrTestCase):
         s = SequentialStorage(filePath)
         self.assertEquals([(3, 'record 3')], list(s.iter(start=3, stop=99)))
 
+    def testShortRubbishAtStartOfFileIgnored(self):
+        filePath = join(self.tempdir, 'storage')
+        with open(filePath, 'ab') as f:
+            f.write('corrupt')
+        s = SequentialStorage(filePath)
+        self.assertEquals([], list(s.iter(0)))
+        s.add(1, "record 1")
+        s.flush()
+        s = SequentialStorage(filePath)
+        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
+        fileData = open(filePath).read()
+        self.assertTrue(fileData.startswith("corrupt" + SENTINEL + '\n1\n'), fileData)
 
 
+    def testLongerRubbishAtStartOfFileIgnored(self):
+        filePath = join(self.tempdir, 'storage')
+        with open(filePath, 'ab') as f:
+            f.write('corrupt' * 3)  # > BLOCKSIZE
+        s = SequentialStorage(filePath)
+        self.assertEquals([], list(s.iter(0)))
+        s.add(1, "record 1")
+        s.flush()
+        s = SequentialStorage(filePath)
+        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
+        fileData = open(filePath).read()
+        self.assertTrue(fileData.startswith("corrupt" * 3 + SENTINEL + '\n1\n'), fileData)
+
+    def testCorruptionFromKeyLineIgnored(self):
+        filePath = join(self.tempdir, 'storage')
+        with open(filePath, 'ab') as f:
+            f.write('%s\ncorrupt' % SENTINEL)
+        s = SequentialStorage(filePath)
+        self.assertEquals([], list(s.iter(0)))
+        s.add(1, "record 1")
+        s.flush()
+        s = SequentialStorage(filePath)
+        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
+        fileData = open(filePath).read()
+        self.assertTrue(fileData.startswith(SENTINEL + "\ncorrupt" + SENTINEL + '\n1\n'), fileData)
+        
+    def testCorruptionFromLengthLineIgnored(self):
+        filePath = join(self.tempdir, 'storage')
+        with open(filePath, 'ab') as f:
+            f.write('%s\n1\ncorrupt' % SENTINEL)
+        s = SequentialStorage(filePath)
+        self.assertEquals([], list(s.iter(0)))
+        s.add(1, "record 1")
+        s.flush()
+        s = SequentialStorage(filePath)
+        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
+        fileData = open(filePath).read()
+        self.assertTrue(fileData.startswith(SENTINEL + "\n1\ncorrupt" + SENTINEL + '\n1\n'), fileData)
+
+    def testCorruptionFromDataIgnored(self):
+        filePath = join(self.tempdir, 'storage')
+        with open(filePath, 'ab') as f:
+            f.write('%s\n1\n100\ncorrupt' % SENTINEL)
+        s = SequentialStorage(filePath)
+        self.assertEquals([], list(s.iter(0)))
+        s.add(1, "record 1")
+        s.flush()
+        s = SequentialStorage(filePath)
+        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
+        fileData = open(filePath).read()
+        self.assertTrue(fileData.startswith(SENTINEL + "\n1\n100\ncorrupt" + SENTINEL + '\n1\n'), fileData)
 
     def testReadOnlyKeyWhileSearching(self):
         pass

@@ -77,14 +77,11 @@ class SequentialStorage(object):
         self._f = open(fileName, "ab+")
         self._index = _KeyIndex(self, maxSize=maxCacheSize or DEFAULT_CACHESIZE)
         self._lastKey = None
-        lastindex = 0
+        positionAfterLast = 0
         if self._index:
-            lastindex = self._index.find(LARGER_THAN_ANY_INT)
-        if lastindex == 0:
-            self._f.truncate(0)
-        else:
-            self._lastKey = self._index[lastindex - 1]
-            self._f.truncate()
+            positionAfterLast = self._index.find(LARGER_THAN_ANY_INT)
+        if positionAfterLast > 0:
+            self._lastKey = self._index[positionAfterLast - 1]
 
     def add(self, key, data):
         _intcheck(key)
@@ -123,19 +120,26 @@ class SequentialStorage(object):
     def _readNext(self):
         line = "sentinel not yet found"
         while line != '':
+            print self._f.tell()
             line = self._f.readline()
-            if line.strip() == SENTINEL:
+            retryPosition = self._f.tell()
+            if line.endswith(SENTINEL + '\n'):
                 try:
                     key = int(self._f.readline().strip())
+                    print 'key', key
                     length = int(self._f.readline().strip())
                 except ValueError:
-                    break
+                    from traceback import print_exc
+                    print_exc()
+                    self._f.seek(retryPosition)
+                    continue
                 data = self._f.read(length)
                 self._f.read(1)  # newline after data
                 try:
                     data = decompress(data)
                 except ZlibError:
-                    break
+                    self._f.seek(retryPosition)
+                    continue
                 return key, data
         raise StopIteration
 
