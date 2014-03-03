@@ -45,13 +45,13 @@ class OaiRecord(Transparent):
     def oaiRecordHeader(self, record, **kwargs):
         yield self._oaiRecordHeader(record=record)
 
-    def oaiRecord(self, record, metadataPrefix, data):
+    def oaiRecord(self, record, metadataPrefix, fetchedRecords=None):
         yield '<record>'
         yield self._oaiRecordHeader(record)
 
         if not record.isDeleted:
             yield '<metadata>'
-            data = None if data is None else data.get(int(record.stamp))
+            data = None if fetchedRecords is None else fetchedRecords.get(int(record.stamp))
             if not data is None:
                 yield data
             else:

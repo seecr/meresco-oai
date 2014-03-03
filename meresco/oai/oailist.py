@@ -217,19 +217,19 @@ Error and Exception Conditions
     def _process(self, verb, result, validatedArguments, **httpkwargs):
         records = list(result.records)
         metadataPrefix = validatedArguments['metadataPrefix']
-        data = None
+        fetchedRecords = None
         try:
-            data = dict(self.call.iterData(
+            fetchedRecords = dict(self.call.iterData(
                     name=metadataPrefix,
                     start=records[0].stamp,
                     stop=records[-1].stamp,
                     inclusive=True
                 ))
-            sequentialVsOaiSelectResultRatio = len(data) / float(result.numberOfRecordsInBatch)
+            sequentialVsOaiSelectResultRatio = len(fetchedRecords) / float(result.numberOfRecordsInBatch)
             if sequentialVsOaiSelectResultRatio > MAX_RATIO:
                 sys.stderr.write("Sequential vs OaiSelectResult ratio > {0:.1f}: {1:d}/{2:d} = {3:.3f}\n".format(
                     MAX_RATIO,
-                    len(data),
+                    len(fetchedRecords),
                     result.numberOfRecordsInBatch,
                     sequentialVsOaiSelectResultRatio)
                 )
@@ -238,7 +238,7 @@ Error and Exception Conditions
             pass
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
         for record in records:
-            yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'], data=data)
+            yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'], fetchedRecords=fetchedRecords)
 
         if result.moreRecordsAvailable or 'x-wait' in validatedArguments:
             if 'x-count' in validatedArguments:

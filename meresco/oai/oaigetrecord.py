@@ -30,10 +30,13 @@
 #
 ## end license ##
 
+import sys
+
+from weightless.core import NoneOfTheObserversRespond
 from meresco.core.observable import Observable
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
-from weightless.core import NoneOfTheObserversRespond
+
 
 class OaiGetRecord(Observable):
     """4.1 GetRecord
@@ -71,12 +74,15 @@ Error and Exception Conditions
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
-        data = None
-        try:
-            data = {record.stamp: self.call.getData(name=metadataPrefix, key=record.stamp)}
-        except (NoneOfTheObserversRespond, IndexError):
-            pass
-        yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix, data=data)
+        fetchedRecords = None
+        if not record.isDeleted:
+            try:
+                fetchedRecords = {record.stamp: self.call.getData(name=metadataPrefix, key=record.stamp)}
+            except NoneOfTheObserversRespond:
+                pass
+            except IndexError:
+                sys.stderr.write("Data for record with stamp '%s' not found in storage (probably not completely written on crash)" % record.stamp)
+        yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix, fetchedRecords=fetchedRecords)
         yield '</%s>' % verb
         yield oaiFooter()
 

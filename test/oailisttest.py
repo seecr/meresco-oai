@@ -58,7 +58,7 @@ class OaiListTest(SeecrTestCase):
         self.observer = CallTrace('observer')
         self.observer.methods['suspend'] = lambda clientIdentifier: (s for s in ['SUSPEND'])
         self.observer.methods['oaiWatermark'] = lambda o=None: (x for x in ["Crafted By Seecr"])
-        def oaiRecord(record, metadataPrefix, data=None):
+        def oaiRecord(record, metadataPrefix, fetchedRecords=None):
             yield '<mock:record xmlns:mock="uri:mock">%s/%s</mock:record>' % (escapeXml(record.identifier), escapeXml(metadataPrefix))
         self.observer.methods['oaiRecord'] = oaiRecord
         self.observer.methods['oaiRecordHeader'] = oaiRecord

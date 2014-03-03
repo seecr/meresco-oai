@@ -51,7 +51,7 @@ class OaiRecordTest(SeecrTestCase):
         self.observer.returnValues['provenance'] = (f for f in [])
 
     def testRecord(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', data={})))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords={})))
 
         self.assertEqualsWS("""<record>
 <header>
@@ -68,7 +68,7 @@ class OaiRecordTest(SeecrTestCase):
 
     def testRecordWithData(self):
         record = MockRecord('id')
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=record, metadataPrefix='oai_dc', data={int(record.stamp):"<the>data</the>"})))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=record, metadataPrefix='oai_dc', fetchedRecords={int(record.stamp):"<the>data</the>"})))
 
         self.assertEqualsWS("""<record>
 <header>
@@ -84,7 +84,7 @@ class OaiRecordTest(SeecrTestCase):
         self.assertEquals(["provenance('id')"], [str(m) for m in self.observer.calledMethods])
 
     def testRecordIsDeleted(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', deleted=True), metadataPrefix='oai_dc', data={})))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', deleted=True), metadataPrefix='oai_dc', fetchedRecords={})))
 
         self.assertEqualsWS("""<record>
 <header status="deleted">
@@ -97,7 +97,7 @@ class OaiRecordTest(SeecrTestCase):
         self.assertEquals([], [str(m) for m in self.observer.calledMethods])
 
     def testRecordsWithoutSets(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', sets=[]), metadataPrefix='oai_dc', data={})))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', sets=[]), metadataPrefix='oai_dc', fetchedRecords={})))
 
         self.assertEqualsWS("""<record>
 <header>
@@ -112,7 +112,7 @@ class OaiRecordTest(SeecrTestCase):
 
     def testRecordWithProvenance(self):
         self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', data={})))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords={})))
 
         self.assertEqualsWS("""<record>
 <header>
@@ -130,7 +130,7 @@ class OaiRecordTest(SeecrTestCase):
 
     def testDeletedRecordWithProvenance(self):
         self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id&0', deleted=True), metadataPrefix='oai_dc', data={})))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id&0', deleted=True), metadataPrefix='oai_dc', fetchedRecords={})))
 
         self.assertEqualsWS("""<record>
 <header status="deleted">
@@ -144,7 +144,7 @@ class OaiRecordTest(SeecrTestCase):
 
 
     def testRecordForListIdentifiers(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecordHeader(record=MockRecord('id'), metadataPrefix='oai_dc', data={})))
+        result = ''.join(compose(self.oaiRecord.oaiRecordHeader(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords={})))
 
         self.assertEqualsWS("""<header>
     <identifier>id</identifier>
