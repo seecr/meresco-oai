@@ -79,11 +79,12 @@ class SequentialStorage(object):
         self._lastKey = None
         lastindex = 0
         if len(self._index):
-            lastindex = _bisect_left(self._index, LARGER_THAN_ANY_INT)
+            lastindex = self._index.find(LARGER_THAN_ANY_INT)
         if lastindex == 0:
             self._f.truncate(0)
         else:
-            self._lastKey = self._keyData(lastindex - 1)[0]
+            #self._lastKey = self._keyData(lastindex - 1)[0]
+            self._lastKey = self._index[lastindex - 1]
             self._f.truncate()
 
     def add(self, key, data):
@@ -98,7 +99,15 @@ class SequentialStorage(object):
         self._f.write(record) # one write is a little bit faster
 
     def __getitem__(self, key):
-        return self._index.getItem(key)
+        i = self._index.find(key)
+        found_key, data = self._keyData(i)
+        if found_key != key:
+            raise IndexError
+        return data
+
+    def getItem(self, key): 
+        _intcheck(key)
+        i = self.find(key)
 
 
     def iter(self, start, stop=None, **kwargs):
@@ -187,13 +196,8 @@ class _KeyIndex(object):
             self._cache.popitem(0)
         return key
 
-    def getItem(self, key): 
-        _intcheck(key)
-        i = _bisect_left(self, key)
-        found_key, data = self._src._keyData(i)
-        if found_key != key:
-            raise IndexError
-        return data
+    def find(self, key):
+        return _bisect_left(self, key)
 
 def _intcheck(value):
     if type(value) is not int:
