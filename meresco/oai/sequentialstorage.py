@@ -120,9 +120,7 @@ class SequentialStorage(object):
         except StopIteration:
             raise IndexError
 
-    def _readNext(self, i = None):
-        if i:
-            self._f.seek(i * BLOCKSIZE)
+    def _readNext(self):
         line = "sentinel not yet found"
         while line != '':
             line = self._f.readline()
