@@ -28,7 +28,7 @@ from os.path import join, isdir
 from os import listdir, makedirs
 from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
-
+import operator
 from meresco.core import asyncnoreturnvalue
 
 from ordereddict import OrderedDict
@@ -78,12 +78,11 @@ class SequentialStorage(object):
         self._index = _KeyIndex(self, maxSize=maxCacheSize or DEFAULT_CACHESIZE)
         self._lastKey = None
         lastindex = 0
-        if len(self._index):
+        if self._index:
             lastindex = self._index.find(LARGER_THAN_ANY_INT)
         if lastindex == 0:
             self._f.truncate(0)
         else:
-            #self._lastKey = self._keyData(lastindex - 1)[0]
             self._lastKey = self._index[lastindex - 1]
             self._f.truncate()
 
@@ -99,16 +98,12 @@ class SequentialStorage(object):
         self._f.write(record) # one write is a little bit faster
 
     def __getitem__(self, key):
+        _intcheck(key)
         i = self._index.find(key)
         found_key, data = self._keyData(i)
         if found_key != key:
             raise IndexError
         return data
-
-    def getItem(self, key): 
-        _intcheck(key)
-        i = self.find(key)
-
 
     def iter(self, start, stop=None, **kwargs):
         _intcheck(start)
@@ -125,7 +120,9 @@ class SequentialStorage(object):
         except StopIteration:
             raise IndexError
 
-    def _readNext(self):
+    def _readNext(self, i = None):
+        if i:
+            self._f.seek(i * BLOCKSIZE)
         line = "sentinel not yet found"
         while line != '':
             line = self._f.readline()
@@ -147,21 +144,17 @@ class SequentialStorage(object):
 
 class _Iter(object):
     def __init__(self, src, start, stop, inclusive=False):
-        self._offset = BLOCKSIZE * _bisect_left(src._index, start)
+        self._offset = BLOCKSIZE * src._index.find(start)
+        self._i = src._index.find(start)
         self._src = src
-        if stop:
-            if inclusive:
-                self._shouldStop = lambda key: key > stop
-            else:
-                self._shouldStop = lambda key: key >= stop
-        else:
-            self._shouldStop = lambda key: False
+        self._cmp = operator.gt if inclusive else operator.ge
+        self._stop = stop
 
     def next(self):
         self._src._f.seek(self._offset)
         key, data = self._src._readNext()
         self._offset = self._src._f.tell()
-        if self._shouldStop(key):
+        if self._stop and self._cmp(key, self._stop):
             raise StopIteration
         return key, data
 
