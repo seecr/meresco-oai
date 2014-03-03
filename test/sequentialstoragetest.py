@@ -121,11 +121,11 @@ class SequentialStorageTest(SeecrTestCase):
         # As a side effect, it solves back scanning! We let
         # bisect do that for us.
         s = SequentialStorage(self.tempfile, maxCacheSize=100)
-        self.assertEquals(0, s._sizeInBlocks())
+        self.assertEquals(0, len(s._index))
         s.add(2, "<data>two is nice</data>")
         s.add(4, "<data>four goes fine</data>")
         s.add(7, "<data>seven seems ok</data>")
-        self.assertEquals(11, s._sizeInBlocks())
+        self.assertEquals(11, len(s._index))
         self.assertEquals((2, "<data>two is nice</data>"), s._keyData(0))
         self.assertEquals((4, "<data>four goes fine</data>"), s._keyData(1))
         self.assertEquals((4, "<data>four goes fine</data>"), s._keyData(2))
@@ -139,11 +139,11 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testIndexItem(self):
         s = SequentialStorage(self.tempfile, maxCacheSize=100)
-        self.assertEquals(0, s._sizeInBlocks())
+        self.assertEquals(0, len(s._index))
         s.add(2, "<data>two</data>")
         s.add(4, "<data>four</data>")
         s.add(7, "<data>seven</data>")
-        self.assertEquals(8, s._sizeInBlocks())
+        self.assertEquals(8, len(s._index))
         self.assertEquals("<data>four</data>", s[4])
         self.assertEquals("<data>two</data>", s[2])
         self.assertEquals("<data>seven</data>", s[7])
@@ -161,10 +161,10 @@ class SequentialStorageTest(SeecrTestCase):
 
     def testIndexWithVerySmallAndVEryLargeRecord(self):
         s = SequentialStorage(self.tempfile, maxCacheSize=100)
-        self.assertEquals(0, s._sizeInBlocks())
+        self.assertEquals(0, len(s._index))
         s.add(2, "<data>short</data>")
         s.add(4, ''.join("<%s>" % i for i in xrange(10000)))
-        self.assertEquals(2011, s._sizeInBlocks())
+        self.assertEquals(2011, len(s._index))
         self.assertEquals("<data>short</data>", s[2])
         self.assertEquals("<0><1><2><3><4><5><6", s[4][:20])
 

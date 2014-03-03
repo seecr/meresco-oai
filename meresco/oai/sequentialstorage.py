@@ -78,7 +78,7 @@ class SequentialStorage(object):
         self._index = _KeyIndex(self, maxSize=maxCacheSize or DEFAULT_CACHESIZE)
         self._lastKey = None
         lastindex = 0
-        if self._sizeInBlocks():
+        if len(self._index):
             lastindex = _bisect_left(self._index, LARGER_THAN_ANY_INT)
         if lastindex == 0:
             self._f.truncate(0)
@@ -108,10 +108,6 @@ class SequentialStorage(object):
 
     def flush(self):
         self._f.flush()
-
-    def _sizeInBlocks(self):
-        self._f.seek(0, 2)
-        return self._f.tell() / BLOCKSIZE
 
     def _keyData(self, i):
         self._f.seek(i * BLOCKSIZE)
@@ -177,7 +173,8 @@ class _KeyIndex(object):
         self._maxSize = maxSize
 
     def __len__(self):
-        return self._src._sizeInBlocks()
+        self._src._f.seek(0, 2)
+        return self._src._f.tell() / BLOCKSIZE
 
     def __getitem__(self, i):
         if i in self._cache:
