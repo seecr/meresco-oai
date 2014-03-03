@@ -98,12 +98,8 @@ class SequentialStorage(object):
         self._f.write(record) # one write is a little bit faster
 
     def __getitem__(self, key):
-        _intcheck(key)
-        i = _bisect_left(self._index, key)
-        found_key, data = self._keyData(i)
-        if found_key != key:
-            raise IndexError
-        return data
+        return self._index.getItem(key)
+
 
     def iter(self, start, stop=None, **kwargs):
         _intcheck(start)
@@ -194,6 +190,13 @@ class _KeyIndex(object):
             self._cache.popitem(0)
         return key
 
+    def getItem(self, key): 
+        _intcheck(key)
+        i = _bisect_left(self, key)
+        found_key, data = self._src._keyData(i)
+        if found_key != key:
+            raise IndexError
+        return data
 
 def _intcheck(value):
     if type(value) is not int:

@@ -31,7 +31,7 @@ from seecr.test import SeecrTestCase
 from weightless.core import consume
 
 from meresco.oai import SequentialStorage, SequentialMultiStorage
-from meresco.oai.sequentialstorage import SENTINEL
+from meresco.oai.sequentialstorage import SENTINEL, _KeyIndex
 
 
 class SequentialStorageTest(SeecrTestCase):
@@ -299,6 +299,31 @@ class SequentialStorageTest(SeecrTestCase):
                 siz = getsizeof(c)
                 print lookupsPerSecond, len(c), siz, siz/len(c)
         print "lookups:", n, "time:", (t1-t0), "lookups/second:", n/(t1-t0)
+
+    def XXXtestArrayPerformance(self):
+        from random import randint
+        from array import array
+        from bisect import insort
+        from time import time
+        from sys import getsizeof
+        a = array('L')
+        #a = []
+        self.assertEquals(0, len(a))
+        self.assertEquals([], list(a))
+        t0 = time()
+        for i in xrange(10**7):
+            insort(a, randint(0, 9999999999))
+            t1 = time()
+            if i % 10000 == 1:
+                print (t1-t0), i, (t1-t0)/i, getsizeof(a), getsizeof(a)/i
+        # list: 161.974352837 999999 0.000161974514811 8697472 8
+        # array: 107.27125597 999999 0.000107271363241 56 0
+
+    def XXXtestTwoLevelIndex(self):
+        src = [3, 5, 6, 7, 9]
+        index = _KeyIndex(src, "NA")
+        n = index[0]
+        self.assertEquals("?", n)
 
     def testDirectoryCreatedIfNotExists(self):
         SequentialMultiStorage(join(self.tempdir, "storage"))
