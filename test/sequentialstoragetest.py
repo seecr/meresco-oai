@@ -31,14 +31,10 @@ from seecr.test import SeecrTestCase
 from weightless.core import consume
 
 from meresco.oai import SequentialStorage, SequentialMultiStorage
-from meresco.oai.sequentialstorage import SENTINEL, _KeyIndex
+from meresco.oai.sequentialstorage import SENTINEL, BLOCKSIZE, _KeyIndex
 
 
 class SequentialStorageTest(SeecrTestCase):
-    def testA(self):
-        s = SequentialMultiStorage(self.tempdir)
-        self.assertTrue(s != None)
-
     def testWriteFilePerPart(self):
         s = SequentialMultiStorage(self.tempdir)
         consume(s.add(1, "oai_dc", "<data/>"))
@@ -93,6 +89,18 @@ class SequentialStorageTest(SeecrTestCase):
         s.flush()
         s = SequentialMultiStorage(self.tempdir)
         self.assertRaises(ValueError, lambda: consume(s.add(2, "na", "na")))
+
+    def testDataCanBeEmptyButStoredItemIsNeverShorterThanBlocksize(self):
+        s = SequentialStorage(self.tempfile)
+        s.add(0, '')
+        s.flush()
+        fileData = open(self.tempfile, 'rb').read()
+        self.assertTrue(len(fileData) >= BLOCKSIZE, len(fileData))
+
+        # whitebox, blocksize 'mocked data' is 1-byte
+        from zlib import compress
+        self.assertEquals(18, len(fileData))
+        self.assertEquals(BLOCKSIZE - 1 + len(compress('')), len(fileData))
 
     def testLastKeyFoundInCaseOfLargeBlock(self):
         s = SequentialStorage(self.tempfile)
