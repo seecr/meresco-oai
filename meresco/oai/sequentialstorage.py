@@ -120,26 +120,25 @@ class SequentialStorage(object):
     def _readNext(self):
         line = "sentinel not yet found"
         while line != '':
-            print self._f.tell()
             line = self._f.readline()
             retryPosition = self._f.tell()
             if line.endswith(SENTINEL + '\n'):
                 try:
                     key = int(self._f.readline().strip())
-                    print 'key', key
                     length = int(self._f.readline().strip())
                 except ValueError:
-                    from traceback import print_exc
-                    print_exc()
                     self._f.seek(retryPosition)
                     continue
                 data = self._f.read(length)
-                self._f.read(1)  # newline after data
                 try:
                     data = decompress(data)
                 except ZlibError:
                     self._f.seek(retryPosition)
                     continue
+                retryPosition = self._f.tell()
+                expectingNewline = self._f.read(1)  # newline after data
+                if expectingNewline != '\n':
+                    self._f.seek(retryPosition)
                 return key, data
         raise StopIteration
 

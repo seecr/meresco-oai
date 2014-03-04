@@ -337,115 +337,94 @@ class SequentialStorageTest(SeecrTestCase):
         SequentialMultiStorage(join(self.tempdir, "storage"))
         self.assertTrue(isdir(join(self.tempdir, "storage")))
 
-    def testCorruptionTruncated(self):
-        self.fail('being adapted to new situation w/o truncating in new test')
-        filePath = join(self.tempdir, 'storage')
-        with open(filePath, 'ab') as f:
-            f.write("what\n")
-        s = SequentialStorage(filePath)
-        s.add(1, "record 1")
-        self.assertEquals([(1, 'record 1')], list(s.iter(start=0, stop=99)))
-        s.flush()
-        s = None
-        fileData = open(filePath).read()
-        self.assertTrue(fileData.startswith(SENTINEL + '\n1\n'), fileData)
-
-        filePath = join(self.tempdir, 'storage2')
-        with open(filePath, 'ab') as f:
-            f.write("whatever longer than block size\n")
-        s = SequentialStorage(filePath)
-        s.add(2, "record 2")
-        self.assertEquals([(2, 'record 2')], list(s.iter(start=0, stop=99)))
-        s.flush()
-        s = None
-        fileData = open(filePath).read()
-        self.assertTrue(fileData.startswith(SENTINEL + '\n2\n'), fileData)
-
-        with open(filePath, 'ab') as f:
-            f.write("whatever longer than block size\n")
-        s = SequentialStorage(filePath)
-        s.add(3, "record 3")
-        self.assertEquals([(2, 'record 2'), (3, 'record 3')], list(s.iter(start=0, stop=99)))
-        s.flush()
-        s = None
-        with open(filePath, 'ab') as f:
-            f.write(SENTINEL + "\n")
-        s = SequentialStorage(filePath)
-        s.add(4, "record 4")
-        self.assertEquals([(4, 'record 4')], list(s.iter(start=4, stop=99)))
-        s.flush()
-        s = None
-
-        with open(filePath, 'ab') as f:
-            f.truncate(f.tell() - 3)
-        s = SequentialStorage(filePath)
-        self.assertEquals([(3, 'record 3')], list(s.iter(start=3, stop=99)))
-
     def testShortRubbishAtStartOfFileIgnored(self):
-        filePath = join(self.tempdir, 'storage')
-        with open(filePath, 'ab') as f:
-            f.write('corrupt')
-        s = SequentialStorage(filePath)
-        self.assertEquals([], list(s.iter(0)))
+        s = ReopeningSeqStorage(self).write('corrupt')
+        self.assertEquals([], s.items())
         s.add(1, "record 1")
-        s.flush()
-        s = SequentialStorage(filePath)
-        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
-        fileData = open(filePath).read()
-        self.assertTrue(fileData.startswith("corrupt" + SENTINEL + '\n1\n'), fileData)
-
+        self.assertEquals([(1, 'record 1')], s.items())
+        self.assertTrue(s.fileData.startswith("corrupt" + SENTINEL + '\n1\n'), s.fileData)
 
     def testLongerRubbishAtStartOfFileIgnored(self):
-        filePath = join(self.tempdir, 'storage')
-        with open(filePath, 'ab') as f:
-            f.write('corrupt' * 3)  # > BLOCKSIZE
-        s = SequentialStorage(filePath)
-        self.assertEquals([], list(s.iter(0)))
+        s = ReopeningSeqStorage(self).write('corrupt' * 3)  # > BLOCKSIZE
+        self.assertEquals([], s.items())
         s.add(1, "record 1")
-        s.flush()
-        s = SequentialStorage(filePath)
-        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
-        fileData = open(filePath).read()
-        self.assertTrue(fileData.startswith("corrupt" * 3 + SENTINEL + '\n1\n'), fileData)
+        self.assertEquals([(1, 'record 1')], s.items())
+        self.assertTrue(s.fileData.startswith("corrupt" * 3 + SENTINEL + '\n1\n'), s.fileData)
 
     def testCorruptionFromKeyLineIgnored(self):
-        filePath = join(self.tempdir, 'storage')
-        with open(filePath, 'ab') as f:
-            f.write('%s\ncorrupt' % SENTINEL)
-        s = SequentialStorage(filePath)
-        self.assertEquals([], list(s.iter(0)))
+        s = ReopeningSeqStorage(self).write('%s\ncorrupt' % SENTINEL)
+        self.assertEquals([], s.items())
         s.add(1, "record 1")
-        s.flush()
-        s = SequentialStorage(filePath)
-        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
-        fileData = open(filePath).read()
-        self.assertTrue(fileData.startswith(SENTINEL + "\ncorrupt" + SENTINEL + '\n1\n'), fileData)
+        self.assertEquals([(1, 'record 1')], s.items())
+        self.assertTrue(s.fileData.startswith(SENTINEL + "\ncorrupt" + SENTINEL + '\n1\n'), s.fileData)
         
     def testCorruptionFromLengthLineIgnored(self):
-        filePath = join(self.tempdir, 'storage')
-        with open(filePath, 'ab') as f:
-            f.write('%s\n1\ncorrupt' % SENTINEL)
-        s = SequentialStorage(filePath)
-        self.assertEquals([], list(s.iter(0)))
+        s = ReopeningSeqStorage(self).write('%s\n1\ncorrupt' % SENTINEL)
+        self.assertEquals([], s.items())
         s.add(1, "record 1")
-        s.flush()
-        s = SequentialStorage(filePath)
-        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
-        fileData = open(filePath).read()
-        self.assertTrue(fileData.startswith(SENTINEL + "\n1\ncorrupt" + SENTINEL + '\n1\n'), fileData)
+        self.assertEquals([(1, 'record 1')], s.items())
+        self.assertTrue(s.fileData.startswith(SENTINEL + "\n1\ncorrupt" + SENTINEL + '\n1\n'), s.fileData)
 
     def testCorruptionFromDataIgnored(self):
-        filePath = join(self.tempdir, 'storage')
-        with open(filePath, 'ab') as f:
-            f.write('%s\n1\n100\ncorrupt' % SENTINEL)
-        s = SequentialStorage(filePath)
-        self.assertEquals([], list(s.iter(0)))
+        s = ReopeningSeqStorage(self).write('%s\n1\n100\ncorrupt' % SENTINEL)
+        self.assertEquals([], s.items())
         s.add(1, "record 1")
-        s.flush()
-        s = SequentialStorage(filePath)
-        self.assertEquals([(1, 'record 1')], list(s.iter(0)))
-        fileData = open(filePath).read()
-        self.assertTrue(fileData.startswith(SENTINEL + "\n1\n100\ncorrupt" + SENTINEL + '\n1\n'), fileData)
+        self.assertEquals([(1, 'record 1')], s.items())
+        self.assertTrue(s.fileData.startswith(SENTINEL + "\n1\n100\ncorrupt" + SENTINEL + '\n1\n'), s.fileData)
 
-    def testReadOnlyKeyWhileSearching(self):
-        pass
+    def testRubbishInBetween(self):
+        s = ReopeningSeqStorage(self)
+        s.add(1, "record 1")
+        s.write("rubbish")
+        s.add(2, "record 2")
+        self.assertEquals([(1, 'record 1'), (2, 'record 2')], s.items())
+
+    def testCorruptionInBetween(self):
+        s = ReopeningSeqStorage(self)
+        s.add(5, "record to be corrupted")
+        corruptRecordTemplate = s.fileData
+
+        def _writeRecordAndPartOfRecord(i):
+            open(self.tempfile, 'w').truncate(0)
+            s.add(1, "record 1")
+            s.write(corruptRecordTemplate[:i+1])
+
+        for i in xrange(len(corruptRecordTemplate) - 2):
+            _writeRecordAndPartOfRecord(i)
+            s.add(2, "record 2")
+            self.assertEquals([1, 2], s.keys())
+
+        for i in xrange(len(corruptRecordTemplate) - 2, len(corruptRecordTemplate)):
+            _writeRecordAndPartOfRecord(i)
+            self.assertEquals([1, 5], s.keys())
+
+
+class ReopeningSeqStorage(object):
+    def __init__(self, testCase):
+        self.tempfile = testCase.tempfile
+        
+    def add(self, key, data):
+        s = SequentialStorage(self.tempfile)
+        s.add(key, data)
+        s.flush()
+        return self
+
+    def keys(self):
+        return [item[0] for item in self.items()]
+
+    def items(self):
+        s = SequentialStorage(self.tempfile)
+        return list(s.iter(0))
+
+    def write(self, rubbish):
+        with open(self.tempfile, 'ab') as f:
+            f.write(rubbish)
+        return self
+    
+    @property
+    def fileData(self):
+        return open(self.tempfile).read()
+
+    def seqStorage(self):
+        return SequentialStorage(self.tempfile)
+
