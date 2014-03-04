@@ -357,7 +357,7 @@ class SequentialStorageTest(SeecrTestCase):
         s.add(1, "record 1")
         self.assertEquals([(1, 'record 1')], s.items())
         self.assertTrue(s.fileData.startswith(SENTINEL + "\ncorrupt" + SENTINEL + '\n1\n'), s.fileData)
-        
+
     def testCorruptionFromLengthLineIgnored(self):
         s = ReopeningSeqStorage(self).write('%s\n1\ncorrupt' % SENTINEL)
         self.assertEquals([], s.items())
@@ -402,7 +402,7 @@ class SequentialStorageTest(SeecrTestCase):
 class ReopeningSeqStorage(object):
     def __init__(self, testCase):
         self.tempfile = testCase.tempfile
-        
+
     def add(self, key, data):
         s = SequentialStorage(self.tempfile)
         s.add(key, data)
@@ -420,7 +420,7 @@ class ReopeningSeqStorage(object):
         with open(self.tempfile, 'ab') as f:
             f.write(rubbish)
         return self
-    
+
     @property
     def fileData(self):
         return open(self.tempfile).read()
