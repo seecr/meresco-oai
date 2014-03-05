@@ -76,5 +76,7 @@ from sequentialstoragetest import SequentialStorageTest
 
 from sequentialstore.keyindextest import KeyIndexTest
 
+from info.oaijsoninfotest import OaiJsonInfoTest
+
 if __name__ == '__main__':
     unittest.main()

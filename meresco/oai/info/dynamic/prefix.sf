@@ -27,21 +27,16 @@
 
 import page
 
-def info(prefix):
-    for aPrefix, schema, namespace in observable.call.getAllMetadataFormats():
-        if aPrefix == prefix:
-            return escapeHtml(schema) or '--', escapeHtml(namespace) or '--'
-    return None, None
-
 def main(arguments, **kwargs):
-    prefix = arguments['prefix'][0]
+    prefixInfo = observable.call.prefix(arguments['prefix'])
+
     yield page.header(**kwargs)
-    yield '<h2>Prefix: {0}</h2>\n'.format(escapeHtml(prefix))
+    yield '<h2>Prefix: {0}</h2>\n'.format(escapeHtml(prefixInfo['prefix']))
     yield '''<dl>
     <dt>Schema</dt>
     <dd>{0}</dd>
     <dt>Namespace</dt>
-    <dd>{1}</dd>'''.format(*info(prefix))
-    yield '<dt>Total number of records</dt>\n<dd>{0}</dd>'.format(page.formatInt(observable.call.getNrOfRecords(prefix=prefix)))
+    <dd>{1}</dd>'''.format(prefixInfo['schema'] or '--', prefixInfo['namespace'] or '--')
+    yield '<dt>Total number of records</dt>\n<dd>{0}</dd>'.format(page.formatInt(prefixInfo['nrOfRecords']))
     yield '</dl>\n'
     yield page.footer(**kwargs)

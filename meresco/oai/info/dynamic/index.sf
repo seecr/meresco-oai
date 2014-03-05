@@ -26,20 +26,20 @@
 
 import page
 
-def main(**kwargs):
-    yield page.header(**kwargs)
+def main(pathPrefix, **kwargs):
+    yield page.header(pathPrefix=pathPrefix, **kwargs)
     yield '<h2>Info</h2>\n'
     yield '<dl>\n'
     yield '<dt>version</dt><dd>%s</dd>\n' % VERSION
     yield '</dl>\n'
-    yield '<h3>Prefixes</h3>\n'
-    yield '<ul>'
-    for prefix in sorted(observable.call.getAllPrefixes()):
-        yield '<li><a href="prefix?{0}">{1}</a></li>\n'.format(urlencode(dict(prefix=prefix)), escapeHtml(prefix))
-    yield '</ul>'
     yield '<h3>Sets</h3>\n'
     yield '<ul>'
-    for aSet in sorted(observable.call.getAllSets()):
-        yield '<li>{0}</li>\n'.format(escapeHtml(aSet))
+    for aSet in observable.call.sets():
+        yield '<li><a href="set?{0}">{1}</a></li>\n'.format(urlencode(dict(aSet=aSet)), escapeHtml(aSet))
+    yield '</ul>'
+    yield '<h3>Prefixes</h3>\n'
+    yield '<ul>'
+    for prefix in observable.call.prefixes():
+        yield '<li><a href="prefix?{0}">{1}</a></li>\n'.format(urlencode(dict(prefix=prefix)), escapeHtml(prefix))
     yield '</ul>'
     yield page.footer(**kwargs)

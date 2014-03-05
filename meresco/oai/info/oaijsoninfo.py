@@ -24,5 +24,33 @@
 #
 ## end license ##
 
-from oaiinfo import OaiInfo
-from oaijsoninfo import OaiJsonInfo
+from meresco.core import Observable
+from simplejson import dumps
+
+class OaiJsonInfo(Observable):
+
+    def handleRequest(self, path, arguments, **kwargs):
+        method = path.rpartition('/')[-1]
+        yield 'HTTP/1.0 200 OK\r\n'
+        yield 'Content-Type: application/json\r\n'
+        yield '\r\n'
+        try:
+            yield dumps(getattr(self, method)(**arguments))
+        except:
+            yield dumps({})
+
+    def sets(self):
+        return list(sorted(self.call.getAllSets()))
+
+    def prefixes(self):
+        return list(sorted(self.call.getAllPrefixes()))
+
+    def prefix(self, prefix):
+        prefix = prefix[0]
+        for aPrefix, schema, namespace in self.call.getAllMetadataFormats():
+            if aPrefix == prefix:
+                break
+        else:
+            return {}
+        nrOfRecords = self.call.getNrOfRecords(prefix=prefix)
+        return dict(prefix=prefix, schema=schema, namespace=namespace, nrOfRecords=nrOfRecords)

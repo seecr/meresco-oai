@@ -23,13 +23,15 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 ## end license ##
-from meresco.core import Observable
+from meresco.core import Observable, Transparent
 from seecr.html import DynamicHtml
 from os.path import abspath, dirname, join
 from meresco.oai import VERSION
 from meresco.components.http import StringServer, PathFilter, PathRename, FileServer
 from meresco.components.http.utils import ContentTypePlainText
 from weightless.core import be
+
+from oaijsoninfo import OaiJsonInfo
 
 mydir = dirname(abspath(__file__))
 dynamicPath = join(mydir, 'dynamic')
@@ -40,6 +42,8 @@ staticPath = join(usrSharePath, 'oai-info', 'static')
 class OaiInfo(Observable):
     def __init__(self, reactor, oaiPath, **kwargs):
         Observable.__init__(self, **kwargs)
+        self._outside = Transparent()
+        oaiJsonInfo = OaiJsonInfo()
         self._dynamicHtml = DynamicHtml([dynamicPath],
                 reactor=reactor,
                 notFoundPage='notFound',
@@ -49,8 +53,17 @@ class OaiInfo(Observable):
                 }
             )
         self._internalTree = be((Observable(),
-            (PathFilter('/', excluding=['/static', '/version']),
-                (self._dynamicHtml,)
+            (PathFilter('/', excluding=['/static', '/version', '/json']),
+                (self._dynamicHtml,
+                    (oaiJsonInfo,
+                        (self._outside,),
+                    ),
+                )
+            ),
+            (PathFilter('/json'),
+                (oaiJsonInfo,
+                    (self._outside,),
+                )
             ),
             (PathFilter('/static'),
                 (PathRename(lambda path: path[len('/static'):]),
@@ -64,11 +77,11 @@ class OaiInfo(Observable):
 
     def addObserver(self, *args, **kwargs):
         Observable.addObserver(self, *args, **kwargs)
-        self._dynamicHtml.addObserver(*args, **kwargs)
+        self._outside.addObserver(*args, **kwargs)
 
     def addStrand(self, *args, **kwargs):
         Observable.addStrand(self, *args, **kwargs)
-        self._dynamicHtml.addStrand(*args, **kwargs)
+        self._outside.addStrand(*args, **kwargs)
 
     def handleRequest(self, path, Method, Body=None, **kwargs):
         if '/info' in path:
