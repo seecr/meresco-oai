@@ -29,6 +29,7 @@ from os import listdir, makedirs
 from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
 import operator
+from array import array
 from meresco.core import asyncnoreturnvalue
 from ordereddict import OrderedDict
 
@@ -166,7 +167,7 @@ class _Iter(object):
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
 BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
-LARGER_THAN_ANY_INT = object()
+LARGER_THAN_ANY_INT = 2**32-1  # see array type
 DEFAULT_CACHESIZE = 100000
 
 
@@ -183,29 +184,51 @@ class _BlkIndex(object):
         self._src._f.seek(0, FROMEND)
         return self._src._f.tell() / BLOCKSIZE
 
+class _MemIndex(object):
+    def __init__(self):
+        self._cache = array("L") # room for two ints
+        assert self._cache.itemsize == 8
+
+    def __len__(self):
+        return len(self._cache)
+
+    def find(self, key):
+        lo = _bisect_left(self._cache, key << 32)
+        lo_blk, hi_blk = 0, None
+        if lo < len(self._cache):
+            hi_blk = self._cache[lo] & 0xFFFFFFFF
+        if lo > 0:
+            lo_blk = self._cache[lo-1] & 0xFFFFFFFF
+        return lo_blk, hi_blk
+
+    def add(self, key, blk):
+        lo = _bisect_left(self._cache, key << 32)
+        if lo < len(self._cache):
+            found_key = self._cache[lo] >> 32
+            if found_key == key:
+                return self
+        v = (key << 32) | (blk & 0xFFFFFFFF)
+        self._cache.insert(lo, v)
+        return self
+        
 class _KeyIndex(object):
 
     def __init__(self, blk, maxSize):
         self._blk = blk
-        self._cache = OrderedDict()
-        self._maxSize = maxSize
+        self._memIndex = _MemIndex()
 
     def __len__(self):
         return len(self._blk)
 
-    def __getitem__(self, i):
-        if i in self._cache:
-            key = self._cache.pop(i)
-            self._cache[i] = key
-            return key
-        key = self._blk[i]
-        self._cache[i] = key
-        if len(self._cache) > self._maxSize:
-            self._cache.popitem(0)
+    def __getitem__(self, blk):
+        key = self._blk[blk]
+        self._memIndex.add(key, blk)
         return key
 
     def find(self, key):
-        return _bisect_left(self, key)
+        lo_blk, hi_blk = self._memIndex.find(key)
+        #print "searche range:", lo_blk, hi_blk
+        return _bisect_left(self, key, lo=lo_blk, hi=hi_blk)
 
 def _intcheck(value):
     if type(value) is not int:
