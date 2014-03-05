@@ -24,7 +24,7 @@
 #
 ## end license ##
 
-from os.path import join, isdir
+from os.path import join, isdir, getsize
 from os import listdir, makedirs
 from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
@@ -37,18 +37,17 @@ FROMEND = 2
 
 
 class SequentialMultiStorage(object):
-    def __init__(self, path, maxCacheSize=None):
+    def __init__(self, path):
         self._path = path
         isdir(self._path) or makedirs(self._path)
         self._storage = {}
-        self._maxCacheSize = maxCacheSize
         for name in listdir(path):
             self._getStorage(name)
 
     def _getStorage(self, name):
         if name not in self._storage:
             name = escapeFilename(name)
-            self._storage[name] = SequentialStorage(join(self._path, name), maxCacheSize=self._maxCacheSize)
+            self._storage[name] = SequentialStorage(join(self._path, name))
         return self._storage[name]
 
     @asyncnoreturnvalue
@@ -75,13 +74,13 @@ class SequentialMultiStorage(object):
 
 
 class SequentialStorage(object):
-    def __init__(self, fileName, maxCacheSize=None):
+    def __init__(self, fileName, cutoff=128):
         self._f = open(fileName, "ab+")
-        self._index = _KeyIndex(_BlkIndex(self), maxSize=maxCacheSize or DEFAULT_CACHESIZE)
+        self._index = _KeyIndex(_BlkIndex(self), cutoff)
         self._lastKey = None
         positionAfterLast = 0
         if self._index:
-            positionAfterLast = self._index.find(LARGER_THAN_ANY_INT)
+            positionAfterLast = self._index.find_blk(LARGER_THAN_ANY_INT, cutoff=0)
         if positionAfterLast > 0:
             self._lastKey = self._index[positionAfterLast - 1]
 
@@ -98,11 +97,14 @@ class SequentialStorage(object):
 
     def __getitem__(self, key):
         _intcheck(key)
-        i = self._index.find(key)
-        found_key, data = self._keyData(i)
+        i = self._index.find_blk(key)
+        found_key, data = self._keyData(i, key)
         if found_key != key:
             raise IndexError
         return data
+
+    def isEmpty(self):
+        return getsize(self._f.name) == 0
 
     def iter(self, start, stop=None, **kwargs):
         _intcheck(start)
@@ -112,14 +114,14 @@ class SequentialStorage(object):
     def flush(self):
         self._f.flush()
 
-    def _keyData(self, i):
+    def _keyData(self, i, key=None):
         self._f.seek(i * BLOCKSIZE)
         try:
-            return self._readNext()
+            return self._readNext(key)
         except StopIteration:
             raise IndexError
 
-    def _readNext(self):
+    def _readNext(self, target_key=None):
         line = "sentinel not yet found"
         while line != '':
             line = self._f.readline()
@@ -130,6 +132,9 @@ class SequentialStorage(object):
                     length = int(self._f.readline().strip())
                 except ValueError:
                     self._f.seek(retryPosition)
+                    continue
+                if target_key and key != target_key:
+                    self._f.seek(length + 1, 1)
                     continue
                 data = self._f.read(length)
                 try:
@@ -147,8 +152,7 @@ class SequentialStorage(object):
 
 class _Iter(object):
     def __init__(self, src, start, stop, inclusive=False):
-        self._offset = BLOCKSIZE * src._index.find(start)
-        self._i = src._index.find(start)
+        self._offset = BLOCKSIZE * src._index.find_blk(start, cutoff=0)
         self._src = src
         self._cmp = operator.gt if inclusive else operator.ge
         self._stop = stop
@@ -168,7 +172,6 @@ SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
 BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
 LARGER_THAN_ANY_INT = 2**32-1  # see array type
-DEFAULT_CACHESIZE = 100000
 
 
 class _BlkIndex(object):
@@ -213,7 +216,8 @@ class _MemIndex(object):
         
 class _KeyIndex(object):
 
-    def __init__(self, blk, maxSize):
+    def __init__(self, blk, cutoff=0):
+        self._cutoff = cutoff
         self._blk = blk
         self._memIndex = _MemIndex()
 
@@ -225,17 +229,17 @@ class _KeyIndex(object):
         self._memIndex.add(key, blk)
         return key
 
-    def find(self, key):
+    def find_blk(self, key, cutoff=None):
         lo_blk, hi_blk = self._memIndex.find(key)
-        #print "searche range:", lo_blk, hi_blk
-        return _bisect_left(self, key, lo=lo_blk, hi=hi_blk)
+        cutoff = cutoff if cutoff != None else self._cutoff
+        return _bisect_left(self, key, cutoff=cutoff, lo=lo_blk, hi=hi_blk)
 
 def _intcheck(value):
     if type(value) is not int:
         raise ValueError('Expected int')
 
 # from Python lib
-def _bisect_left(a, x, lo=0, hi=None):
+def _bisect_left(a, x, lo=0, hi=None, cutoff=0):
     """Return the index where to insert item x in list a, assuming a is sorted.
 
     The return value i is such that all e in a[:i] have e < x, and all e in
@@ -250,7 +254,7 @@ def _bisect_left(a, x, lo=0, hi=None):
         raise ValueError('lo must be non-negative')
     if hi is None:
         hi = len(a)
-    while lo < hi:
+    while lo < hi - cutoff:  # EG added cutoff
         mid = (lo+hi)//2
         try: # EG
             if a[mid] < x:

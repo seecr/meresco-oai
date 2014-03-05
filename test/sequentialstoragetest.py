@@ -78,7 +78,7 @@ class SequentialStorageTest(SeecrTestCase):
             self.assertEquals("key 2 must be greater than last key 4", str(e))
 
     def testNumbersAsStringIsProhibited(self):
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         s.add(2, "na")
         s.add(10, "na")
         self.assertRaises(ValueError, lambda: s.add('3', "na"))
@@ -136,7 +136,7 @@ class SequentialStorageTest(SeecrTestCase):
         # the functionality below is good enough I suppose.
         # As a side effect, it solves back scanning! We let
         # bisect do that for us.
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         self.assertEquals(0, len(s._index))
         s.add(2, "<data>two is nice</data>")
         s.add(4, "<data>four goes fine</data>")
@@ -154,7 +154,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(IndexError, lambda: s._keyData(8))
 
     def testIndexItem(self):
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         self.assertEquals(0, len(s._index))
         s.add(2, "<data>two</data>")
         s.add(4, "<data>four</data>")
@@ -165,7 +165,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals("<data>seven</data>", s[7])
 
     def testIndexNotFound(self):
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         self.assertRaises(IndexError, lambda: s[2])
         s.add(2, "<data>two</data>")
         self.assertRaises(IndexError, lambda: s[1])
@@ -176,7 +176,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(IndexError, lambda: s[5])
 
     def testIndexWithVerySmallAndVEryLargeRecord(self):
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         self.assertEquals(0, len(s._index))
         s.add(2, "<data>short</data>")
         s.add(4, ''.join("<%s>" % i for i in xrange(10000)))
@@ -185,13 +185,13 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals("<0><1><2><3><4><5><6", s[4][:20])
 
     def testNewLineInData(self):
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         s.add(4, "here follows\na new line")
         self.assertEquals("here follows\na new line", s[4])
 
     def testSentinelInData(self):
         from meresco.oai.sequentialstorage import SENTINEL
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         s.add(2, "<data>two</data>")
         s.add(5, ("abc%sxyz" % (SENTINEL+'\n')) * 10)
         s.add(7, "<data>seven</data>")
@@ -222,7 +222,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertTrue(3.2 < zlib_ratio < 3.3, zlib_ratio)
 
     def testIterator(self):
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         s.add(2, "<data>two</data>")
         s.add(4, "<data>four</data>")
         s.add(7, "<data>seven</data>")
@@ -234,7 +234,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(StopIteration, lambda: i.next())
 
     def testTwoAlternatingIterators(self):
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         s.add(2, "<data>two</data>")
         s.add(4, "<data>four</data>")
         s.add(7, "<data>seven</data>")
@@ -250,7 +250,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(StopIteration, lambda: i1.next())
 
     def testIteratorUntil(self):
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
+        s = SequentialStorage(self.tempfile)
         s.add(2, "two")
         s.add(4, "four")
         s.add(6, "six")
@@ -283,40 +283,36 @@ class SequentialStorageTest(SeecrTestCase):
         i = s.iterData(name='oai_dc', start=5, stop=99)
         self.assertEquals([(6, "six"), (7, "seven"), (8, "eight"), (9, "nine")], list(i))
 
-    def XXXtestReadSpeed(self):
+    def testReadSpeed(self):
         from random import random, randint
         from time import time
         from sys import getsizeof
-        count = 10000
-        s = SequentialStorage(self.tempfile, maxCacheSize=100)
-        data = ''.join(str(random()) for f in xrange(300))
-        self.assertTrue(4000 < len(data) < 5000, len(data))
-        bytesWritten = 0
-        t0 = time()
-        for i in xrange(count, count+count):
-            bytesWritten += len(data)
-            s.add(i, data)
-            if i % 1000 == 0:
-                t1 = time()
-                recordsPerSecond = (i-count)/(t1-t0)
-                bytesPerSecond = bytesWritten/(t1-t0)
-                print bytesWritten, recordsPerSecond, bytesPerSecond
-                if bytesWritten > 0.5*10**9: break
-        print count, i
-        def f():
+        count = 2**20
+        s = SequentialStorage("data/test.ss")
+        if s.isEmpty():
+            data = ''.join(str(random()) for f in xrange(300))
+            for i in xrange(count):
+                s.add(i, data)
+                if i % 10000 == 0:
+                    print i
+        del s
+        def f(cutoff):
+            s = SequentialStorage("data/test.ss", cutoff=cutoff)
             n = 0
             t0 = time()
-            for j in xrange(50000):
-                data = s[randint(count, i)]
+            for j in xrange(20000):
+                i = randint(0, count-1)
+                data = s[i]
                 n += 1
-                t1 = time()
-                if j % 1001 == 0:
-                    lookupsPerSecond = n / (t1-t0)
-                    c = s._index._memIndex._cache
-                    siz = len(c)
-                    print lookupsPerSecond, len(c), len(c)
-        from seecr.utils.profileit import profile
-        profile(f)
+            t1 = time()
+            lookupsPerSecond = n / (t1-t0)
+            c = s._index._memIndex._cache
+            siz = len(c)
+            print cutoff, int(lookupsPerSecond), len(c)
+        #from seecr.utils.profileit import profile
+        #profile(f)
+        for cutoff in [0, 16, 128, 512, 1024, 2048, 4096, 2**13, 2**14, 2**16]:
+            f(cutoff)
 
     def XXXtestArrayPerformance(self):
         from random import randint
