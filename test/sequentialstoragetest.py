@@ -335,7 +335,7 @@ class SequentialStorageTest(SeecrTestCase):
         # list: 161.974352837 999999 0.000161974514811 8697472 8
         # array: 107.27125597 999999 0.000107271363241 56 0
 
-    def XXXtestTwoLevelIndex(self):
+    def testTwoLevelIndex(self):
         src = [3, 5, 6, 7, 9]
         index = _KeyIndex(src, "NA")
         n = index[0]

@@ -30,8 +30,9 @@ from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
 import operator
 from meresco.core import asyncnoreturnvalue
-
 from ordereddict import OrderedDict
+
+FROMEND = 2
 
 
 class SequentialMultiStorage(object):
@@ -75,7 +76,7 @@ class SequentialMultiStorage(object):
 class SequentialStorage(object):
     def __init__(self, fileName, maxCacheSize=None):
         self._f = open(fileName, "ab+")
-        self._index = _KeyIndex(self, maxSize=maxCacheSize or DEFAULT_CACHESIZE)
+        self._index = _KeyIndex(_BlkIndex(self), maxSize=maxCacheSize or DEFAULT_CACHESIZE)
         self._lastKey = None
         positionAfterLast = 0
         if self._index:
@@ -169,22 +170,35 @@ LARGER_THAN_ANY_INT = object()
 DEFAULT_CACHESIZE = 100000
 
 
-class _KeyIndex(object):
-    def __init__(self, src, maxSize):
+class _BlkIndex(object):
+    """Please keep compatible with Python list in order to simplify testing"""
+
+    def __init__(self, src):
         self._src = src
+
+    def __getitem__(self, blk):
+        return self._src._keyData(blk)[0]
+
+    def __len__(self):
+        self._src._f.seek(0, FROMEND)
+        return self._src._f.tell() / BLOCKSIZE
+
+class _KeyIndex(object):
+
+    def __init__(self, blk, maxSize):
+        self._blk = blk
         self._cache = OrderedDict()
         self._maxSize = maxSize
 
     def __len__(self):
-        self._src._f.seek(0, 2)
-        return self._src._f.tell() / BLOCKSIZE
+        return len(self._blk)
 
     def __getitem__(self, i):
         if i in self._cache:
             key = self._cache.pop(i)
             self._cache[i] = key
             return key
-        key = self._src._keyData(i)[0]
+        key = self._blk[i]
         self._cache[i] = key
         if len(self._cache) > self._maxSize:
             self._cache.popitem(0)
