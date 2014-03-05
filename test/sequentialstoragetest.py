@@ -31,7 +31,7 @@ from seecr.test import SeecrTestCase
 from weightless.core import consume
 
 from meresco.oai import SequentialStorage, SequentialMultiStorage
-from meresco.oai.sequentialstorage import SENTINEL, BLOCKSIZE, _KeyIndex
+from meresco.oai.sequentialstorage import SENTINEL, BLOCKSIZE, _KeyIndex, _MemIndex
 
 
 class SequentialStorageTest(SeecrTestCase):
@@ -283,11 +283,11 @@ class SequentialStorageTest(SeecrTestCase):
         i = s.iterData(name='oai_dc', start=5, stop=99)
         self.assertEquals([(6, "six"), (7, "seven"), (8, "eight"), (9, "nine")], list(i))
 
-    def xxxtestReadSpeed(self):
+    def XXXtestReadSpeed(self):
         from random import random, randint
         from time import time
         from sys import getsizeof
-        count = 1000000
+        count = 10000
         s = SequentialStorage(self.tempfile, maxCacheSize=100)
         data = ''.join(str(random()) for f in xrange(300))
         self.assertTrue(4000 < len(data) < 5000, len(data))
@@ -295,26 +295,28 @@ class SequentialStorageTest(SeecrTestCase):
         t0 = time()
         for i in xrange(count, count+count):
             bytesWritten += len(data)
-            s.add(str(i), data)
+            s.add(i, data)
             if i % 1000 == 0:
                 t1 = time()
                 recordsPerSecond = (i-count)/(t1-t0)
                 bytesPerSecond = bytesWritten/(t1-t0)
                 print bytesWritten, recordsPerSecond, bytesPerSecond
                 if bytesWritten > 0.5*10**9: break
-        n = 0
-        t0 = time()
         print count, i
-        for j in xrange(50000):
-            data = s.getData(str(randint(count, i)))
-            n += 1
-            t1 = time()
-            if j % 1000 == 0:
-                lookupsPerSecond = n / (t1-t0)
-                c = s._index._cache
-                siz = getsizeof(c)
-                print lookupsPerSecond, len(c), siz, siz/len(c)
-        print "lookups:", n, "time:", (t1-t0), "lookups/second:", n/(t1-t0)
+        def f():
+            n = 0
+            t0 = time()
+            for j in xrange(50000):
+                data = s[randint(count, i)]
+                n += 1
+                t1 = time()
+                if j % 1001 == 0:
+                    lookupsPerSecond = n / (t1-t0)
+                    c = s._index._memIndex._cache
+                    siz = len(c)
+                    print lookupsPerSecond, len(c), len(c)
+        from seecr.utils.profileit import profile
+        profile(f)
 
     def XXXtestArrayPerformance(self):
         from random import randint
@@ -335,11 +337,34 @@ class SequentialStorageTest(SeecrTestCase):
         # list: 161.974352837 999999 0.000161974514811 8697472 8
         # array: 107.27125597 999999 0.000107271363241 56 0
 
+    def testMemIndexSortes(self):
+        mi = _MemIndex()
+        mi.add(42, 88).add(40, 78).add(44, 98)
+        self.assertEquals(sorted(mi._cache), [i for i in mi._cache])
+
+    def testMemIndexIgnoresDuplicates(self):
+        mi = _MemIndex()
+        mi.add(42, 88).add(40, 78).add(42, 98)
+        self.assertEquals(2, len(mi))
+        
+    def testMemIndex(self):
+        mi = _MemIndex()
+        mi.add(42, 88).add(40, 78).add(44, 98)
+        self.assertEquals(sorted(mi._cache), [i for i in mi._cache])
+        # 40/78, 42/88, 44/98
+        self.assertEquals(( 0, 78), mi.find(39))
+        self.assertEquals(( 0, 78), mi.find(40))
+        self.assertEquals((78, 88), mi.find(41))
+        self.assertEquals((78, 88), mi.find(42))
+        self.assertEquals((88, 98), mi.find(43))
+        self.assertEquals((88, 98), mi.find(44))
+        self.assertEquals((98, None), mi.find(45))
+
     def testTwoLevelIndex(self):
         src = [3, 5, 6, 7, 9]
         index = _KeyIndex(src, "NA")
         n = index[0]
-        self.assertEquals("?", n)
+        self.assertEquals(3, n)
 
     def testDirectoryCreatedIfNotExists(self):
         SequentialMultiStorage(join(self.tempdir, "storage"))
