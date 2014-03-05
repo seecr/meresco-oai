@@ -47,6 +47,7 @@ if not isfile(sofile) or stat(sofile).st_mtime < lastMtime:                     
         exit(result)                                                             #DO_NOT_DISTRIBUTE
 sysPath.insert(0, libDir)                                                        #DO_NOT_DISTRIBUTE
 
+from __version__ import VERSION
 from oaipmh import OaiPmh
 from oaiprovenance import OaiProvenance
 from oaisetmask import OaiSetMask
