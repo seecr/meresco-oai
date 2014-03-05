@@ -23,20 +23,29 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 ## end license ##
+from meresco.core import Observable
+from seecr.html import DynamicHtml
+from os.path import abspath, dirname, join
+from meresco.oai import VERSION
+from meresco.components.http import StringServer, PathFilter, PathRename, FileServer
+from meresco.components.http.utils import ContentTypePlainText
+from weightless.core import be
 
+mydir = dirname(abspath(__file__))
+dynamicPath = join(mydir, 'dynamic')
+usrSharePath = '/usr/share/meresco-oai'
+usrSharePath = join(dirname(dirname(dirname(mydir))), 'usr-share') #DO_NOT_DISTRIBUTE
+staticPath = join(usrSharePath, 'oai-info', 'static')
 
 class OaiInfo(Observable):
-    def __init__(self, reactor, **kwargs):
+    def __init__(self, reactor, oaiPath, **kwargs):
         Observable.__init__(self, **kwargs)
         self._dynamicHtml = DynamicHtml([dynamicPath],
                 reactor=reactor,
                 notFoundPage='notFound',
                 additionalGlobals={
-                    'VERSION': version,
-                    'allCoreInfo': self._allCoreInfo,
-                    'parseCql': parseString,
-                    'cql2string': cql2string,
-                    'dumps': dumps,
+                    'VERSION': VERSION,
+                    'oaiPath': oaiPath,
                 }
             )
         self._internalTree = be((Observable(),
@@ -49,7 +58,7 @@ class OaiInfo(Observable):
                 )
             ),
             (PathFilter('/version'),
-                (StringServer("Meresco Lucene version %s" % version, ContentTypePlainText),)
+                (StringServer("Meresco Oai version %s" % VERSION, ContentTypePlainText),)
             ),
         ))
 
@@ -62,29 +71,8 @@ class OaiInfo(Observable):
         self._dynamicHtml.addStrand(*args, **kwargs)
 
     def handleRequest(self, path, Method, Body=None, **kwargs):
-        if Method == 'POST' and path.endswith('/__lucene_remote__'):
-            yield self._handleQuery(Body)
-        elif '/info' in path:
+        if '/info' in path:
             originalPath = path
-            _, _, path = path.partition('/info')
-            yield self._internalTree.all.handleRequest(path=path or '/', originalPath=originalPath, Method=Method, Body=Body, **kwargs)
+            pathPrefix, _, path = path.rpartition('/info')
+            yield self._internalTree.all.handleRequest(path=path or '/', originalPath=originalPath, pathPrefix=pathPrefix, Method=Method, Body=Body, **kwargs)
 
-    def _handleQuery(self, Body):
-        try:
-            message, kwargs = jsonLoadMessage(Body)
-            if message not in _ALLOWED_METHODS:
-                raise ValueError('Expected %s' % (' or '.join('"%s"' % m for m in _ALLOWED_METHODS)))
-            response = yield self.any.unknown(message=message, **kwargs)
-        except Exception, e:
-            x = format_exc() # returns 'None' if e is a Java Error
-            yield serverErrorPlainText
-            yield x if x and x.strip() != 'None' else repr(e)
-            return
-        yield Ok
-        yield ContentTypeHeader + 'application/json' + CRLF
-        yield CRLF
-        yield response.asJson()
-
-    def _allCoreInfo(self):
-        return list(compose(self.all.coreInfo()))
-)
