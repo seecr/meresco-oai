@@ -36,7 +36,7 @@ from os.path import join
 
 data_files = []
 for path, dirs, files in walk('usr-share'):
-        data_files.append((path.replace('usr-share', '/usr/share/zp', 1), [join(path, f) for f in files]))
+        data_files.append((path.replace('usr-share', '/usr/share/meresco-oai', 1), [join(path, f) for f in files]))
 
 packages = []
 for path, dirs, files in walk('meresco'):
