@@ -46,5 +46,6 @@ def main(arguments, **kwargs):
             page.formatInt(info['nrOfRecords']),
             page.formatStamp(info['lastStamp'])
         )
+    yield '<dt>Link</dt>\n<dd><a href="%s?%s">ListRecords</a></dd>\n' % (oaiPath, urlencode(dict(verb="ListRecords", metadataPrefix=info['prefix'])))
     yield '</dl>\n'
     yield page.footer(**kwargs)

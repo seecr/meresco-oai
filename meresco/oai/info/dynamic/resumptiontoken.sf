@@ -51,5 +51,6 @@ def main(arguments, **kwargs):
                     MAPPING.get(k, k.title()),
                     FORMAT_MAPPING.get(k, lambda v: v)(v)
                 )
+    yield '<dt>Link</dt>\n<dd><a href="%s?%s">ListRecords</a></dd>\n' % (oaiPath, urlencode(dict(verb="ListRecords", resumptionToken=resumptionToken[0])))
     yield '</dl>\n'
     yield page.footer(**kwargs)
