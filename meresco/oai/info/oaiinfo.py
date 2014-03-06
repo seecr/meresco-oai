@@ -32,6 +32,7 @@ from meresco.components.http.utils import ContentTypePlainText
 from weightless.core import be
 
 from oaijsoninfo import OaiJsonInfo
+from time import localtime, strftime
 
 mydir = dirname(abspath(__file__))
 dynamicPath = join(mydir, 'dynamic')
@@ -50,6 +51,8 @@ class OaiInfo(Observable):
                 additionalGlobals={
                     'VERSION': VERSION,
                     'oaiPath': oaiPath,
+                    'strftime': strftime,
+                    'localtime': localtime,
                 }
             )
         self._internalTree = be((Observable(),

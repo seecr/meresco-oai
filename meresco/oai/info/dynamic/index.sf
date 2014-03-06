@@ -28,9 +28,12 @@ import page
 
 def main(pathPrefix, **kwargs):
     yield page.header(pathPrefix=pathPrefix, **kwargs)
+    info = observable.call.info()
     yield '<h2>Info</h2>\n'
     yield '<dl>\n'
     yield '<dt>version</dt><dd>%s</dd>\n' % VERSION
+    yield '<dt>records</dt><dd>{0}</dd>\n'.format(page.formatInt(info['totalRecords']))
+    yield '<dt>last update</dt><dd>{0}</dd>\n'.format(page.formatStamp(info['lastStamp']))
     yield '</dl>\n'
     yield '<h3>Sets</h3>\n'
     yield '<ul>'

@@ -28,19 +28,23 @@
 import page
 
 def main(arguments, **kwargs):
-    prefixInfo = observable.call.prefix(arguments['prefix'])
+    info = observable.call.prefix(arguments['prefix'])
 
     yield page.header(**kwargs)
-    yield '<h2>Prefix: {0}</h2>\n'.format(escapeHtml(prefixInfo['prefix']))
+    yield '<h2>Prefix: {0}</h2>\n'.format(escapeHtml(info['prefix']))
     yield '''<dl>
     <dt>Schema</dt>
     <dd>{0}</dd>
     <dt>Namespace</dt>
     <dd>{1}</dd>
     <dt>Total number of records</dt>
-    <dd>{2}</dd>\n'''.format(
-            prefixInfo['schema'] or '--',
-            prefixInfo['namespace'] or '--',
-            page.formatInt(prefixInfo['nrOfRecords']))
+    <dd>{2}</dd>
+    <dt>Last update</dt>
+    <dd>{3}</dd>\n'''.format(
+            info['schema'] or '--',
+            info['namespace'] or '--',
+            page.formatInt(info['nrOfRecords']),
+            page.formatStamp(info['lastStamp'])
+        )
     yield '</dl>\n'
     yield page.footer(**kwargs)

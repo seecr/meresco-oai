@@ -41,6 +41,11 @@ class OaiJsonInfo(Observable):
             print_exc()
             yield dumps({})
 
+    def info(self):
+        totalRecords = self.call.getNrOfRecords(prefix=None, setSpec=None)
+        lastStamp = self.call.getLastStampId(prefix=None)
+        return {'totalRecords': totalRecords, 'lastStamp': lastStamp}
+
     def sets(self):
         return list(sorted(self.call.getAllSets()))
 
@@ -50,7 +55,8 @@ class OaiJsonInfo(Observable):
             if spec == setSpec:
                 break
         nrOfRecords = self.call.getNrOfRecords(prefix=None, setSpec=setSpec)
-        return dict(setSpec=setSpec, name=name, nrOfRecords=nrOfRecords)
+        lastStamp = self.call.getLastStampId(prefix=None, setSpec=setSpec)
+        return dict(setSpec=setSpec, name=name, nrOfRecords=nrOfRecords, lastStamp=lastStamp)
 
     def prefixes(self):
         return list(sorted(self.call.getAllPrefixes()))
@@ -63,4 +69,5 @@ class OaiJsonInfo(Observable):
         else:
             return {}
         nrOfRecords = self.call.getNrOfRecords(prefix=prefix, setSpec=None)
-        return dict(prefix=prefix, schema=schema, namespace=namespace, nrOfRecords=nrOfRecords)
+        lastStamp = self.call.getLastStampId(prefix=prefix, setSpec=None)
+        return dict(prefix=prefix, schema=schema, namespace=namespace, nrOfRecords=nrOfRecords, lastStamp=lastStamp)

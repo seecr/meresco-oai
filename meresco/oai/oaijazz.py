@@ -64,7 +64,7 @@ def lazyImport():
     from java.lang import Long
     from java.io import File
     from org.apache.lucene.document import Document, StringField, Field, LongField
-    from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery
+    from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery, MatchAllDocsQuery
     from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
     from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
     from org.apache.lucene.store import FSDirectory
@@ -242,11 +242,14 @@ class OaiJazz(object):
     def getNrOfRecords(self, prefix='oai_dc', setSpec=None):
         searcher = self._getSearcher()
         collector = TotalHitCountCollector()
-        query = BooleanQuery()
-        if prefix is not None:
-            query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
-        if setSpec is not None:
-            query.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.MUST)
+        if prefix is None and setSpec is None:
+            query = MatchAllDocsQuery()
+        else:
+            query = BooleanQuery()
+            if prefix is not None:
+                query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
+            if setSpec is not None:
+                query.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.MUST)
         searcher.search(query, collector)
         return collector.getTotalHits()
 
@@ -259,10 +262,17 @@ class OaiJazz(object):
     def getDeletedRecordType(self):
         return "persistent" if self._persistentDelete else "transient"
 
-    def getLastStampId(self, prefix='oai_dc'):
+    def getLastStampId(self, prefix='oai_dc', setSpec=None):
         searcher = self._getSearcher()
         sort = Sort(SortField(None, SortField.Type.DOC, True))
-        results = searcher.search(TermQuery(Term("prefix", prefix)), 1, sort)
+        if prefix is None and setSpec is None:
+            query = MatchAllDocsQuery()
+        else:
+            if prefix is None:
+                query = TermQuery(Term("sets", setSpec))
+            else:
+                query = TermQuery(Term("prefix", prefix))
+        results = searcher.search(query, 1, sort)
         if results.totalHits < 1:
             return None
         return _stampFromDocument(searcher.doc(results.scoreDocs[0].doc))

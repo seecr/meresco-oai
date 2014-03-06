@@ -71,3 +71,8 @@ def formatInt(integer):
         return '%s.%s' % (prefix, '.'.join('%03d' % t for t in tails))
     return '%s' % prefix
 
+DATESTAMP_FACTOR = 1000000
+def formatStamp(stamp):
+    if stamp:
+        return strftime("%Y-%m-%d %H:%M:%S", localtime(stamp/DATESTAMP_FACTOR))
+    return "No stamp"

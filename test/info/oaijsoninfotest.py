@@ -46,6 +46,13 @@ class OaiJsonInfoTest(SeecrTestCase):
         consume(self.jazz.delete(identifier='record3'))
         self.jazz.commit()
 
+    def testInfo(self):
+        result = asString(self.observable.all.handleRequest(path='/info/json/info', arguments={}))
+        header, body = result.split('\r\n\r\n')
+        lastStamp = self.jazz.getLastStampId(prefix=None)
+        self.assertTrue(lastStamp != None)
+        self.assertEquals({'totalRecords': 3, 'lastStamp': lastStamp}, loads(body))
+
     def testGetAllSets(self):
         result = asString(self.observable.all.handleRequest(path='/info/json/sets', arguments={}))
         header, body = result.split('\r\n\r\n')
@@ -59,12 +66,19 @@ class OaiJsonInfoTest(SeecrTestCase):
     def testPrefixInfo(self):
         result = asString(self.observable.all.handleRequest(path='/info/json/prefix', arguments=dict(prefix=['prefix1'])))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals(dict(prefix='prefix1', schema='', namespace='', nrOfRecords=3), loads(body))
+
+        lastStamp = self.jazz.getLastStampId(prefix='prefix1')
+        self.assertTrue(lastStamp != None)
+        self.assertEquals(dict(prefix='prefix1', schema='', namespace='', nrOfRecords=3, lastStamp=lastStamp), loads(body))
 
         result = asString(self.observable.all.handleRequest(path='/info/json/prefix',
             arguments=dict(prefix=['oai'])))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals(dict(prefix='oai', schema='oai-schema', namespace='oai-namespace', nrOfRecords=1), loads(body))
+
+        oaiLastStamp = self.jazz.getLastStampId(prefix='oai')
+        self.assertTrue(oaiLastStamp != None)
+        self.assertTrue(lastStamp != oaiLastStamp)
+        self.assertEquals(dict(prefix='oai', schema='oai-schema', namespace='oai-namespace', nrOfRecords=1, lastStamp=oaiLastStamp), loads(body))
 
     def testUnknownPrefixInfo(self):
         result = asString(self.observable.all.handleRequest(path='/info/json/prefix',
@@ -75,9 +89,14 @@ class OaiJsonInfoTest(SeecrTestCase):
     def testSetInfo(self):
         result = asString(self.observable.all.handleRequest(path='/info/json/set', arguments=dict(set=['set1'])))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals(dict(setSpec='set1', name='set1', nrOfRecords=3), loads(body))
+
+        lastStamp = self.jazz.getLastStampId(setSpec='set1', prefix=None)
+        self.assertTrue(lastStamp != None)
+        self.assertEquals(dict(setSpec='set1', name='set1', nrOfRecords=3, lastStamp=lastStamp), loads(body))
 
         result = asString(self.observable.all.handleRequest(path='/info/json/set',
             arguments=dict(set=['set2'])))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals(dict(setSpec='set2', name='set name 2', nrOfRecords=1), loads(body))
+        set2LastStamp = self.jazz.getLastStampId(setSpec='set2', prefix=None)
+        self.assertTrue(lastStamp == set2LastStamp)
+        self.assertEquals(dict(setSpec='set2', name='set name 2', nrOfRecords=1, lastStamp=set2LastStamp), loads(body))

@@ -27,14 +27,20 @@
 import page
 
 def main(arguments, **kwargs):
-    setInfo = observable.call.set(arguments['set'])
+    info = observable.call.set(arguments['set'])
 
     yield page.header(**kwargs)
-    yield '<h2>Set: {0}</h2>\n'.format(escapeHtml(setInfo['setSpec']))
+    yield '<h2>Setspec: {0}</h2>\n'.format(escapeHtml(info['setSpec']))
     yield '''<dl>
     <dt>Name</dt>
     <dd>{0}</dd>
     <dt>Total number of records</dt>
-    <dd>{1}</dd>\n'''.format(escapeHtml(setInfo['name']), page.formatInt(setInfo['nrOfRecords']))
+    <dd>{1}</dd>
+    <dt>Last update</dt>
+    <dd>{2}</dd>\n'''.format(
+            escapeHtml(info['name']),
+            page.formatInt(info['nrOfRecords']),
+            page.formatStamp(info['lastStamp'])
+        )
     yield '</dl>\n'
     yield page.footer(**kwargs)
