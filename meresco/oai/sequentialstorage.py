@@ -25,15 +25,13 @@
 ## end license ##
 
 from os.path import join, isdir, getsize
-from os import listdir, makedirs
+from os import listdir, makedirs, SEEK_CUR, SEEK_END
 from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
 import operator
 from array import array
 from meresco.core import asyncnoreturnvalue
 from ordereddict import OrderedDict
-
-FROMEND = 2
 
 
 class SequentialMultiStorage(object):
@@ -97,7 +95,7 @@ class SequentialStorage(object):
 
     def __getitem__(self, key):
         _intcheck(key)
-        i = self._index.find_blk(key)
+        i = self._index.find_blk(key)  # FIXME: Zonder cutoff=0 ?  --> Think
         found_key, data = self._keyData(i, key)
         if found_key != key:
             raise IndexError
@@ -123,8 +121,14 @@ class SequentialStorage(object):
 
     def _readNext(self, target_key=None):
         line = "sentinel not yet found"
+        #nextLineMustBeSentinel = False
         while line != '':
             line = self._f.readline()
+            #if nextLineMustBeSentinel:
+            #    if not line == SENTINEL + '\n':  # Exact, not endswith.
+            #        self._f.seek(retryPosition)
+            #        line = self._f.readline()
+            #    nextLineMustBeSentinel = False
             retryPosition = self._f.tell()
             if line.endswith(SENTINEL + '\n'):
                 try:
@@ -133,8 +137,10 @@ class SequentialStorage(object):
                 except ValueError:
                     self._f.seek(retryPosition)
                     continue
-                if target_key and key != target_key:
-                    self._f.seek(length + 1, 1)
+                if target_key and key != target_key:  # FIXME: testme
+                    self._f.seek(length + 1, SEEK_CUR)
+                    ## Iff failing test, try doing:
+                    # nextLineMustBeSentinel = True
                     continue
                 data = self._f.read(length)
                 try:
@@ -171,7 +177,7 @@ class _Iter(object):
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
 BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
-LARGER_THAN_ANY_INT = 2**32-1  # see array type
+LARGER_THAN_ANY_INT = 2**64-1  # see array type  # FIXME: testme!
 
 
 class _BlkIndex(object):
@@ -184,34 +190,35 @@ class _BlkIndex(object):
         return self._src._keyData(blk)[0]
 
     def __len__(self):
-        self._src._f.seek(0, FROMEND)
+        self._src._f.seek(0, SEEK_END)
         return self._src._f.tell() / BLOCKSIZE
 
 class _MemIndex(object):
     def __init__(self):
-        self._cache = array("L") # room for two ints
-        assert self._cache.itemsize == 8
+        self._cache_key = array("L")
+        self._cache_blk = array("L")
+        assert self._cache_key.itemsize == 8, '64-bits architecture required.'
 
     def __len__(self):
-        return len(self._cache)
+        return len(self._cache_key)
 
     def find(self, key):
-        lo = _bisect_left(self._cache, key << 32)
-        lo_blk, hi_blk = 0, None
-        if lo < len(self._cache):
-            hi_blk = self._cache[lo] & 0xFFFFFFFF
+        lo = _bisect_left(self._cache_key, key)
+        lo_blk, hi_blk = 0, None  # TS: TODO: hi_blk kan None zijn, zinnig/nuttig?
+        if lo < len(self._cache_key):
+            hi_blk = self._cache_blk[lo]
         if lo > 0:
-            lo_blk = self._cache[lo-1] & 0xFFFFFFFF
+            lo_blk = self._cache_blk[lo-1]
         return lo_blk, hi_blk
 
     def add(self, key, blk):
-        lo = _bisect_left(self._cache, key << 32)
-        if lo < len(self._cache):
-            found_key = self._cache[lo] >> 32
+        lo = _bisect_left(self._cache_key, key)
+        if lo < len(self._cache_key):
+            found_key = self._cache_key[lo]
             if found_key == key:
                 return self
-        v = (key << 32) | (blk & 0xFFFFFFFF)
-        self._cache.insert(lo, v)
+        self._cache_key.insert(lo, key)
+        self._cache_blk.insert(lo, blk)
         return self
         
 class _KeyIndex(object):

@@ -284,6 +284,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals([(6, "six"), (7, "seven"), (8, "eight"), (9, "nine")], list(i))
 
     def testReadSpeed(self):
+        self.fail('I don\'t want to wait now.')
         from random import random, randint
         from time import time
         from sys import getsizeof
@@ -314,7 +315,11 @@ class SequentialStorageTest(SeecrTestCase):
         for cutoff in [0, 16, 128, 512, 1024, 2048, 4096, 2**13, 2**14, 2**16]:
             f(cutoff)
 
-    def XXXtestArrayPerformance(self):
+    def test64BitsArchRequiredForArrayL(self):
+        self.fail('think')
+
+    def testArrayPerformance(self):
+        self.fail('not now')
         from random import randint
         from array import array
         from bisect import insort
@@ -336,7 +341,8 @@ class SequentialStorageTest(SeecrTestCase):
     def testMemIndexSortes(self):
         mi = _MemIndex()
         mi.add(42, 88).add(40, 78).add(44, 98)
-        self.assertEquals(sorted(mi._cache), [i for i in mi._cache])
+        self.assertEquals(sorted(mi._cache_key), [i for i in mi._cache_key])
+        self.assertEquals(sorted(mi._cache_blk), [i for i in mi._cache_blk])
 
     def testMemIndexIgnoresDuplicates(self):
         mi = _MemIndex()
@@ -346,7 +352,8 @@ class SequentialStorageTest(SeecrTestCase):
     def testMemIndex(self):
         mi = _MemIndex()
         mi.add(42, 88).add(40, 78).add(44, 98)
-        self.assertEquals(sorted(mi._cache), [i for i in mi._cache])
+        self.assertEquals(sorted(mi._cache_key), [i for i in mi._cache_key])
+        self.assertEquals(sorted(mi._cache_blk), [i for i in mi._cache_blk])  # TS: @@
         # 40/78, 42/88, 44/98
         self.assertEquals(( 0, 78), mi.find(39))
         self.assertEquals(( 0, 78), mi.find(40))
