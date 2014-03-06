@@ -131,7 +131,6 @@ class OaiJazz(object):
             for set_ in setsMask:
                 query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
 
-
         collector = OaiSortingCollector(batchSize, shouldCountHits)
         searcher.search(query, None, collector)
 

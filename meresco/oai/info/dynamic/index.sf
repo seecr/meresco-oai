@@ -45,4 +45,13 @@ def main(pathPrefix, **kwargs):
     for prefix in observable.call.prefixes():
         yield '<li><a href="prefix?{0}">{1}</a></li>\n'.format(urlencode(dict(prefix=prefix)), escapeHtml(prefix))
     yield '</ul>'
+
+    yield '''
+    <h3></h3>
+    <p>
+        <form method="GET" action="resumptiontoken">
+        Resumption token: <input type="text" name="resumptionToken"/>
+        <input type="submit" value="Get info"/>
+    </form>
+</p>'''
     yield page.footer(**kwargs)

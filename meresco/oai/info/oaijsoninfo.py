@@ -27,6 +27,7 @@
 from meresco.core import Observable
 from simplejson import dumps
 from traceback import print_exc
+from meresco.oai import ResumptionToken
 
 class OaiJsonInfo(Observable):
 
@@ -71,3 +72,26 @@ class OaiJsonInfo(Observable):
         nrOfRecords = self.call.getNrOfRecords(prefix=prefix, setSpec=None)
         lastStamp = self.call.getLastStampId(prefix=prefix, setSpec=None)
         return dict(prefix=prefix, schema=schema, namespace=namespace, nrOfRecords=nrOfRecords, lastStamp=lastStamp)
+
+    def resumptiontoken(self, resumptionToken):
+        resumptionToken = ResumptionToken.fromString(resumptionToken[0])
+        selectKwargs = dict(
+                prefix=resumptionToken.metadataPrefix or None,
+                sets=[resumptionToken.set_] if resumptionToken.set_ else None,
+                oaiFrom=resumptionToken.from_,
+                oaiUntil=resumptionToken.until,
+                batchSize=1,
+                shouldCountHits=True)
+        result = self.call.oaiSelect(**selectKwargs)
+        nrOfRecords = result.recordsRemaining + result.numberOfRecordsInBatch
+        result = self.call.oaiSelect(continueAfter=resumptionToken.continueAfter, **selectKwargs)
+        nrOfRemainingRecords = result.recordsRemaining + result.numberOfRecordsInBatch
+
+        return {
+                'prefix': resumptionToken.metadataPrefix,
+                'set': resumptionToken.set_ or None,
+                'from': resumptionToken.from_ or None,
+                'until': resumptionToken.until or None,
+                'nrOfRecords': nrOfRecords or None,
+                'nrOfRemainingRecords': nrOfRemainingRecords
+            }

@@ -26,7 +26,7 @@
 
 from seecr.test import SeecrTestCase
 from meresco.oai.info import OaiJsonInfo
-from meresco.oai import OaiJazz
+from meresco.oai import OaiJazz, ResumptionToken
 from weightless.core import asString, consume
 from simplejson import loads
 from meresco.core import Observable
@@ -100,3 +100,10 @@ class OaiJsonInfoTest(SeecrTestCase):
         set2LastStamp = self.jazz.getLastStampId(setSpec='set2', prefix=None)
         self.assertTrue(lastStamp == set2LastStamp)
         self.assertEquals(dict(setSpec='set2', name='set name 2', nrOfRecords=1, lastStamp=set2LastStamp), loads(body))
+
+    def testResumptionTokenInfo(self):
+        firstRecord = self.jazz.oaiSelect(prefix='prefix1', batchSize=1).records.next()
+        resumptionToken =  ResumptionToken(metadataPrefix='prefix1', continueAfter=firstRecord.stamp)
+        result = asString(self.observable.all.handleRequest(path='/info/json/resumptiontoken', arguments=dict(resumptionToken=[str(resumptionToken)])))
+        header, body = result.split('\r\n\r\n')
+        self.assertEquals({'prefix':'prefix1', 'set':None, 'from':None, 'until':None, 'nrOfRecords':3, 'nrOfRemainingRecords':2}, loads(body))
