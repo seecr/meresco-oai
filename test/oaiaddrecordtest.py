@@ -47,7 +47,7 @@ class OaiAddRecordTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
         self.subject = OaiAddRecord()
-        self.observer = CallTrace('observert')
+        self.observer = CallTrace('observert', emptyGeneratorMethods=['add'])
         self.observer.getAllMetadataFormats = lambda: []
         self.subject.addObserver(self.observer)
 

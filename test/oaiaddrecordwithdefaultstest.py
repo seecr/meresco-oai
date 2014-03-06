@@ -33,7 +33,7 @@ from os import makedirs
 class OaiAddRecordWithDefaultsTest(SeecrTestCase):
     def testAdd(self):
         subject = OaiAddRecordWithDefaults(sets=[('setSpec', 'setName')], metadataFormats=[('prefix','schema','namespace')])
-        observer = CallTrace('oaijazz')
+        observer = CallTrace('oaijazzAndStorage', emptyGeneratorMethods=['add'])
         subject.addObserver(observer)
 
         list(compose(subject.add('id', ignored="kwarg", data="na")))
@@ -47,7 +47,7 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
     def testAddWithMethods(self):
         methodObject = CallTrace(returnValues={'sets':[('setSpec', 'setName')], 'metadataFormats': [('prefix','schema','namespace')]})
         subject = OaiAddRecordWithDefaults(sets=methodObject.sets , metadataFormats=methodObject.metadataFormats)
-        observer = CallTrace('oaijazz')
+        observer = CallTrace('oaijazzAndStorage', emptyGeneratorMethods=['add'])
         subject.addObserver(observer)
 
         list(compose(subject.add('id', ignored="kwarg", data="data")))
