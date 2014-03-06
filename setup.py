@@ -9,8 +9,8 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009-2010 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -31,19 +31,35 @@
 ## end license ##
 
 from distutils.core import setup
+from os import walk
+from os.path import join
+
+data_files = []
+for path, dirs, files in walk('usr-share'):
+        data_files.append((path.replace('usr-share', '/usr/share/zp', 1), [join(path, f) for f in files]))
+
+packages = []
+for path, dirs, files in walk('meresco'):
+    if '__init__.py' in files and path != 'meresco':
+        packages.append(path.replace('/', '.'))
+
+scripts = []
+for path, dirs, files in walk('bin'):
+    for file in files:
+        scripts.append(join(path, file))
 
 setup(
     name = 'meresco-oai',
     packages = [
         'meresco',                  #DO_NOT_DISTRIBUTE
-        'meresco.oai',
-    ],
-    scripts=[
-        'bin/convert_oai_v1_to_v2',
-        'bin/convert_oai_v2_to_v3',
-        'bin/convert_oai_v3_to_v4',
-        'bin/convert_oai_v5_to_v6',
-    ],
+    ] + packages,
+    package_data={
+        'meresco.oai.info': [
+            'dynamic/*.sf'
+        ]
+    },
+    scripts=scripts,
+    data_files=data_files,
     version = '%VERSION%',
     url = 'http://www.cq2.nl',
     author = 'Seek You Too',
