@@ -35,7 +35,7 @@ def main(pathPrefix, **kwargs):
     yield '<h3>Sets</h3>\n'
     yield '<ul>'
     for aSet in observable.call.sets():
-        yield '<li><a href="set?{0}">{1}</a></li>\n'.format(urlencode(dict(aSet=aSet)), escapeHtml(aSet))
+        yield '<li><a href="set?{0}">{1}</a></li>\n'.format(urlencode(dict(set=aSet)), escapeHtml(aSet))
     yield '</ul>'
     yield '<h3>Prefixes</h3>\n'
     yield '<ul>'

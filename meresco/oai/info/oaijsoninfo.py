@@ -26,6 +26,7 @@
 
 from meresco.core import Observable
 from simplejson import dumps
+from traceback import print_exc
 
 class OaiJsonInfo(Observable):
 
@@ -37,10 +38,19 @@ class OaiJsonInfo(Observable):
         try:
             yield dumps(getattr(self, method)(**arguments))
         except:
+            print_exc()
             yield dumps({})
 
     def sets(self):
         return list(sorted(self.call.getAllSets()))
+
+    def set(self, set):
+        setSpec = set[0]
+        for spec, name in self.call.getAllSets(includeSetNames=True):
+            if spec == setSpec:
+                break
+        nrOfRecords = self.call.getNrOfRecords(prefix=None, setSpec=setSpec)
+        return dict(setSpec=setSpec, name=name, nrOfRecords=nrOfRecords)
 
     def prefixes(self):
         return list(sorted(self.call.getAllPrefixes()))
@@ -52,5 +62,5 @@ class OaiJsonInfo(Observable):
                 break
         else:
             return {}
-        nrOfRecords = self.call.getNrOfRecords(prefix=prefix)
+        nrOfRecords = self.call.getNrOfRecords(prefix=prefix, setSpec=None)
         return dict(prefix=prefix, schema=schema, namespace=namespace, nrOfRecords=nrOfRecords)

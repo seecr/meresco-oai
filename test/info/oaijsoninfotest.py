@@ -27,7 +27,7 @@
 from seecr.test import SeecrTestCase
 from meresco.oai.info import OaiJsonInfo
 from meresco.oai import OaiJazz
-from weightless.core import asString
+from weightless.core import asString, consume
 from simplejson import loads
 from meresco.core import Observable
 
@@ -42,11 +42,14 @@ class OaiJsonInfoTest(SeecrTestCase):
         self.oaiJsonInfo.addObserver(self.jazz)
         self.jazz.addOaiRecord(identifier='record1', sets=[('set1', 'set1')], metadataFormats=[('prefix1', '', '')])
         self.jazz.addOaiRecord(identifier='record2', sets=[('set1', 'set1')], metadataFormats=[('prefix1', '', ''), ('oai', 'oai-schema', 'oai-namespace')])
+        self.jazz.addOaiRecord(identifier='record3', sets=[('set1', 'set1'), ('set2', 'set name 2')], metadataFormats=[('prefix1', '', '')])
+        consume(self.jazz.delete(identifier='record3'))
+        self.jazz.commit()
 
     def testGetAllSets(self):
         result = asString(self.observable.all.handleRequest(path='/info/json/sets', arguments={}))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals(['set1'], loads(body))
+        self.assertEquals(['set1', 'set2'], loads(body))
 
     def testGetAllPrefixes(self):
         result = asString(self.observable.all.handleRequest(path='/info/json/prefixes', arguments={}))
@@ -56,7 +59,7 @@ class OaiJsonInfoTest(SeecrTestCase):
     def testPrefixInfo(self):
         result = asString(self.observable.all.handleRequest(path='/info/json/prefix', arguments=dict(prefix=['prefix1'])))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals(dict(prefix='prefix1', schema='', namespace='', nrOfRecords=2), loads(body))
+        self.assertEquals(dict(prefix='prefix1', schema='', namespace='', nrOfRecords=3), loads(body))
 
         result = asString(self.observable.all.handleRequest(path='/info/json/prefix',
             arguments=dict(prefix=['oai'])))
@@ -68,3 +71,13 @@ class OaiJsonInfoTest(SeecrTestCase):
             arguments=dict(prefix=['unknown'])))
         header, body = result.split('\r\n\r\n')
         self.assertEquals({}, loads(body))
+
+    def testSetInfo(self):
+        result = asString(self.observable.all.handleRequest(path='/info/json/set', arguments=dict(set=['set1'])))
+        header, body = result.split('\r\n\r\n')
+        self.assertEquals(dict(setSpec='set1', name='set1', nrOfRecords=3), loads(body))
+
+        result = asString(self.observable.all.handleRequest(path='/info/json/set',
+            arguments=dict(set=['set2'])))
+        header, body = result.split('\r\n\r\n')
+        self.assertEquals(dict(setSpec='set2', name='set name 2', nrOfRecords=1), loads(body))

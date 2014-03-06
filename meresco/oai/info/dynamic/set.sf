@@ -24,23 +24,17 @@
 #
 ## end license ##
 
-
 import page
 
 def main(arguments, **kwargs):
-    prefixInfo = observable.call.prefix(arguments['prefix'])
+    setInfo = observable.call.set(arguments['set'])
 
     yield page.header(**kwargs)
-    yield '<h2>Prefix: {0}</h2>\n'.format(escapeHtml(prefixInfo['prefix']))
+    yield '<h2>Set: {0}</h2>\n'.format(escapeHtml(setInfo['setSpec']))
     yield '''<dl>
-    <dt>Schema</dt>
+    <dt>Name</dt>
     <dd>{0}</dd>
-    <dt>Namespace</dt>
-    <dd>{1}</dd>
     <dt>Total number of records</dt>
-    <dd>{2}</dd>\n'''.format(
-            prefixInfo['schema'] or '--',
-            prefixInfo['namespace'] or '--',
-            page.formatInt(prefixInfo['nrOfRecords']))
+    <dd>{1}</dd>\n'''.format(escapeHtml(setInfo['name']), page.formatInt(setInfo['nrOfRecords']))
     yield '</dl>\n'
     yield page.footer(**kwargs)

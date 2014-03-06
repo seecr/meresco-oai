@@ -239,10 +239,15 @@ class OaiJazz(object):
             return set(self._sets.items())
         return set(self._sets.keys())
 
-    def getNrOfRecords(self, prefix='oai_dc'):
+    def getNrOfRecords(self, prefix='oai_dc', setSpec=None):
         searcher = self._getSearcher()
         collector = TotalHitCountCollector()
-        searcher.search(TermQuery(Term("prefix", prefix)), collector)
+        query = BooleanQuery()
+        if prefix is not None:
+            query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
+        if setSpec is not None:
+            query.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.MUST)
+        searcher.search(query, collector)
         return collector.getTotalHits()
 
     def getRecord(self, identifier):
