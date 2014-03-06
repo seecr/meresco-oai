@@ -93,5 +93,6 @@ class OaiJsonInfo(Observable):
                 'from': resumptionToken.from_ or None,
                 'until': resumptionToken.until or None,
                 'nrOfRecords': nrOfRecords or None,
-                'nrOfRemainingRecords': nrOfRemainingRecords
+                'nrOfRemainingRecords': nrOfRemainingRecords,
+                'timestamp': int(resumptionToken.continueAfter),
             }

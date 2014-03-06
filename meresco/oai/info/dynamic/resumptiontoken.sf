@@ -29,11 +29,13 @@ import page
 MAPPING = {
     'nrOfRecords': 'Total records',
     'nrOfRemainingRecords': 'Total remaining records',
+    'timestamp': 'Date'
 }
 
 FORMAT_MAPPING = {
     'nrOfRecords': page.formatInt,
-    'nrOfRemainingRecords': page.formatInt
+    'nrOfRemainingRecords': page.formatInt,
+    'timestamp': page.formatStamp
 }
 
 def main(arguments, **kwargs):
@@ -44,7 +46,7 @@ def main(arguments, **kwargs):
     yield '<h2>ResumptionToken: {0}</h2>\n'.format(escapeHtml(resumptionToken[0]))
     yield '''<dl>\n'''
     for k, v in sorted(info.items()):
-        if v:
+        if v is not None:
             yield '''<dt>{0}</dt>\n<dd>{1}</dd>'''.format(
                     MAPPING.get(k, k.title()),
                     FORMAT_MAPPING.get(k, lambda v: v)(v)
