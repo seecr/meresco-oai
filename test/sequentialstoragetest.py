@@ -206,6 +206,26 @@ class SequentialStorageTest(SeecrTestCase):
         s = SequentialMultiStorage(self.tempdir)
         self.assertEquals("data", s.getData(2, "ma/am"))
 
+    def testReadNextWithTargetKey(self):
+        s = SequentialStorage(self.tempfile)
+        s.add(3, "three")
+        s.add(4, "four")
+        s.add(7, "seven")
+        s.add(9, "nine")
+        s._f.seek(0 * BLOCKSIZE)
+        self.assertEquals("three", s._readNext(target_key=3)[1])
+        self.assertEquals("four", s._readNext(target_key=4)[1])
+        s._f.seek(0 * BLOCKSIZE)
+        self.assertEquals("four", s._readNext(target_key=4)[1])
+        self.assertEquals("seven", s._readNext(target_key=7)[1])
+        s._f.seek(0 * BLOCKSIZE)
+        self.assertEquals("nine", s._readNext(target_key=9)[1])
+        try:
+            s._readNext(target_key=3)
+            self.fail()
+        except StopIteration:
+            pass
+
     def testCompression(self):
         import zlib, bz2
         def ratio(filename, compress):
@@ -297,11 +317,11 @@ class SequentialStorageTest(SeecrTestCase):
                 if i % 10000 == 0:
                     print i
         del s
-        def f(cutoff):
+        def f(cutoff=2**13):
             s = SequentialStorage("data/test.ss", cutoff=cutoff)
             n = 0
             t0 = time()
-            for j in xrange(20000):
+            for j in xrange(2000):
                 i = randint(0, count-1)
                 data = s[i]
                 n += 1
@@ -310,10 +330,10 @@ class SequentialStorageTest(SeecrTestCase):
             c = s._index._memIndex._cache
             siz = len(c)
             print cutoff, int(lookupsPerSecond), len(c)
-        #from seecr.utils.profileit import profile
-        #profile(f)
-        for cutoff in [0, 16, 128, 512, 1024, 2048, 4096, 2**13, 2**14, 2**16]:
-            f(cutoff)
+        from seecr.utils.profileit import profile
+        profile(f)
+        #for cutoff in [0, 16, 128, 512, 1024, 2048, 4096, 2**13, 2**14, 2**16]:
+        #    f(cutoff)
 
     def test64BitsArchRequiredForArrayL(self):
         self.fail('think')
