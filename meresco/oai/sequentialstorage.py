@@ -33,6 +33,9 @@ from array import array
 from meresco.core import asyncnoreturnvalue
 from ordereddict import OrderedDict
 
+FROMEND = 2
+RELATIVE = 1
+
 
 class SequentialMultiStorage(object):
     def __init__(self, path):
@@ -73,6 +76,7 @@ class SequentialMultiStorage(object):
 
 class SequentialStorage(object):
     def __init__(self, fileName, cutoff=128):
+        from io import open
         self._f = open(fileName, "ab+")
         self._index = _KeyIndex(_BlkIndex(self), cutoff)
         self._lastKey = None
@@ -137,11 +141,16 @@ class SequentialStorage(object):
                 except ValueError:
                     self._f.seek(retryPosition)
                     continue
-                if target_key and key != target_key:  # FIXME: testme
-                    self._f.seek(length + 1, SEEK_CUR)
-                    ## Iff failing test, try doing:
-                    # nextLineMustBeSentinel = True
-                    continue
+                if target_key:
+                    if key < target_key:
+                        retryPosition = self._f.tell()
+                        self._f.seek(length + 1, RELATIVE)
+                        l = self._f.peek(len(SENTINEL))
+                        if not l.startswith(SENTINEL):
+                            self._f.seek(retryPosition)
+                        continue
+                    elif key != target_key:
+                        raise StopIteration
                 data = self._f.read(length)
                 try:
                     data = decompress(data)

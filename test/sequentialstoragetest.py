@@ -213,6 +213,9 @@ class SequentialStorageTest(SeecrTestCase):
         s.add(7, "seven")
         s.add(9, "nine")
         s._f.seek(0 * BLOCKSIZE)
+        self.assertRaises(StopIteration, lambda: s._readNext(target_key=2))
+        self.assertRaises(StopIteration, lambda: s._readNext(target_key=5))
+        s._f.seek(0 * BLOCKSIZE)
         self.assertEquals("three", s._readNext(target_key=3)[1])
         self.assertEquals("four", s._readNext(target_key=4)[1])
         s._f.seek(0 * BLOCKSIZE)
@@ -303,8 +306,7 @@ class SequentialStorageTest(SeecrTestCase):
         i = s.iterData(name='oai_dc', start=5, stop=99)
         self.assertEquals([(6, "six"), (7, "seven"), (8, "eight"), (9, "nine")], list(i))
 
-    def testReadSpeed(self):
-        self.fail('I don\'t want to wait now.')
+    def XXXtestReadSpeed(self):
         from random import random, randint
         from time import time
         from sys import getsizeof
@@ -321,19 +323,18 @@ class SequentialStorageTest(SeecrTestCase):
             s = SequentialStorage("data/test.ss", cutoff=cutoff)
             n = 0
             t0 = time()
-            for j in xrange(2000):
+            for j in xrange(10000):
                 i = randint(0, count-1)
                 data = s[i]
                 n += 1
             t1 = time()
             lookupsPerSecond = n / (t1-t0)
             c = s._index._memIndex._cache
-            siz = len(c)
             print cutoff, int(lookupsPerSecond), len(c)
         from seecr.utils.profileit import profile
-        profile(f)
-        #for cutoff in [0, 16, 128, 512, 1024, 2048, 4096, 2**13, 2**14, 2**16]:
-        #    f(cutoff)
+        #profile(f)
+        for cutoff in [0, 1024, 4096, 2**13, 2**14]:
+            f(cutoff)
 
     def test64BitsArchRequiredForArrayL(self):
         self.fail('think')
@@ -453,6 +454,37 @@ class SequentialStorageTest(SeecrTestCase):
         for i in xrange(len(corruptRecordTemplate) - 2, len(corruptRecordTemplate)):
             _writeRecordAndPartOfRecord(i)
             self.assertEquals([1, 5], s.keys())
+
+    def testTargetKeySkipsRubbish(self):
+        s = SequentialStorage(self.tempfile)
+        s.add(5, "five")
+        s._f.write("@!^$#%")
+        s.add(6, "six")
+        s._f.seek(0)
+        self.assertEquals("six", s._readNext(6)[1])
+
+    def testTargetKeyDoesNotSkipRecordWhenRubbishPresent(self):
+        s = SequentialStorage(self.tempfile)
+        s.add(5, "five")
+        s._f.seek(-2, 1)
+        s._f.write("@!^$#%")
+        s.add(6, "six")
+        s._f.seek(0)
+        self.assertEquals("six", s._readNext(6)[1])
+
+    def testTargetKeyDoesNotSkipRecordThatHappensToBeTruncated(self):
+        s = SequentialStorage(self.tempfile)
+        s.add(5, "five")
+        s._f.truncate(s._f.tell()-2)  # 5 becomes crap, but six is still ok
+        s.add(6, "six")
+        s._f.seek(0)
+        try:
+            s._readNext(5)
+            self.fail()
+        except StopIteration:
+            pass
+        s._f.seek(0) #TODO what if this seek is not there? What should the file position be?
+        self.assertEquals("six", s._readNext(6)[1])
 
 
 class ReopeningSeqStorage(object):
