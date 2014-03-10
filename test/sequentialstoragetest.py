@@ -229,6 +229,17 @@ class SequentialStorageTest(SeecrTestCase):
         except StopIteration:
             pass
 
+    def testTargetKeyGreaterOrEquals(self):
+        s = SequentialStorage(self.tempfile)
+        s.add(3, "three")
+        s.add(7, "seven")
+        s.add(9, "nine")
+        s._f.seek(0 * BLOCKSIZE)
+        self.assertEquals("three", s._readNext(target_key=2, greater=True)[1])
+        self.assertEquals("seven", s._readNext(target_key=7, greater=True)[1])
+        self.assertEquals("nine", s._readNext(target_key=8, greater=True)[1])
+        
+
     def testCompression(self):
         import zlib, bz2
         def ratio(filename, compress):
@@ -486,7 +497,7 @@ class SequentialStorageTest(SeecrTestCase):
         s._f.seek(0) #TODO what if this seek is not there? What should the file position be?
         self.assertEquals("six", s._readNext(6)[1])
 
-
+        
 class ReopeningSeqStorage(object):
     def __init__(self, testCase):
         self.tempfile = testCase.tempfile

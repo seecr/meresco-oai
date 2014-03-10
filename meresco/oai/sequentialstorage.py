@@ -33,9 +33,10 @@ from array import array
 from meresco.core import asyncnoreturnvalue
 from ordereddict import OrderedDict
 
-FROMEND = 2
-RELATIVE = 1
-
+SENTINEL = "----"
+RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
+BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
+LARGER_THAN_ANY_INT = 2**64-1  # see array type  # FIXME: testme!
 
 class SequentialMultiStorage(object):
     def __init__(self, path):
@@ -118,7 +119,7 @@ class SequentialStorage(object):
         except StopIteration:
             raise IndexError
 
-    def _readNext(self, target_key=None):
+    def _readNext(self, target_key=None, greater=False):
         line = "sentinel not yet found"
         #nextLineMustBeSentinel = False
         while line != '':
@@ -144,7 +145,7 @@ class SequentialStorage(object):
                         if not l.startswith(SENTINEL):
                             self._f.seek(retryPosition)
                         continue
-                    elif key != target_key:
+                    elif not greater and key != target_key:
                         raise StopIteration
                 data = self._f.read(length)
                 try:
@@ -159,24 +160,19 @@ class SequentialStorage(object):
                 return key, data
         raise StopIteration
 
-    def iter(self, start, stop=None, inclusive=False):
-        _intcheck(start)
-        stop is None or _intcheck(stop)
+    def iter(self, start, stop=LARGER_THAN_ANY_INT, inclusive=False):
+        _intcheck(start); _intcheck(stop)
+        cmp = operator.le if inclusive else operator.lt
         offset = BLOCKSIZE * self._index.find_blk(start, cutoff=0)
-        cmp = operator.gt if inclusive else operator.ge
-        while True:
+        self._f.seek(offset)
+        key, data = self._readNext(target_key=start, greater=True)
+        offset = self._f.tell()
+        while cmp(key, stop):
+            yield key, data
             self._f.seek(offset)
             key, data = self._readNext()
             offset = self._f.tell()
-            if stop and cmp(key, stop):
-                raise StopIteration
-            yield key, data
             
-
-SENTINEL = "----"
-RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
-BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
-LARGER_THAN_ANY_INT = 2**64-1  # see array type  # FIXME: testme!
 
 
 class _BlkIndex(object):
@@ -241,7 +237,7 @@ class _KeyIndex(object):
         return _bisect_left(self, key, cutoff=cutoff, lo=lo_blk, hi=hi_blk)
 
 def _intcheck(value):
-    if type(value) is not int:
+    if not isinstance(value, (int, long)):
         raise ValueError('Expected int')
 
 # from Python lib
