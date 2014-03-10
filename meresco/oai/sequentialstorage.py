@@ -108,11 +108,6 @@ class SequentialStorage(object):
     def isEmpty(self):
         return getsize(self._f.name) == 0
 
-    def iter(self, start, stop=None, **kwargs):
-        _intcheck(start)
-        stop is None or _intcheck(stop)
-        return _Iter(self, start, stop, **kwargs)
-
     def flush(self):
         self._f.flush()
 
@@ -164,24 +159,19 @@ class SequentialStorage(object):
                 return key, data
         raise StopIteration
 
-
-class _Iter(object):
-    def __init__(self, src, start, stop, inclusive=False):
-        self._offset = BLOCKSIZE * src._index.find_blk(start, cutoff=0)
-        self._src = src
-        self._cmp = operator.gt if inclusive else operator.ge
-        self._stop = stop
-
-    def next(self):
-        self._src._f.seek(self._offset)
-        key, data = self._src._readNext()
-        self._offset = self._src._f.tell()
-        if self._stop and self._cmp(key, self._stop):
-            raise StopIteration
-        return key, data
-
-    def __iter__(self):
-        return self
+    def iter(self, start, stop=None, inclusive=False):
+        _intcheck(start)
+        stop is None or _intcheck(stop)
+        offset = BLOCKSIZE * self._index.find_blk(start, cutoff=0)
+        cmp = operator.gt if inclusive else operator.ge
+        while True:
+            self._f.seek(offset)
+            key, data = self._readNext()
+            offset = self._f.tell()
+            if stop and cmp(key, stop):
+                raise StopIteration
+            yield key, data
+            
 
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
