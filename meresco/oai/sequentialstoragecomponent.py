@@ -27,26 +27,34 @@
 from meresco.oai import SequentialMultiStorage
 from meresco.core import asyncnoreturnvalue
 from cStringIO import StringIO
-from time import time
-from time import sleep
-
-
-from lucene import initVM
+from time import time, sleep
 from os.path import join
-initVM()
 
-from java.io import File
-from org.apache.lucene.document import Document, StringField, Field, LongField, FieldType
-from org.apache.lucene.search import IndexSearcher, TermQuery
-from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
-from org.apache.lucene.store import FSDirectory
-from org.apache.lucene.util import Version
-from org.apache.lucene.analysis.core import WhitespaceAnalyzer
+imported = False
+def lazyImport():
+    global imported
+    if imported:
+        return
+    imported = True
 
-StampType = FieldType()
-StampType.setIndexed(False)
-StampType.setStored(True)
-StampType.setNumericType(FieldType.NumericType.LONG)
+    from oaijazz import importVM
+    importVM()
+
+    from java.io import File
+    from org.apache.lucene.document import Document, StringField, Field, LongField, FieldType
+    from org.apache.lucene.search import IndexSearcher, TermQuery
+    from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
+    from org.apache.lucene.store import FSDirectory
+    from org.apache.lucene.util import Version
+    from org.apache.lucene.analysis.core import WhitespaceAnalyzer
+
+    StampType = FieldType()
+    StampType.setIndexed(False)
+    StampType.setStored(True)
+    StampType.setNumericType(FieldType.NumericType.LONG)
+
+    globals().update(locals())
+
 
 def getLucene(path):
     directory = FSDirectory.open(File(path))
@@ -61,6 +69,7 @@ DELETED_RECORD = object()
 
 class Index(object):
     def __init__(self, path):
+        lazyImport()
         self._writer, self._reader, self._searcher = getLucene(path)
         self._latestModifications = {}
 
@@ -120,9 +129,15 @@ class SequentialStorageComponent(object):
         except KeyError:
             return False, False
 
-    def getStream(self, identifier, partname):
+    def _getData(self, identifier, partname):
         stamp = self._index[identifier]
-        return StringIO(self._storage.getData(stamp, partname))
+        return self._storage.getData(stamp, partname)
+
+    def getStream(self, identifier, partname):
+        return StringIO(self._getData(identifier, partname))
+
+    def yieldRecord(self, identifier, partname):
+        yield self._getData(identifier, partname)
 
     def handleShutdown(self):
         print 'handle shutdown: saving SequentialStorageComponent %s' % self._directory

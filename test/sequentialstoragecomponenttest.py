@@ -27,7 +27,7 @@
 from seecr.test import SeecrTestCase
 from meresco.oai import SequentialStorageComponent
 
-from weightless.core import consume
+from weightless.core import consume, asString
 
 class SequentialStorageComponentTest(SeecrTestCase):
 
@@ -38,6 +38,8 @@ class SequentialStorageComponentTest(SeecrTestCase):
         self.assertEquals((True, True), c.isAvailable("an arbitratry identifier", partname="xml"))
         dataStream = c.getStream("an arbitratry identifier", "xml")
         self.assertEquals("<data/>", dataStream.read())
+        data = asString(c.yieldRecord("an arbitratry identifier", "xml"))
+        self.assertEquals("<data/>", data)
 
     def testTwo(self):
         c = SequentialStorageComponent(self.tempdir)

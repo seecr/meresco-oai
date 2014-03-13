@@ -45,12 +45,7 @@ from weightless.io import Suspend
 from json import load, dump
 from warnings import warn
 
-imported = False
-def lazyImport():
-    global imported
-    if imported:
-        return
-    imported = True
+def importVM():
     maxheap = getenv('PYLUCENE_MAXHEAP')
     if not maxheap:
         maxheap = '4g'
@@ -60,6 +55,16 @@ def lazyImport():
         VM = initVM(maxheap=maxheap)#, vmargs='-agentlib:hprof=heap=sites')
     except ValueError:
         VM = getVMEnv()
+    return VM
+
+imported = False
+def lazyImport():
+    global imported
+    if imported:
+        return
+    imported = True
+
+    importVM()
 
     from java.lang import Long
     from java.io import File
