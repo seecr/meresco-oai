@@ -74,7 +74,6 @@ from streaminglxmltest import StreamingLxmlTest
 from updateadaptertest import UpdateAdapterTest
 from sequentialstoragetest import SequentialStorageTest
 
-from sequentialstore.keyindextest import KeyIndexTest
 
 from info.oaijsoninfotest import OaiJsonInfoTest
 

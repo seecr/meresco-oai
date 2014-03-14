@@ -76,17 +76,11 @@ class SequentialMultiStorage(object):
 
 
 class SequentialStorage(object):
-    def __init__(self, fileName, cutoff=128, blkSize=BLOCKSIZE):
+    def __init__(self, fileName, blkSize=4096):
         from io import open
         self._f = open(fileName, "ab+")
         self._blkIndex = _BlkIndex(self, blkSize)
-        self._index = _KeyIndex(self._blkIndex, cutoff)
         self._lastKey = None
-        last_blk = 0
-        if self._index:
-            last_blk = self._index.find_blk(LARGER_THAN_ANY_INT, cutoff=0)
-        if last_blk > 0:
-            self._lastKey = self._index[last_blk - 1]
 
     def add(self, key, data):
         _intcheck(key)
@@ -99,7 +93,7 @@ class SequentialStorage(object):
 
     def __getitem__(self, key):
         _intcheck(key)
-        blk = self._index.find_blk(key)
+        blk = self._blkIndex.search(key)
         try:
             found_key, data = self._blkIndex.scan(blk, target_key=key)
         except StopIteration:
@@ -134,11 +128,11 @@ class SequentialStorage(object):
                     continue
                 if target_key:
                     if key < target_key:
-                        retryPosition = self._f.tell()
-                        self._f.seek(length + 1, RELATIVE)
-                        l = self._f.peek(len(SENTINEL))
-                        if not l.startswith(SENTINEL):
-                            self._f.seek(retryPosition)
+                        #retryPosition = self._f.tell()
+                        #self._f.seek(length + 1, SEEK_CUR)
+                        #l = self._f.peek(len(SENTINEL))
+                        #if not l.startswith(SENTINEL):
+                        #    self._f.seek(retryPosition)
                         continue
                     elif not greater and key != target_key:
                         raise StopIteration
@@ -158,7 +152,7 @@ class SequentialStorage(object):
     def iter(self, start, stop=LARGER_THAN_ANY_INT, inclusive=False):
         _intcheck(start); _intcheck(stop)
         cmp = operator.le if inclusive else operator.lt
-        blk = self._index.find_blk(start)
+        blk = self._blkIndex.search(start)
         key, data = self._blkIndex.scan(blk, target_key=start, greater=True)
         offset = self._f.tell()
         while cmp(key, stop):
@@ -170,17 +164,21 @@ class SequentialStorage(object):
 
 
 class _BlkIndex(object):
-    """Blk->Key. Please keep compatible with Python list in order to simplify testing"""
 
     def __init__(self, src, blk_size):
         self._src = src
         self._blk_size = blk_size
+        self._cache = {}
 
     def __getitem__(self, blk):
-        try:
-            return self.scan(blk)[0]
-        except StopIteration:
-            raise IndexError
+        key = self._cache.get(blk)
+        if not key:
+            try:
+                key = self.scan(blk)[0]
+                self._cache[blk] = key
+            except StopIteration:
+                raise IndexError
+        return key
 
     def __len__(self):
         self._src._f.seek(0, SEEK_END)
@@ -190,46 +188,8 @@ class _BlkIndex(object):
         self._src._f.seek(blk * self._blk_size)
         return self._src._readNext(**kwargs)
 
-class _MemIndex(object):
-    def __init__(self):
-        self._keys = array("L")
-        self._blks = array("L")
-        assert self._keys.itemsize == 8, '64-bits long needed'
-
-    def __len__(self):
-        return len(self._keys)
-
-    def find_blk_range(self, key):
-        lo = _bisect_left(self._keys, key)
-        return self._blks[lo-1] if lo else 0, self._blks[lo] if lo < len(self) else None
-
-    def add(self, key, blk):
-        lo = _bisect_left(self._keys, key)
-        if lo >= len(self) or self._keys[lo] != key:
-            self._keys.insert(lo, key)
-            self._blks.insert(lo, blk)
-        return self
-        
-class _KeyIndex(object):
-    """Key->Blk"""
-
-    def __init__(self, blkIndex, cutoff=0):
-        self._cutoff = cutoff
-        self._blkIndex = blkIndex
-        self._memIndex = _MemIndex()
-
-    def __len__(self):
-        return len(self._blkIndex)
-
-    def __getitem__(self, blk):
-        key = self._blkIndex[blk]
-        self._memIndex.add(key, blk)
-        return key
-
-    def find_blk(self, key, cutoff=None):
-        lo_blk, hi_blk = self._memIndex.find_blk_range(key)
-        cutoff = cutoff if cutoff != None else self._cutoff
-        return _bisect_left(self, key, cutoff=cutoff, lo=lo_blk, hi=hi_blk)
+    def search(self, key):
+        return max(_bisect_left(self, key)-1, 0)
 
 def _intcheck(value):
     if not isinstance(value, (int, long)):
