@@ -158,10 +158,7 @@ class SequentialStorage(object):
     def iter(self, start, stop=LARGER_THAN_ANY_INT, inclusive=False):
         _intcheck(start); _intcheck(stop)
         cmp = operator.le if inclusive else operator.lt
-        #offset = BLOCKSIZE * self._index.find_blk(start)
         blk = self._index.find_blk(start)
-        #self._f.seek(offset)
-        #key, data = self._readNext(target_key=start, greater=True)
         key, data = self._blkIndex.scan(blk, target_key=start, greater=True)
         offset = self._f.tell()
         while cmp(key, stop):
@@ -204,7 +201,7 @@ class _MemIndex(object):
 
     def find(self, key):
         lo = _bisect_left(self._cache_key, key)
-        lo_blk, hi_blk = 0, None  # TS: TODO: hi_blk kan None zijn, zinnig/nuttig?
+        lo_blk, hi_blk = 0, None
         if lo < len(self._cache_key):
             hi_blk = self._cache_blk[lo]
         if lo > 0:
@@ -213,29 +210,24 @@ class _MemIndex(object):
 
     def add(self, key, blk):
         lo = _bisect_left(self._cache_key, key)
-        if lo < len(self._cache_key):
-            found_key = self._cache_key[lo]
-            if found_key == key:
-                return self
-        self._cache_key.insert(lo, key)
-        self._cache_blk.insert(lo, blk)
+        if lo >= len(self._cache_key) or self._cache_key[lo] != key:
+            self._cache_key.insert(lo, key)
+            self._cache_blk.insert(lo, blk)
         return self
         
 class _KeyIndex(object):
     """Key->Blk"""
 
-    def __init__(self, blk, cutoff=0):
+    def __init__(self, blkIndex, cutoff=0):
         self._cutoff = cutoff
-        self._blk = blk
+        self._blkIndex = blkIndex
         self._memIndex = _MemIndex()
-        self._keys = array("L")
-        self._blks = array("L")
 
     def __len__(self):
-        return len(self._blk)
+        return len(self._blkIndex)
 
     def __getitem__(self, blk):
-        key = self._blk[blk]
+        key = self._blkIndex[blk]
         self._memIndex.add(key, blk)
         return key
 
