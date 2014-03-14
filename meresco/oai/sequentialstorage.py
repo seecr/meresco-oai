@@ -192,27 +192,22 @@ class _BlkIndex(object):
 
 class _MemIndex(object):
     def __init__(self):
-        self._cache_key = array("L")
-        self._cache_blk = array("L")
-        assert self._cache_key.itemsize == 8, '64-bits long needed'
+        self._keys = array("L")
+        self._blks = array("L")
+        assert self._keys.itemsize == 8, '64-bits long needed'
 
     def __len__(self):
-        return len(self._cache_key)
+        return len(self._keys)
 
     def find(self, key):
-        lo = _bisect_left(self._cache_key, key)
-        lo_blk, hi_blk = 0, None
-        if lo < len(self._cache_key):
-            hi_blk = self._cache_blk[lo]
-        if lo > 0:
-            lo_blk = self._cache_blk[lo-1]
-        return lo_blk, hi_blk
+        lo = _bisect_left(self._keys, key)
+        return self._blks[lo-1] if lo else 0, self._blks[lo] if lo < len(self._blks) else None
 
     def add(self, key, blk):
-        lo = _bisect_left(self._cache_key, key)
-        if lo >= len(self._cache_key) or self._cache_key[lo] != key:
-            self._cache_key.insert(lo, key)
-            self._cache_blk.insert(lo, blk)
+        lo = _bisect_left(self._keys, key)
+        if lo >= len(self._keys) or self._keys[lo] != key:
+            self._keys.insert(lo, key)
+            self._blks.insert(lo, blk)
         return self
         
 class _KeyIndex(object):

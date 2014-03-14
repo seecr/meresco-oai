@@ -372,8 +372,8 @@ class SequentialStorageTest(SeecrTestCase):
     def testMemIndexSortes(self):
         mi = _MemIndex()
         mi.add(42, 88).add(40, 78).add(44, 98)
-        self.assertEquals(sorted(mi._cache_key), [i for i in mi._cache_key])
-        self.assertEquals(sorted(mi._cache_blk), [i for i in mi._cache_blk])
+        self.assertEquals(sorted(mi._keys), [i for i in mi._keys])
+        self.assertEquals(sorted(mi._blks), [i for i in mi._blks])
 
     def testMemIndexIgnoresDuplicates(self):
         mi = _MemIndex()
