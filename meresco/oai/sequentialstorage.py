@@ -24,6 +24,7 @@
 #
 ## end license ##
 
+from io import open
 from os.path import join, isdir, getsize
 from os import listdir, makedirs, SEEK_CUR, SEEK_END
 from escaping import escapeFilename
@@ -35,7 +36,6 @@ from ordereddict import OrderedDict
 
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
-BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
 LARGER_THAN_ANY_INT = 2**64-1
 
 class SequentialMultiStorage(object):
@@ -76,8 +76,7 @@ class SequentialMultiStorage(object):
 
 
 class SequentialStorage(object):
-    def __init__(self, fileName, blkSize=4096):
-        from io import open
+    def __init__(self, fileName, blkSize=8192):
         self._f = open(fileName, "ab+")
         self._blkIndex = _BlkIndex(self, blkSize)
         self._lastKey = None
@@ -98,8 +97,6 @@ class SequentialStorage(object):
             found_key, data = self._blkIndex.scan(blk, target_key=key)
         except StopIteration:
             raise IndexError
-        if found_key != key:
-            raise IndexError
         return data
 
     def isEmpty(self):
@@ -108,7 +105,7 @@ class SequentialStorage(object):
     def flush(self):
         self._f.flush()
 
-    def _readNext(self, target_key=None, greater=False):
+    def _readNext(self, target_key=None, greater=False, keyOnly=False):
         line = "sentinel not yet found"
         #nextLineMustBeSentinel = False
         while line != '':
@@ -128,14 +125,16 @@ class SequentialStorage(object):
                     continue
                 if target_key:
                     if key < target_key:
-                        #retryPosition = self._f.tell()
-                        #self._f.seek(length + 1, SEEK_CUR)
-                        #l = self._f.peek(len(SENTINEL))
-                        #if not l.startswith(SENTINEL):
-                        #    self._f.seek(retryPosition)
+                        retryPosition = self._f.tell()
+                        self._f.seek(length + 1, SEEK_CUR)
+                        l = self._f.peek(len(SENTINEL))
+                        if not l.startswith(SENTINEL):
+                            self._f.seek(retryPosition)
                         continue
                     elif not greater and key != target_key:
                         raise StopIteration
+                if keyOnly:
+                    return key
                 data = self._f.read(length)
                 try:
                     data = decompress(data)
@@ -161,8 +160,6 @@ class SequentialStorage(object):
             key, data = self._readNext()
             offset = self._f.tell()
             
-
-
 class _BlkIndex(object):
 
     def __init__(self, src, blk_size):
@@ -173,9 +170,8 @@ class _BlkIndex(object):
     def __getitem__(self, blk):
         key = self._cache.get(blk)
         if not key:
-            try:
-                key = self.scan(blk)[0]
-                self._cache[blk] = key
+            try:    
+                key = self._cache[blk] = self.scan(blk, keyOnly=True)
             except StopIteration:
                 raise IndexError
         return key

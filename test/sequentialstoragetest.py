@@ -196,29 +196,29 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals("abc----\nxyzabc----\nx", s[5][:20])
         self.assertEquals("<data>seven</data>", s[7])
 
-    def XXXtestValidPartName(self):
+    def testValidPartName(self):
         s = SequentialMultiStorage(self.tempdir)
         consume(s.add(2, "ma/am", "data"))
         s.flush()
         s = SequentialMultiStorage(self.tempdir)
         self.assertEquals("data", s.getData(2, "ma/am"))
 
-    def XXXtestReadNextWithTargetKey(self):
+    def testReadNextWithTargetKey(self):
         s = SequentialStorage(self.tempfile)
         s.add(3, "three")
         s.add(4, "four")
         s.add(7, "seven")
         s.add(9, "nine")
-        s._f.seek(0 * BLOCKSIZE)
+        s._f.seek(0)
         self.assertRaises(StopIteration, lambda: s._readNext(target_key=2))
         self.assertRaises(StopIteration, lambda: s._readNext(target_key=5))
-        s._f.seek(0 * BLOCKSIZE)
+        s._f.seek(0)
         self.assertEquals("three", s._readNext(target_key=3)[1])
         self.assertEquals("four", s._readNext(target_key=4)[1])
-        s._f.seek(0 * BLOCKSIZE)
+        s._f.seek(0)
         self.assertEquals("four", s._readNext(target_key=4)[1])
         self.assertEquals("seven", s._readNext(target_key=7)[1])
-        s._f.seek(0 * BLOCKSIZE)
+        s._f.seek(0)
         self.assertEquals("nine", s._readNext(target_key=9)[1])
         try:
             s._readNext(target_key=3)
@@ -226,17 +226,17 @@ class SequentialStorageTest(SeecrTestCase):
         except StopIteration:
             pass
 
-    def XXXtestTargetKeyGreaterOrEquals(self):
+    def testTargetKeyGreaterOrEquals(self):
         s = SequentialStorage(self.tempfile)
         s.add(3, "three")
         s.add(7, "seven")
         s.add(9, "nine")
-        s._f.seek(0 * BLOCKSIZE)
+        s._f.seek(0)
         self.assertEquals("three", s._readNext(target_key=2, greater=True)[1])
         self.assertEquals("seven", s._readNext(target_key=7, greater=True)[1])
         self.assertEquals("nine", s._readNext(target_key=8, greater=True)[1])
 
-    def XXXtestCompression(self):
+    def testCompression(self):
         import zlib, bz2
         def ratio(filename, compress):
             data = open(filename).read()
@@ -251,7 +251,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertTrue(2.5 < bz2_ratio < 2.6, bz2_ratio)
         self.assertTrue(3.2 < zlib_ratio < 3.3, zlib_ratio)
 
-    def XXXtestIterator(self):
+    def testIterator(self):
         s = SequentialStorage(self.tempfile)
         s.add(2, "<data>two</data>")
         s.add(4, "<data>four</data>")
@@ -263,7 +263,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals((9, "<data>nine</data>"), i.next())
         self.assertRaises(StopIteration, lambda: i.next())
 
-    def XXXtestTwoAlternatingIterators(self):
+    def testTwoAlternatingIterators(self):
         s = SequentialStorage(self.tempfile)
         s.add(2, "<data>two</data>")
         s.add(4, "<data>four</data>")
@@ -279,7 +279,7 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals((9, "<data>nine</data>"), i1.next())
         self.assertRaises(StopIteration, lambda: i1.next())
 
-    def XXXtestIteratorUntil(self):
+    def testIteratorUntil(self):
         s = SequentialStorage(self.tempfile)
         s.add(2, "two")
         s.add(4, "four")
@@ -296,7 +296,7 @@ class SequentialStorageTest(SeecrTestCase):
         i = s.iter(5, 99)
         self.assertEquals([(6, "six"), (7, "seven"), (8, "eight"), (9, "nine")], list(i))
 
-    def XXXtestIterDataUntil(self):
+    def testIterDataUntil(self):
         s = SequentialMultiStorage(self.tempdir)
         s.addData(name='oai_dc', key=2, data="two")
         s.addData(name='oai_dc', key=4, data="four")
@@ -326,8 +326,8 @@ class SequentialStorageTest(SeecrTestCase):
         del s
         return SequentialStorage("data/test.ss")
 
-    def XXXtestBigBlock(self):
-        b = self.createTestIndex()._bigblks
+    def testBigBlock(self):
+        b = self.createTestIndex()._blkIndex
         self.assertEquals(272504, len(b))
         self.assertEquals(0, b[0])
         self.assertEquals(4, b[1])
@@ -345,137 +345,75 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals(864126, b[blk+1])
         self.assertEquals(864123, b.scan(blk, target_key=864123)[0])
 
-    def XXXtestGapsInMemIndex(self):
-        count = 2**20
-        from random import random, randint
-        s = SequentialStorage("data/test.ss", cutoff=2048)
-        for j in xrange(10000):
-            s[randint(0, count-1)]
-        last = None
-        for i in s._index._memIndex._blks:
-            if last:
-                self.assertTrue(i > last + 512, (last, i, i-last))
-            last = i
-
-    def XXXtestReadSpeed(self):
+    def testReadSpeed(self):
         self.createTestIndex()
         from random import random, randint
         from time import time
-        def f(cutoff=2**13):
-            s = SequentialStorage("data/test.ss", cutoff=cutoff)
+        count = 2**20
+        def f(blksiz=2**14):
+            s = SequentialStorage("data/test.ss", blkSize=blksiz)
             n = 0
             t0 = time()
-            for j in xrange(200000):
+            for j in xrange(100000):
                 i = randint(0, count-1)
                 data = s[i]
                 n += 1
             t1 = time()
             lookupsPerSecond = n / (t1-t0)
-            c = s._index._memIndex._keys
-            print cutoff, int(lookupsPerSecond), len(c)
+            c = s._blkIndex._cache
+            print blksiz, int(lookupsPerSecond), len(c)
         from seecr.utils.profileit import profile
         #profile(f)
-        for cutoff in [1024, 2048, 4096, 2**13]:
+        for cutoff in [2**n for n in range(11,16)]:
             f(cutoff)
 
-    def test64BitsArchRequiredForArrayL(self):
-        self.fail('think')
-
-    def testArrayPerformance(self):
-        self.fail('not now')
-        from random import randint
-        from array import array
-        from bisect import insort
-        from time import time
-        from sys import getsizeof
-        a = array('L')
-        #a = []
-        self.assertEquals(0, len(a))
-        self.assertEquals([], list(a))
-        t0 = time()
-        for i in xrange(10**7):
-            insort(a, randint(0, 9999999999))
-            t1 = time()
-            if i % 10000 == 1:
-                print (t1-t0), i, (t1-t0)/i, getsizeof(a), getsizeof(a)/i
-        # list: 161.974352837 999999 0.000161974514811 8697472 8
-        # array: 107.27125597 999999 0.000107271363241 56 0
-
-    def XXXtestMemIndexSortes(self):
-        mi = _MemIndex()
-        mi.add(42, 88).add(40, 78).add(44, 98)
-        self.assertEquals(sorted(mi._keys), [i for i in mi._keys])
-        self.assertEquals(sorted(mi._blks), [i for i in mi._blks])
-
-    def XXXtestMemIndexIgnoresDuplicates(self):
-        mi = _MemIndex()
-        mi.add(42, 88).add(40, 78).add(42, 98)
-        self.assertEquals(2, len(mi))
-   
-    def XXXtestMemIndex(self):
-        mi = _MemIndex()
-        mi.add(40, 78).add(42, 88).add(44, 98)
-        self.assertEquals(( 0, 78), mi.find_blk_range(39))
-        self.assertEquals(( 0, 78), mi.find_blk_range(40))
-        self.assertEquals((78, 88), mi.find_blk_range(41))
-        self.assertEquals((78, 88), mi.find_blk_range(42))
-        self.assertEquals((88, 98), mi.find_blk_range(43))
-        self.assertEquals((88, 98), mi.find_blk_range(44))
-        self.assertEquals((98, None), mi.find_blk_range(45))
-
-    def XXXtestTwoLevelIndex(self):
-        src = [3, 5, 6, 7, 9]
-        index = _KeyIndex(src, "NA")
-        n = index[0]
-        self.assertEquals(3, n)
-
-    def XXXtestDirectoryCreatedIfNotExists(self):
+    def testDirectoryCreatedIfNotExists(self):
         SequentialMultiStorage(join(self.tempdir, "storage"))
         self.assertTrue(isdir(join(self.tempdir, "storage")))
 
-    def XXXtestShortRubbishAtStartOfFileIgnored(self):
+    def testShortRubbishAtStartOfFileIgnored(self):
         s = ReopeningSeqStorage(self).write('corrupt')
         self.assertEquals([], s.items())
         s.add(1, "record 1")
         self.assertEquals([(1, 'record 1')], s.items())
         self.assertTrue(s.fileData.startswith("corrupt" + SENTINEL + '\n1\n'), s.fileData)
 
-    def XXXtestLongerRubbishAtStartOfFileIgnored(self):
+    def testLongerRubbishAtStartOfFileIgnored(self):
         s = ReopeningSeqStorage(self).write('corrupt' * 3)  # > BLOCKSIZE
         self.assertEquals([], s.items())
         s.add(1, "record 1")
         self.assertEquals([(1, 'record 1')], s.items())
         self.assertTrue(s.fileData.startswith("corrupt" * 3 + SENTINEL + '\n1\n'), s.fileData)
 
-    def XXXtestCorruptionFromKeyLineIgnored(self):
+    def testCorruptionFromKeyLineIgnored(self):
         s = ReopeningSeqStorage(self).write('%s\ncorrupt' % SENTINEL)
         self.assertEquals([], s.items())
         s.add(1, "record 1")
         self.assertEquals([(1, 'record 1')], s.items())
         self.assertTrue(s.fileData.startswith(SENTINEL + "\ncorrupt" + SENTINEL + '\n1\n'), s.fileData)
 
-    def XXXtestCorruptionFromLengthLineIgnored(self):
+    def testCorruptionFromLengthLineIgnored(self):
         s = ReopeningSeqStorage(self).write('%s\n1\ncorrupt' % SENTINEL)
         self.assertEquals([], s.items())
         s.add(1, "record 1")
         self.assertEquals([(1, 'record 1')], s.items())
         self.assertTrue(s.fileData.startswith(SENTINEL + "\n1\ncorrupt" + SENTINEL + '\n1\n'), s.fileData)
 
-    def XXXtestCorruptionFromDataIgnored(self):
+    def testCorruptionFromDataIgnored(self):
         s = ReopeningSeqStorage(self).write('%s\n1\n100\ncorrupt' % SENTINEL)
         self.assertEquals([], s.items())
         s.add(1, "record 1")
         self.assertEquals([(1, 'record 1')], s.items())
         self.assertTrue(s.fileData.startswith(SENTINEL + "\n1\n100\ncorrupt" + SENTINEL + '\n1\n'), s.fileData)
 
-    def XXXtestRubbishInBetween(self):
+    def testRubbishInBetween(self):
         s = ReopeningSeqStorage(self)
         s.add(1, "record 1")
         s.write("rubbish")
         s.add(2, "record 2")
         self.assertEquals([(1, 'record 1'), (2, 'record 2')], s.items())
 
-    def XXXtestCorruptionInBetween(self):
+    def testCorruptionInBetween(self):
         s = ReopeningSeqStorage(self)
         s.add(5, "record to be corrupted")
         corruptRecordTemplate = s.fileData
@@ -494,7 +432,7 @@ class SequentialStorageTest(SeecrTestCase):
             _writeRecordAndPartOfRecord(i)
             self.assertEquals([1, 5], s.keys())
 
-    def XXXtestTargetKeySkipsRubbish(self):
+    def testTargetKeySkipsRubbish(self):
         s = SequentialStorage(self.tempfile)
         s.add(5, "five")
         s._f.write("@!^$#%")
@@ -502,7 +440,7 @@ class SequentialStorageTest(SeecrTestCase):
         s._f.seek(0)
         self.assertEquals("six", s._readNext(6)[1])
 
-    def XXXtestTargetKeyDoesNotSkipRecordWhenRubbishPresent(self):
+    def testTargetKeyDoesNotSkipRecordWhenRubbishPresent(self):
         s = SequentialStorage(self.tempfile)
         s.add(5, "five")
         s._f.seek(-2, 1)
@@ -511,7 +449,7 @@ class SequentialStorageTest(SeecrTestCase):
         s._f.seek(0)
         self.assertEquals("six", s._readNext(6)[1])
 
-    def XXXtestTargetKeyDoesNotSkipRecordThatHappensToBeTruncated(self):
+    def testTargetKeyDoesNotSkipRecordThatHappensToBeTruncated(self):
         s = SequentialStorage(self.tempfile)
         s.add(5, "five")
         s._f.truncate(s._f.tell()-2)  # 5 becomes crap, but six is still ok
