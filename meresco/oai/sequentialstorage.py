@@ -199,13 +199,13 @@ class _MemIndex(object):
     def __len__(self):
         return len(self._keys)
 
-    def find(self, key):
+    def find_blk_range(self, key):
         lo = _bisect_left(self._keys, key)
-        return self._blks[lo-1] if lo else 0, self._blks[lo] if lo < len(self._blks) else None
+        return self._blks[lo-1] if lo else 0, self._blks[lo] if lo < len(self) else None
 
     def add(self, key, blk):
         lo = _bisect_left(self._keys, key)
-        if lo >= len(self._keys) or self._keys[lo] != key:
+        if lo >= len(self) or self._keys[lo] != key:
             self._keys.insert(lo, key)
             self._blks.insert(lo, blk)
         return self
@@ -227,7 +227,7 @@ class _KeyIndex(object):
         return key
 
     def find_blk(self, key, cutoff=None):
-        lo_blk, hi_blk = self._memIndex.find(key)
+        lo_blk, hi_blk = self._memIndex.find_blk_range(key)
         cutoff = cutoff if cutoff != None else self._cutoff
         return _bisect_left(self, key, cutoff=cutoff, lo=lo_blk, hi=hi_blk)
 

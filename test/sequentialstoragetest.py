@@ -383,13 +383,13 @@ class SequentialStorageTest(SeecrTestCase):
     def testMemIndex(self):
         mi = _MemIndex()
         mi.add(40, 78).add(42, 88).add(44, 98)
-        self.assertEquals(( 0, 78), mi.find(39))
-        self.assertEquals(( 0, 78), mi.find(40))
-        self.assertEquals((78, 88), mi.find(41))
-        self.assertEquals((78, 88), mi.find(42))
-        self.assertEquals((88, 98), mi.find(43))
-        self.assertEquals((88, 98), mi.find(44))
-        self.assertEquals((98, None), mi.find(45))
+        self.assertEquals(( 0, 78), mi.find_blk_range(39))
+        self.assertEquals(( 0, 78), mi.find_blk_range(40))
+        self.assertEquals((78, 88), mi.find_blk_range(41))
+        self.assertEquals((78, 88), mi.find_blk_range(42))
+        self.assertEquals((88, 98), mi.find_blk_range(43))
+        self.assertEquals((88, 98), mi.find_blk_range(44))
+        self.assertEquals((98, None), mi.find_blk_range(45))
 
     def testTwoLevelIndex(self):
         src = [3, 5, 6, 7, 9]
