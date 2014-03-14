@@ -163,7 +163,7 @@ class SequentialStorage(object):
     def iter(self, start, stop=LARGER_THAN_ANY_INT, inclusive=False):
         _intcheck(start); _intcheck(stop)
         cmp = operator.le if inclusive else operator.lt
-        offset = BLOCKSIZE * self._index.find_blk(start, cutoff=0)
+        offset = BLOCKSIZE * self._index.find_blk(start)
         self._f.seek(offset)
         key, data = self._readNext(target_key=start, greater=True)
         offset = self._f.tell()
@@ -176,7 +176,7 @@ class SequentialStorage(object):
 
 
 class _BlkIndex(object):
-    """Please keep compatible with Python list in order to simplify testing"""
+    """Blk->Key. Please keep compatible with Python list in order to simplify testing"""
 
     def __init__(self, src):
         self._src = src
@@ -217,6 +217,7 @@ class _MemIndex(object):
         return self
         
 class _KeyIndex(object):
+    """Key->Blk"""
 
     def __init__(self, blk, cutoff=0):
         self._cutoff = cutoff
