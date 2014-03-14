@@ -36,7 +36,7 @@ from ordereddict import OrderedDict
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
 BLOCKSIZE = len(RECORD % dict(sentinel=SENTINEL, key=1, length=1, data="1"))
-LARGER_THAN_ANY_INT = 2**64-1  # see array type  # FIXME: testme!
+LARGER_THAN_ANY_INT = 2**64-1
 
 class SequentialMultiStorage(object):
     def __init__(self, path):
@@ -81,27 +81,25 @@ class SequentialStorage(object):
         self._f = open(fileName, "ab+")
         self._index = _KeyIndex(_BlkIndex(self), cutoff)
         self._lastKey = None
-        positionAfterLast = 0
+        last_blk = 0
         if self._index:
-            positionAfterLast = self._index.find_blk(LARGER_THAN_ANY_INT, cutoff=0)
-        if positionAfterLast > 0:
-            self._lastKey = self._index[positionAfterLast - 1]
+            last_blk = self._index.find_blk(LARGER_THAN_ANY_INT, cutoff=0)
+        if last_blk > 0:
+            self._lastKey = self._index[last_blk - 1]
 
     def add(self, key, data):
         _intcheck(key)
         if key <= self._lastKey:
             raise ValueError("key %s must be greater than last key %s" % (key, self._lastKey))
         self._lastKey = key
-        sentinel = SENTINEL
         data = compress(data)
-        length = len(data)
-        record = RECORD % locals()
+        record = RECORD % dict(key=key, length=len(data), data=data, sentinel=SENTINEL)
         self._f.write(record) # one write is a little bit faster
 
     def __getitem__(self, key):
         _intcheck(key)
-        i = self._index.find_blk(key)  # FIXME: Zonder cutoff=0 ?  --> Think
-        found_key, data = self._keyData(i, key)
+        blk = self._index.find_blk(key)
+        found_key, data = self._scan(blk, key)
         if found_key != key:
             raise IndexError
         return data
@@ -112,10 +110,10 @@ class SequentialStorage(object):
     def flush(self):
         self._f.flush()
 
-    def _keyData(self, i, key=None):
+    def _scan(self, i, key=None):
         self._f.seek(i * BLOCKSIZE)
         try:
-            return self._readNext(key)
+            return self._readNext(target_key=key)
         except StopIteration:
             raise IndexError
 
@@ -182,7 +180,7 @@ class _BlkIndex(object):
         self._src = src
 
     def __getitem__(self, blk):
-        return self._src._keyData(blk)[0]
+        return self._src._scan(blk)[0]
 
     def __len__(self):
         self._src._f.seek(0, SEEK_END)
@@ -192,7 +190,7 @@ class _MemIndex(object):
     def __init__(self):
         self._cache_key = array("L")
         self._cache_blk = array("L")
-        assert self._cache_key.itemsize == 8, '64-bits architecture required.'
+        assert self._cache_key.itemsize == 8, '64-bits long needed'
 
     def __len__(self):
         return len(self._cache_key)
