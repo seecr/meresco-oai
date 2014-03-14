@@ -76,10 +76,11 @@ class SequentialMultiStorage(object):
 
 
 class SequentialStorage(object):
-    def __init__(self, fileName, cutoff=128):
+    def __init__(self, fileName, cutoff=128, blkSize=BLOCKSIZE):
         from io import open
         self._f = open(fileName, "ab+")
-        self._index = _KeyIndex(_BlkIndex(self), cutoff)
+        self._blkIndex = _BlkIndex(self, blkSize)
+        self._index = _KeyIndex(self._blkIndex, cutoff)
         self._lastKey = None
         last_blk = 0
         if self._index:
@@ -99,7 +100,10 @@ class SequentialStorage(object):
     def __getitem__(self, key):
         _intcheck(key)
         blk = self._index.find_blk(key)
-        found_key, data = self._scan(blk, key)
+        try:
+            found_key, data = self._blkIndex.scan(blk, target_key=key)
+        except StopIteration:
+            raise IndexError
         if found_key != key:
             raise IndexError
         return data
@@ -109,13 +113,6 @@ class SequentialStorage(object):
 
     def flush(self):
         self._f.flush()
-
-    def _scan(self, i, key=None):
-        self._f.seek(i * BLOCKSIZE)
-        try:
-            return self._readNext(target_key=key)
-        except StopIteration:
-            raise IndexError
 
     def _readNext(self, target_key=None, greater=False):
         line = "sentinel not yet found"
@@ -161,9 +158,11 @@ class SequentialStorage(object):
     def iter(self, start, stop=LARGER_THAN_ANY_INT, inclusive=False):
         _intcheck(start); _intcheck(stop)
         cmp = operator.le if inclusive else operator.lt
-        offset = BLOCKSIZE * self._index.find_blk(start)
-        self._f.seek(offset)
-        key, data = self._readNext(target_key=start, greater=True)
+        #offset = BLOCKSIZE * self._index.find_blk(start)
+        blk = self._index.find_blk(start)
+        #self._f.seek(offset)
+        #key, data = self._readNext(target_key=start, greater=True)
+        key, data = self._blkIndex.scan(blk, target_key=start, greater=True)
         offset = self._f.tell()
         while cmp(key, stop):
             yield key, data
@@ -176,15 +175,23 @@ class SequentialStorage(object):
 class _BlkIndex(object):
     """Blk->Key. Please keep compatible with Python list in order to simplify testing"""
 
-    def __init__(self, src):
+    def __init__(self, src, blk_size):
         self._src = src
+        self._blk_size = blk_size
 
     def __getitem__(self, blk):
-        return self._src._scan(blk)[0]
+        try:
+            return self.scan(blk)[0]
+        except StopIteration:
+            raise IndexError
 
     def __len__(self):
         self._src._f.seek(0, SEEK_END)
-        return self._src._f.tell() / BLOCKSIZE
+        return self._src._f.tell() / self._blk_size
+
+    def scan(self, blk, **kwargs):
+        self._src._f.seek(blk * self._blk_size)
+        return self._src._readNext(**kwargs)
 
 class _MemIndex(object):
     def __init__(self):
@@ -221,6 +228,8 @@ class _KeyIndex(object):
         self._cutoff = cutoff
         self._blk = blk
         self._memIndex = _MemIndex()
+        self._keys = array("L")
+        self._blks = array("L")
 
     def __len__(self):
         return len(self._blk)

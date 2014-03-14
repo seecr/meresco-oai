@@ -142,16 +142,16 @@ class SequentialStorageTest(SeecrTestCase):
         s.add(4, "<data>four goes fine</data>")
         s.add(7, "<data>seven seems ok</data>")
         self.assertEquals(11, len(s._index))
-        self.assertEquals((2, "<data>two is nice</data>"), s._scan(0))
-        self.assertEquals((4, "<data>four goes fine</data>"), s._scan(1))
-        self.assertEquals((4, "<data>four goes fine</data>"), s._scan(2))
-        self.assertEquals((4, "<data>four goes fine</data>"), s._scan(3))
-        self.assertEquals((7, "<data>seven seems ok</data>"), s._scan(4))
-        self.assertEquals((7, "<data>seven seems ok</data>"), s._scan(5))
-        self.assertEquals((7, "<data>seven seems ok</data>"), s._scan(6))
-        self.assertEquals((7, "<data>seven seems ok</data>"), s._scan(7))
+        self.assertEquals((2, "<data>two is nice</data>"), s._blkIndex.scan(0))
+        self.assertEquals((4, "<data>four goes fine</data>"), s._blkIndex.scan(1))
+        self.assertEquals((4, "<data>four goes fine</data>"), s._blkIndex.scan(2))
+        self.assertEquals((4, "<data>four goes fine</data>"), s._blkIndex.scan(3))
+        self.assertEquals((7, "<data>seven seems ok</data>"), s._blkIndex.scan(4))
+        self.assertEquals((7, "<data>seven seems ok</data>"), s._blkIndex.scan(5))
+        self.assertEquals((7, "<data>seven seems ok</data>"), s._blkIndex.scan(6))
+        self.assertEquals((7, "<data>seven seems ok</data>"), s._blkIndex.scan(7))
         # hmm, we expect index 0-10 to work based on len()
-        self.assertRaises(IndexError, lambda: s._scan(8))
+        self.assertRaises(StopIteration, lambda: s._blkIndex.scan(8))
 
     def testIndexItem(self):
         s = SequentialStorage(self.tempfile)
@@ -379,7 +379,7 @@ class SequentialStorageTest(SeecrTestCase):
         mi = _MemIndex()
         mi.add(42, 88).add(40, 78).add(42, 98)
         self.assertEquals(2, len(mi))
-    
+   
     def testMemIndex(self):
         mi = _MemIndex()
         mi.add(40, 78).add(42, 88).add(44, 98)
