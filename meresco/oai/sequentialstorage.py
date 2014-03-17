@@ -30,9 +30,7 @@ from os import listdir, makedirs, SEEK_CUR, SEEK_END
 from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
 import operator
-from array import array
 from meresco.core import asyncnoreturnvalue
-from ordereddict import OrderedDict
 
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
@@ -192,7 +190,7 @@ def _intcheck(value):
         raise ValueError('Expected int')
 
 # from Python lib
-def _bisect_left(a, x, lo=0, hi=None, cutoff=0):
+def _bisect_left(a, x, lo=0, hi=None):
     """Return the index where to insert item x in list a, assuming a is sorted.
 
     The return value i is such that all e in a[:i] have e < x, and all e in
@@ -207,7 +205,7 @@ def _bisect_left(a, x, lo=0, hi=None, cutoff=0):
         raise ValueError('lo must be non-negative')
     if hi is None:
         hi = len(a)
-    while lo < hi - cutoff:  # EG added cutoff
+    while lo < hi:
         mid = (lo+hi)//2
         try: # EG
             if a[mid] < x:

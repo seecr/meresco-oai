@@ -29,6 +29,9 @@ from seecr.test import SeecrTestCase
 from weightless.core import consume
 from meresco.oai import SequentialStorage, SequentialMultiStorage
 from meresco.oai.sequentialstorage import SENTINEL
+from random import random, randint
+from time import time
+from itertools import islice
 
 class SequentialStorageTest(SeecrTestCase):
 
@@ -313,19 +316,6 @@ class SequentialStorageTest(SeecrTestCase):
         i = s.iterData(name='oai_dc', start=5, stop=99)
         self.assertEquals([(6, "six"), (7, "seven"), (8, "eight"), (9, "nine")], list(i))
 
-    def createTestIndex(self):
-        from random import random, randint
-        count = 2**20
-        s = SequentialStorage("data/test.ss")
-        if s.isEmpty():
-            data = ''.join(str(random()) for f in xrange(300))
-            for i in xrange(count):
-                s.add(i, data)
-                if i % 10000 == 0:
-                    print i
-        del s
-        return SequentialStorage("data/test.ss")
-
     def testBigBlock(self):
         b = self.createTestIndex()._blkIndex
         self.assertEquals(272504, len(b))
@@ -345,27 +335,45 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals(864126, b[blk+1])
         self.assertEquals(864123, b.scan(blk, target_key=864123)[0])
 
+    def createTestIndex(self, path, count=2**20):
+        path = ".".join((path, str(count)))
+        s = SequentialStorage(path)
+        t0 = time()
+        if s.isEmpty():
+            print "Creating test store in:", repr(path), "of", count, "items."
+            data = ''.join(str(random()) for f in xrange(300))
+            for i in xrange(count):
+                s.add(i, data)
+                if i % 10000 == 0:
+                    t1 = time()
+                    print "writes:", i, " writes/s: ", int(i / (t1-t0))
+        del s
+        return path
+
     def testReadSpeed(self):
-        self.createTestIndex()
-        from random import random, randint
-        from time import time
         count = 2**20
-        def f(blksiz=2**14):
-            s = SequentialStorage("data/test.ss", blkSize=blksiz)
-            n = 0
+        path = self.createTestIndex("data/test.ss", count=count)
+        def readOne(s, count):
+            s[randint(0, count-1)]
+        def readBatch(s, count, size=100):
+            for _ in islice(s.iter(randint(0, count-1)), size):
+                pass
+        def read(blksiz=2**13, fread=readOne):
+            s = SequentialStorage(path, blkSize=blksiz)
             t0 = time()
-            for j in xrange(100000):
-                i = randint(0, count-1)
-                data = s[i]
-                n += 1
-            t1 = time()
-            lookupsPerSecond = n / (t1-t0)
-            c = s._blkIndex._cache
-            print blksiz, int(lookupsPerSecond), len(c)
-        from seecr.utils.profileit import profile
-        #profile(f)
-        for cutoff in [2**n for n in range(11,16)]:
-            f(cutoff)
+            for i in xrange(1, 50001):
+                fread(s, count)
+                if i % 10000 == 0:
+                    t1 = time()
+                    print "reads:", i, " reads/s:", int(i/(t1-t0)), " cache:", len(s._blkIndex._cache)
+        print " ++++ RANDOM ++++ "
+        for blocksize in [2**n for n in range(12,16)]:
+            print "==== Blksize:", blocksize, "===="
+            read(blocksize)
+        print " ++++ SEQUENTIAL ++++ "
+        for blocksize in [2**n for n in range(12,16)]:
+            print "==== Blksize:", blocksize, "===="
+            read(blocksize, readBatch)
 
     def testDirectoryCreatedIfNotExists(self):
         SequentialMultiStorage(join(self.tempdir, "storage"))
