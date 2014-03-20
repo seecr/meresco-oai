@@ -29,6 +29,7 @@ from os.path import join, isdir, getsize
 from os import listdir, makedirs, SEEK_CUR, SEEK_END
 from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
+from math import ceil
 import operator
 from meresco.core import asyncnoreturnvalue
 
@@ -60,7 +61,7 @@ class SequentialMultiStorage(object):
     def getData(self, key, name):
         return self._getStorage(name)[key]
 
-    def iterData(self, name, start, stop, **kwargs):
+    def iterData(self, name, start, stop=LARGER_THAN_ANY_INT, **kwargs):
         return self._getStorage(name).iter(start, stop, **kwargs)
 
     def handleShutdown(self):
@@ -74,10 +75,15 @@ class SequentialMultiStorage(object):
 
 
 class SequentialStorage(object):
-    def __init__(self, fileName, blkSize=8192):
+    def __init__(self, fileName, blockSize=8192):
         self._f = open(fileName, "ab+")
-        self._blkIndex = _BlkIndex(self, blkSize)
+        self._blkIndex = _BlkIndex(self, blockSize)
         self._lastKey = None
+        lastBlk = self._blkIndex.search(LARGER_THAN_ANY_INT)
+        try:
+            self._lastKey = self._blkIndex.scan(lastBlk, last=True)
+        except StopIteration:
+            pass
 
     def add(self, key, data):
         _intcheck(key)
@@ -103,18 +109,14 @@ class SequentialStorage(object):
     def flush(self):
         self._f.flush()
 
-    def _readNext(self, target_key=None, greater=False, keyOnly=False):
+    def _readNext(self, target_key=None, greater=False, keyOnly=False, last=False):
         line = "sentinel not yet found"
-        #nextLineMustBeSentinel = False
+        key = None; data = None
         while line != '':
             line = self._f.readline()
-            #if nextLineMustBeSentinel:
-            #    if not line == SENTINEL + '\n':  # Exact, not endswith.
-            #        self._f.seek(retryPosition)
-            #        line = self._f.readline()
-            #    nextLineMustBeSentinel = False
             retryPosition = self._f.tell()
             if line.endswith(SENTINEL + '\n'):
+                data = None
                 try:
                     key = int(self._f.readline().strip())
                     length = int(self._f.readline().strip())
@@ -123,19 +125,14 @@ class SequentialStorage(object):
                     continue
                 if target_key:
                     if key < target_key:
-                        retryPosition = self._f.tell()
-                        self._f.seek(length + 1, SEEK_CUR)
-                        l = self._f.peek(len(SENTINEL))
-                        if not l.startswith(SENTINEL):
-                            self._f.seek(retryPosition)
                         continue
                     elif not greater and key != target_key:
                         raise StopIteration
                 if keyOnly:
                     return key
-                data = self._f.read(length)
+                rawdata = self._f.read(length)
                 try:
-                    data = decompress(data)
+                    data = decompress(rawdata)
                 except ZlibError:
                     self._f.seek(retryPosition)
                     continue
@@ -143,7 +140,11 @@ class SequentialStorage(object):
                 expectingNewline = self._f.read(1)  # newline after data
                 if expectingNewline != '\n':
                     self._f.seek(retryPosition)
+                if last:
+                    continue
                 return key, data
+        if last and key and data:
+            return key
         raise StopIteration
 
     def iter(self, start, stop=LARGER_THAN_ANY_INT, inclusive=False):
@@ -176,7 +177,7 @@ class _BlkIndex(object):
 
     def __len__(self):
         self._src._f.seek(0, SEEK_END)
-        return self._src._f.tell() / self._blk_size
+        return ceil(self._src._f.tell() / float(self._blk_size))
 
     def scan(self, blk, **kwargs):
         self._src._f.seek(blk * self._blk_size)

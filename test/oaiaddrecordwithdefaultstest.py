@@ -69,7 +69,7 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
         storage = SequentialMultiStorage(self.tempdir + '/1')
         addrecord.addObserver(storage)
         consume(addrecord.add("id0", data="<xml/>"))
-        t, data = storage.iterData("part1", 0, None).next()
+        t, data = storage.iterData("part1", 0).next()
         self.assertEquals("<xml/>", data)
 
     def testUseSequentialStorageAcceptstExactlyOneMetadataFormat(self):

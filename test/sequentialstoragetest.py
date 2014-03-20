@@ -83,26 +83,27 @@ class SequentialStorageTest(SeecrTestCase):
         s.add(10, "na")
         self.assertRaises(ValueError, lambda: s.add('3', "na"))
 
-    def XXXtestKeyIsMonotonicallyIncreasingAfterReload(self):
+    def testKeyIsMonotonicallyIncreasingAfterReload(self):
         s = SequentialMultiStorage(self.tempdir)
         consume(s.add(3, "na",  "na"))
         s.flush()
         s = SequentialMultiStorage(self.tempdir)
         self.assertRaises(ValueError, lambda: consume(s.add(2, "na", "na")))
 
-    def XXXtestDataCanBeEmptyButStoredItemIsNeverShorterThanBlocksize(self):
-        s = SequentialStorage(self.tempfile)
+    def testDataCanBeEmptyButStoredItemIsNeverShorterThanBlocksize(self):
+        blksiz = 11
+        s = SequentialStorage(self.tempfile, blockSize=11)
         s.add(0, '')
         s.flush()
         fileData = open(self.tempfile, 'rb').read()
-        self.assertTrue(len(fileData) >= BLOCKSIZE, len(fileData))
+        self.assertTrue(len(fileData) >= blksiz, len(fileData))
 
         # whitebox, blocksize 'mocked data' is 1-byte
         from zlib import compress
         self.assertEquals(18, len(fileData))
-        self.assertEquals(BLOCKSIZE - 1 + len(compress('')), len(fileData))
+        self.assertEquals(blksiz - 1 + len(compress('')), len(fileData))
 
-    def XXXtestLastKeyFoundInCaseOfLargeBlock(self):
+    def testLastKeyFoundInCaseOfLargeBlock(self):
         s = SequentialStorage(self.tempfile)
         s.add(1, 'record 1')
         s.add(2, 'long record' * 1000) # compressed multiple times BLOCKSIZE
@@ -136,12 +137,12 @@ class SequentialStorageTest(SeecrTestCase):
         # the functionality below is good enough I suppose.
         # As a side effect, it solves back scanning! We let
         # bisect do that for us.
-        s = SequentialStorage(self.tempfile, blkSize=11)
+        s = SequentialStorage(self.tempfile, blockSize=11)
         self.assertEquals(0, len(s._blkIndex))
         s.add(2, "<data>two is nice</data>")
         s.add(4, "<data>four goes fine</data>")
         s.add(7, "<data>seven seems ok</data>")
-        self.assertEquals(11, len(s._blkIndex))
+        self.assertEquals(12, len(s._blkIndex))
         self.assertEquals((2, "<data>two is nice</data>"), s._blkIndex.scan(0))
         self.assertEquals((4, "<data>four goes fine</data>"), s._blkIndex.scan(1))
         self.assertEquals((4, "<data>four goes fine</data>"), s._blkIndex.scan(2))
@@ -154,12 +155,12 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(StopIteration, lambda: s._blkIndex.scan(8))
 
     def testIndexItem(self):
-        s = SequentialStorage(self.tempfile, blkSize=11)
+        s = SequentialStorage(self.tempfile, blockSize=11)
         self.assertEquals(0, len(s._blkIndex))
         s.add(2, "<data>two</data>")
         s.add(4, "<data>four</data>")
         s.add(7, "<data>seven</data>")
-        self.assertEquals(8, len(s._blkIndex))
+        self.assertEquals(9, len(s._blkIndex))
         self.assertEquals("<data>four</data>", s[4])
         self.assertEquals("<data>two</data>", s[2])
         self.assertEquals("<data>seven</data>", s[7])
@@ -176,11 +177,11 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertRaises(IndexError, lambda: s[5])
 
     def testIndexWithVerySmallAndVEryLargeRecord(self):
-        s = SequentialStorage(self.tempfile, blkSize=11)
+        s = SequentialStorage(self.tempfile, blockSize=11)
         self.assertEquals(0, len(s._blkIndex))
         s.add(2, "<data>short</data>")
         s.add(4, ''.join("<%s>" % i for i in xrange(10000)))
-        self.assertEquals(2011, len(s._blkIndex))
+        self.assertEquals(2012, len(s._blkIndex))
         self.assertEquals("<data>short</data>", s[2])
         self.assertEquals("<0><1><2><3><4><5><6", s[4][:20])
 
@@ -316,23 +317,28 @@ class SequentialStorageTest(SeecrTestCase):
         i = s.iterData(name='oai_dc', start=5, stop=99)
         self.assertEquals([(6, "six"), (7, "seven"), (8, "eight"), (9, "nine")], list(i))
 
+    def testBlockIndexHasAtLeastOneBlock(self):
+        s = SequentialStorage(self.tempfile)
+        self.assertEquals(0, len(s._blkIndex))
+        s.add(key=2, data="two")
+        self.assertEquals(1, len(s._blkIndex))
+        
     def testBigBlock(self):
-        b = self.createTestIndex()._blkIndex
-        self.assertEquals(272504, len(b))
+        path = self.createTestIndex("data/test.ss", count=2**20)
+        b = SequentialStorage(path)._blkIndex
+        self.assertEquals(272633, len(b))
         self.assertEquals(0, b[0])
         self.assertEquals(4, b[1])
-        self.assertEquals(3017, b[783])
-        self.assertEquals(3017, b.scan(783, target_key=3017)[0])
-        self.assertEquals(3018, b.scan(783, target_key=3018)[0])
-        self.assertEquals(3019, b.scan(783, target_key=3019)[0])
-        self.assertEquals(3020, b.scan(783, target_key=3020)[0])
-        self.assertEquals(3021, b.scan(783, target_key=3021)[0])
-        self.assertEquals(3021, b[784])
-        self.assertEquals(1048571, b[272504-1])
+        k = b[783]
+        self.assertTrue(k < b[784] < k + 10)
+        self.assertEquals(k, b.scan(783, target_key=k)[0])
+        self.assertRaises(StopIteration, lambda: b.scan(784, target_key=k)[0])
+        self.assertEquals(k+4, b.scan(784, target_key=k+4)[0])
+        self.assertEquals(1048575, b[len(b)-1])
         blk = b.search(864123)
-        self.assertEquals(224561, blk)
-        self.assertEquals(864122, b[blk])
-        self.assertEquals(864126, b[blk+1])
+        self.assertEquals(224666, blk)
+        self.assertEquals(864120, b[blk])
+        self.assertEquals(864124, b[blk+1])
         self.assertEquals(864123, b.scan(blk, target_key=864123)[0])
 
     def createTestIndex(self, path, count=2**20):
@@ -350,7 +356,7 @@ class SequentialStorageTest(SeecrTestCase):
         del s
         return path
 
-    def testReadSpeed(self):
+    def XXXtestReadSpeed(self):
         count = 2**20
         path = self.createTestIndex("data/test.ss", count=count)
         def readOne(s, count):
@@ -359,7 +365,7 @@ class SequentialStorageTest(SeecrTestCase):
             for _ in islice(s.iter(randint(0, count-1)), size):
                 pass
         def read(blksiz=2**13, fread=readOne):
-            s = SequentialStorage(path, blkSize=blksiz)
+            s = SequentialStorage(path, blockSize=blksiz)
             t0 = time()
             for i in xrange(1, 50001):
                 fread(s, count)
@@ -367,11 +373,11 @@ class SequentialStorageTest(SeecrTestCase):
                     t1 = time()
                     print "reads:", i, " reads/s:", int(i/(t1-t0)), " cache:", len(s._blkIndex._cache)
         print " ++++ RANDOM ++++ "
-        for blocksize in [2**n for n in range(12,16)]:
+        for blocksize in [2**n for n in range(14,15)]:
             print "==== Blksize:", blocksize, "===="
             read(blocksize)
         print " ++++ SEQUENTIAL ++++ "
-        for blocksize in [2**n for n in range(12,16)]:
+        for blocksize in [2**n for n in range(14,15)]:
             print "==== Blksize:", blocksize, "===="
             read(blocksize, readBatch)
 

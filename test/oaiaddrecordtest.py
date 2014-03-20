@@ -154,10 +154,10 @@ class OaiAddRecordTest(SeecrTestCase):
         consume(observable.all.add("id0", "oai_dc", parseLxml("<xml/>")))
         consume(observable.all.add("id0", "other", parseLxml("<json/>")))
         t1 = jazz._newStamp()
-        t, data = storage.iterData("oai_dc", 0, None).next()
+        t, data = storage.iterData("oai_dc", 0).next()
         self.assertTrue(t0 < int(t) < t1, t)
         self.assertEquals("<xml/>", data)
-        t, data = storage.iterData("other", 0, None).next()
+        t, data = storage.iterData("other", 0).next()
         self.assertTrue(t0 < int(t) < t1, t)
         self.assertEquals("<json/>", data)
 
