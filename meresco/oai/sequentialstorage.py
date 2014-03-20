@@ -92,7 +92,8 @@ class SequentialStorage(object):
         self._lastKey = key
         data = compress(data)
         record = RECORD % dict(key=key, length=len(data), data=data, sentinel=SENTINEL)
-        self._f.write(record) # one write is a little bit faster
+        written = self._f.write(record) # one write is a little bit faster
+        self._blkIndex._size += written
 
     def __getitem__(self, key):
         _intcheck(key)
@@ -104,7 +105,7 @@ class SequentialStorage(object):
         return data
 
     def isEmpty(self):
-        return getsize(self._f.name) == 0
+        return len(self._blkIndex) == 0
 
     def flush(self):
         self._f.flush()
@@ -165,6 +166,7 @@ class _BlkIndex(object):
         self._src = src
         self._blk_size = blk_size
         self._cache = {}
+        self._size = getsize(src._f.name)
 
     def __getitem__(self, blk):
         key = self._cache.get(blk)
@@ -176,8 +178,7 @@ class _BlkIndex(object):
         return key
 
     def __len__(self):
-        self._src._f.seek(0, SEEK_END)
-        return ceil(self._src._f.tell() / float(self._blk_size))
+        return ceil(self._size / float(self._blk_size))
 
     def scan(self, blk, **kwargs):
         self._src._f.seek(blk * self._blk_size)
