@@ -24,9 +24,8 @@
 #
 ## end license ##
 
-from io import open
 from os.path import join, isdir, getsize
-from os import listdir, makedirs, SEEK_CUR, SEEK_END
+from os import listdir, makedirs, SEEK_CUR
 from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
 from math import ceil
@@ -35,7 +34,7 @@ from meresco.core import asyncnoreturnvalue
 
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
-LARGER_THAN_ANY_INT = 2**64-1
+LARGER_THAN_ANY_INT = 2**64
 
 class SequentialMultiStorage(object):
     def __init__(self, path):
@@ -92,8 +91,8 @@ class SequentialStorage(object):
         self._lastKey = key
         data = compress(data)
         record = RECORD % dict(key=key, length=len(data), data=data, sentinel=SENTINEL)
-        written = self._f.write(record) # one write is a little bit faster
-        self._blkIndex._size += written
+        self._f.write(record)
+        self._blkIndex._size += len(record)
 
     def __getitem__(self, key):
         _intcheck(key)
@@ -187,9 +186,11 @@ class _BlkIndex(object):
     def search(self, key):
         return max(_bisect_left(self, key)-1, 0)
 
+
 def _intcheck(value):
     if not isinstance(value, (int, long)):
         raise ValueError('Expected int')
+
 
 # from Python lib
 def _bisect_left(a, x, lo=0, hi=None):
