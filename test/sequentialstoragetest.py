@@ -191,7 +191,6 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals("here follows\na new line", s[4])
 
     def testSentinelInData(self):
-        from meresco.oai.sequentialstorage import SENTINEL
         s = SequentialStorage(self.tempfile)
         s.add(2, "<data>two</data>")
         s.add(5, ("abc%sxyz" % (SENTINEL+'\n')) * 10)
@@ -322,8 +321,8 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals(0, len(s._blkIndex))
         s.add(key=2, data="two")
         self.assertEquals(1, len(s._blkIndex))
-        
-    def testBigBlock(self):
+
+    def XXXtestBigBlock(self):
         path = self.createTestIndex("data/test.ss", count=2**20)
         b = SequentialStorage(path)._blkIndex
         self.assertEquals(272633, len(b))
@@ -477,7 +476,7 @@ class SequentialStorageTest(SeecrTestCase):
         s._f.seek(0) #TODO what if this seek is not there? What should the file position be?
         self.assertEquals("six", s._readNext(6)[1])
 
-        
+
 class ReopeningSeqStorage(object):
     def __init__(self, testCase):
         self.tempfile = testCase.tempfile

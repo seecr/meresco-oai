@@ -25,7 +25,7 @@
 ## end license ##
 
 from os.path import join, isdir, getsize
-from os import listdir, makedirs, SEEK_CUR
+from os import listdir, makedirs
 from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
 from math import ceil
@@ -158,7 +158,7 @@ class SequentialStorage(object):
             self._f.seek(offset)
             key, data = self._readNext()
             offset = self._f.tell()
-            
+
 class _BlkIndex(object):
 
     def __init__(self, src, blk_size):
@@ -170,7 +170,7 @@ class _BlkIndex(object):
     def __getitem__(self, blk):
         key = self._cache.get(blk)
         if not key:
-            try:    
+            try:
                 key = self._cache[blk] = self.scan(blk, keyOnly=True)
             except StopIteration:
                 raise IndexError
