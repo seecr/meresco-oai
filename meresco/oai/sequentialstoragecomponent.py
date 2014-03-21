@@ -33,31 +33,26 @@ def getLucene(path):
 class Index(object):
     def __init__(self, path):
         self._writer, self._reader, self._searcher = getLucene(path)
-        self._latestModifications = set()
+        self._latestModifications = {}
 
     def __setitem__(self, key, value):
         doc = Document()
         doc.add(StringField("key", key, Field.Store.NO))
         doc.add(LongField("value", long(value), Field.Store.YES))
         self._writer.updateDocument(Term("key", key), doc)
-        self._latestModifications.add(key)
+        self._latestModifications[key] = value
 
-    def _get_searcher(self, key):
-        modifications = len(self._latestModifications)
-        if modifications == 0:
-            return self._searcher
-        if key not in self._latestModifications and modifications < 10000:
-            return self._searcher
-        newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
-        if newreader:
-            self._reader = newreader
-            self._searcher = IndexSearcher(newreader)
-        self._latestModifications.clear()
-        return self._searcher
-        
     def __getitem__(self, key):
-        searcher = self._get_searcher(key)
-        doc = searcher.search(TermQuery(Term("key", key)), 1).scoreDocs[0].doc
+        stamp = self._latestModifications.get(key)
+        if stamp:
+            return stamp
+        if len(self._latestModifications) > 10000:
+            newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
+            if newreader:
+                self._reader = newreader
+                self._searcher = IndexSearcher(newreader)
+                self._latestModifications.clear()
+        doc = self._searcher.search(TermQuery(Term("key", key)), 1).scoreDocs[0].doc
         return self._searcher.doc(doc).getField("value").numericValue().longValue()
 
 class SequentialStorageComponent(object):
