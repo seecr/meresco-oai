@@ -81,7 +81,7 @@ class SequentialStorageComponentTest(SeecrTestCase):
         print N/(t1-t0)
 
     def testSpeed(self):
-        from time import time
+        from time import time, sleep
         from random import randint
         N = 50000
         c = SequentialStorageComponent(self.tempdir)
@@ -90,12 +90,13 @@ class SequentialStorageComponentTest(SeecrTestCase):
         def f():
             t0 = time()
             for i in xrange(N):
-                for i in c.add("http://nederland.nl/%s" % i, "xml", H): pass
+                for i in c.add("http://nederland.nl/%s" % i, "xml", H % i): pass
                 #j = randint(0, i)
                 #data = c.getStream("http://nederland.nl/%s" % j, "xml").read()
                 #self.assertEquals(H % j, data)
                 if i % 1000 == 0:
                     t1 = time()
                     print i, i/(t1-t0)
-        from seecr.utils.profileit import profile
-        profile(f)
+        #from seecr.utils.profileit import profile
+        #profile(f)
+        f()

@@ -111,12 +111,16 @@ class SequentialStorageComponent(object):
         self._directory = join(path, "data")
         self._storage = SequentialMultiStorage(self._directory)
         self._index = Index(path + "/index")
+        self._last_stamp = 0
 
     def isEmpty(self):
         return self._storage.isEmpty()
 
     def add(self, identifier, partname, data):
         stamp = int(time() * 1000000)
+        while stamp <= self._last_stamp:
+            stamp += 1
+        self._last_stamp = stamp
         self._index[identifier] = stamp
         self._storage.addData(stamp, partname, data)
         return
