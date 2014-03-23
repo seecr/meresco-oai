@@ -25,7 +25,6 @@
 ## end license ##
 
 from meresco.oai import SequentialMultiStorage
-from meresco.core import asyncnoreturnvalue
 from cStringIO import StringIO
 from time import time
 from time import sleep
@@ -50,8 +49,9 @@ StampType.setNumericType(FieldType.NumericType.LONG)
 
 def getLucene(path):
     directory = FSDirectory.open(File(path))
-    analyzer = WhitespaceAnalyzer(Version.LUCENE_43)
-    config = IndexWriterConfig(Version.LUCENE_43, analyzer)
+    config = IndexWriterConfig(Version.LUCENE_43, None)
+    config.setRAMBufferSizeMB(128.0) # faster
+    #confif.setUseCompoundFile(false) # faster, for Lucene 4.4 and later
     writer = IndexWriter(directory, config)
     reader = writer.getReader()
     searcher = IndexSearcher(reader)
@@ -63,12 +63,16 @@ class Index(object):
     def __init__(self, path):
         self._writer, self._reader, self._searcher = getLucene(path)
         self._latestModifications = {}
+        self._doc = Document()
+        self._keyField = StringField("key", "", Field.Store.NO)
+        self._valueField = LongField("value", 0L, StampType)
+        self._doc.add(self._keyField)
+        self._doc.add(self._valueField)
 
     def __setitem__(self, key, value):
-        doc = Document()
-        doc.add(StringField("key", key, Field.Store.NO))
-        doc.add(LongField("value", long(value), StampType))
-        self._writer.updateDocument(Term("key", key), doc)
+        self._keyField.setStringValue(key)
+        self._valueField.setLongValue(long(value))
+        self._writer.updateDocument(Term("key", key), self._doc)
         self._latestModifications[key] = value
 
     def __getitem__(self, key):
@@ -102,16 +106,17 @@ class SequentialStorageComponent(object):
     def isEmpty(self):
         return self._storage.isEmpty()
 
-    @asyncnoreturnvalue
     def add(self, identifier, partname, data):
         stamp = int(time() * 1000000)
-        sleep(0.000001)
         self._index[identifier] = stamp
         self._storage.addData(stamp, partname, data)
+        return
+        yield
 
-    @asyncnoreturnvalue
     def delete(self, identifier):
         del self._index[identifier]
+        return
+        yield
 
     def isAvailable(self, identifier, partname):
         try:

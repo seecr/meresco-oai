@@ -30,7 +30,6 @@ from escaping import escapeFilename
 from zlib import compress, decompress, error as ZlibError
 from math import ceil
 import operator
-from meresco.core import asyncnoreturnvalue
 
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
@@ -45,14 +44,16 @@ class SequentialMultiStorage(object):
             self._getStorage(name)
 
     def _getStorage(self, name):
-        if name not in self._storage:
+        storage = self._storage.get(name)
+        if not storage:
             name = escapeFilename(name)
-            self._storage[name] = SequentialStorage(join(self._path, name))
-        return self._storage[name]
+            self._storage[name] = storage = SequentialStorage(join(self._path, name))
+        return storage
 
-    @asyncnoreturnvalue
     def add(self, identifier, partname, data):
         self.addData(key=identifier, name=partname, data=data)
+        return
+        yield
 
     def addData(self, key, name, data):
         self._getStorage(name).add(key, data)

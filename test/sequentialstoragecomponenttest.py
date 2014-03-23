@@ -67,19 +67,33 @@ class SequentialStorageComponentTest(SeecrTestCase):
         consume(c.delete("uri-1"))
         self.assertEquals((False, False), c.isAvailable("uri-1", partname="xml"))
 
+    def testDicts(self):
+        from time import time
+        from random import randint
+        N = 500000
+        d = {}
+        t0 = time()
+        for i in xrange(N):
+            d[randint(0,2**64)] = randint(0,2**64)
+        t1 = time()
+        print N/(t1-t0)
+
     def testSpeed(self):
         from time import time
         from random import randint
-        N = 2500
+        N = 50000
         c = SequentialStorageComponent(self.tempdir)
         H = "This is an holding like records, at least, it tries to look like it, but I am not sure if it is really something that comes close enough.  Anyway, here you go: Holding: %s"
         self.assertEquals(171, len(H))
-        t0 = time()
-        for i in xrange(N):
-            consume(c.add("http://nederland.nl/%s" % i, "xml", H))
-            j = randint(0, i)
-            data = c.getStream("http://nederland.nl/%s" % j, "xml").read()
-            #self.assertEquals(H % j, data)
-            if i % 1000 == 0:
-                t1 = time()
-                print i, i/(t1-t0)
+        def f():
+            t0 = time()
+            for i in xrange(N):
+                for i in c.add("http://nederland.nl/%s" % i, "xml", H): pass
+                #j = randint(0, i)
+                #data = c.getStream("http://nederland.nl/%s" % j, "xml").read()
+                #self.assertEquals(H % j, data)
+                if i % 1000 == 0:
+                    t1 = time()
+                    print i, i/(t1-t0)
+        from seecr.utils.profileit import profile
+        profile(f)
