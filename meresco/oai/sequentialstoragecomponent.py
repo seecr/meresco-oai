@@ -26,7 +26,7 @@
 
 from meresco.oai import SequentialMultiStorage
 from cStringIO import StringIO
-from time import time, sleep
+from time import time
 from os.path import join
 
 imported = False
