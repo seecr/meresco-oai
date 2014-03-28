@@ -100,6 +100,7 @@ class SequentialStorageComponent(object):
     def handleShutdown(self):
         print 'handle shutdown: saving SequentialStorageComponent %s' % self._directory
         from sys import stdout; stdout.flush()
+        self._storage.handleShutdown()
         self._index.close()
 
 

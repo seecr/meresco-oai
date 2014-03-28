@@ -25,6 +25,7 @@
 ## end license ##
 
 from seecr.test import SeecrTestCase
+from seecr.test.io import stdout_replaced
 from meresco.oai import SequentialStorageComponent
 
 from weightless.core import consume, asString
@@ -62,7 +63,10 @@ class SequentialStorageComponentTest(SeecrTestCase):
     def testDeleteFromExistingIndex(self):
         c = SequentialStorageComponent(self.tempdir)
         consume(c.add("uri-1", "xml", "<xml1/>"))
-        c.handleShutdown()
+        with stdout_replaced() as out:
+            c.handleShutdown()
+        self.assertTrue("handle shutdown: saving SequentialStorageComponent /tmp/" in out.getvalue())
+        self.assertTrue("handle shutdown: saving SequentialMultiStorage /tmp/" in out.getvalue())
 
         c = SequentialStorageComponent(self.tempdir)
         self.assertEquals((True, True), c.isAvailable("uri-1", partname="xml"))
