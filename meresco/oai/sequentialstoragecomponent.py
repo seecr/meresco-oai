@@ -58,7 +58,7 @@ def lazyImport():
 def getLucene(path):
     directory = FSDirectory.open(File(path))
     config = IndexWriterConfig(Version.LUCENE_43, None)
-    config.setRAMBufferSizeMB(128.0) # faster
+    config.setRAMBufferSizeMB(256.0) # faster
     #confif.setUseCompoundFile(false) # faster, for Lucene 4.4 and later
     writer = IndexWriter(directory, config)
     reader = writer.getReader()
