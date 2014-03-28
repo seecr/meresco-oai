@@ -55,62 +55,11 @@ def lazyImport():
     globals().update(locals())
 
 
-def getLucene(path):
-    directory = FSDirectory.open(File(path))
-    config = IndexWriterConfig(Version.LUCENE_43, None)
-    config.setRAMBufferSizeMB(256.0) # faster
-    #confif.setUseCompoundFile(false) # faster, for Lucene 4.4 and later
-    writer = IndexWriter(directory, config)
-    reader = writer.getReader()
-    searcher = IndexSearcher(reader)
-    return writer, reader, searcher
-
-DELETED_RECORD = object()
-
-class Index(object):
-    def __init__(self, path):
-        lazyImport()
-        self._writer, self._reader, self._searcher = getLucene(path)
-        self._latestModifications = {}
-        self._doc = Document()
-        self._keyField = StringField("key", "", Field.Store.NO)
-        self._valueField = LongField("value", 0L, StampType)
-        self._doc.add(self._keyField)
-        self._doc.add(self._valueField)
-
-    def __setitem__(self, key, value):
-        self._keyField.setStringValue(key)
-        self._valueField.setLongValue(long(value))
-        self._writer.updateDocument(Term("key", key), self._doc)
-        self._latestModifications[key] = value
-
-    def __getitem__(self, key):
-        stamp = self._latestModifications.get(key)
-        if stamp == DELETED_RECORD:
-            raise KeyError("Record deleted")
-        elif stamp is not None:
-            return stamp
-        if len(self._latestModifications) > 10000:
-            self._reader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
-            self._searcher = IndexSearcher(self._reader)
-            self._latestModifications.clear()
-        topDocs = self._searcher.search(TermQuery(Term("key", key)), 1)
-        if topDocs.totalHits == 0:
-            raise KeyError("Record deleted")
-        return self._searcher.doc(topDocs.scoreDocs[0].doc).getField("value").numericValue().longValue()
-
-    def __delitem__(self, key):
-        self._writer.deleteDocuments(Term("key", key))
-        self._latestModifications[key] = DELETED_RECORD
-
-    def close(self):
-        self._writer.close()
-
 class SequentialStorageComponent(object):
     def __init__(self, path):
         self._directory = join(path, "data")
         self._storage = SequentialMultiStorage(self._directory)
-        self._index = Index(path + "/index")
+        self._index = _Index(path + "/index")
         self._last_stamp = 0
 
     def isEmpty(self):
@@ -153,3 +102,55 @@ class SequentialStorageComponent(object):
         from sys import stdout; stdout.flush()
         self._index.close()
 
+
+class _Index(object):
+    def __init__(self, path):
+        lazyImport()
+        self._writer, self._reader, self._searcher = _getLucene(path)
+        self._latestModifications = {}
+        self._doc = Document()
+        self._keyField = StringField("key", "", Field.Store.NO)
+        self._valueField = LongField("value", 0L, StampType)
+        self._doc.add(self._keyField)
+        self._doc.add(self._valueField)
+
+    def __setitem__(self, key, value):
+        self._keyField.setStringValue(key)
+        self._valueField.setLongValue(long(value))
+        self._writer.updateDocument(Term("key", key), self._doc)
+        self._latestModifications[key] = value
+
+    def __getitem__(self, key):
+        stamp = self._latestModifications.get(key)
+        if stamp == DELETED_RECORD:
+            raise KeyError("Record deleted")
+        elif stamp is not None:
+            return stamp
+        if len(self._latestModifications) > 10000:
+            self._reader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
+            self._searcher = IndexSearcher(self._reader)
+            self._latestModifications.clear()
+        topDocs = self._searcher.search(TermQuery(Term("key", key)), 1)
+        if topDocs.totalHits == 0:
+            raise KeyError("Record deleted")
+        return self._searcher.doc(topDocs.scoreDocs[0].doc).getField("value").numericValue().longValue()
+
+    def __delitem__(self, key):
+        self._writer.deleteDocuments(Term("key", key))
+        self._latestModifications[key] = DELETED_RECORD
+
+    def close(self):
+        self._writer.close()
+
+
+def _getLucene(path):
+    directory = FSDirectory.open(File(path))
+    config = IndexWriterConfig(Version.LUCENE_43, None)
+    config.setRAMBufferSizeMB(256.0) # faster
+    #confif.setUseCompoundFile(false) # faster, for Lucene 4.4 and later
+    writer = IndexWriter(directory, config)
+    reader = writer.getReader()
+    searcher = IndexSearcher(reader)
+    return writer, reader, searcher
+
+DELETED_RECORD = object()

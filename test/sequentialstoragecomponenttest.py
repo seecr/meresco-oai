@@ -29,8 +29,8 @@ from meresco.oai import SequentialStorageComponent
 
 from weightless.core import consume, asString
 
-class SequentialStorageComponentTest(SeecrTestCase):
 
+class SequentialStorageComponentTest(SeecrTestCase):
     def testOne(self):
         c = SequentialStorageComponent(self.tempdir)
         self.assertEquals((False, False), c.isAvailable("an arbitratry identifier", partname="xml"))
@@ -69,18 +69,18 @@ class SequentialStorageComponentTest(SeecrTestCase):
         consume(c.delete("uri-1"))
         self.assertEquals((False, False), c.isAvailable("uri-1", partname="xml"))
 
-    def testDicts(self):
-        from time import time
-        from random import randint
-        N = 500000
-        d = {}
-        t0 = time()
-        for i in xrange(N):
-            d[randint(0,2**64)] = randint(0,2**64)
-        t1 = time()
-        print N/(t1-t0)
+    # def testDicts(self):
+    #     from time import time
+    #     from random import randint
+    #     N = 500000
+    #     d = {}
+    #     t0 = time()
+    #     for i in xrange(N):
+    #         d[randint(0,2**64)] = randint(0,2**64)
+    #     t1 = time()
+    #     print N/(t1-t0)
 
-    def testSpeed(self):
+    def TURN_ON_IF_YOU_WANT_IT_testSpeed(self):
         from time import time, sleep
         from random import randint
         N = 50000
