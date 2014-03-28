@@ -70,25 +70,25 @@ class SequentialStorageComponent(object):
         while stamp <= self._last_stamp:
             stamp += 1
         self._last_stamp = stamp
-        self._index[identifier] = stamp
+        self._index[str(identifier)] = stamp
         self._storage.addData(stamp, partname, data)
         return
         yield
 
     def delete(self, identifier):
-        del self._index[identifier]
+        del self._index[str(identifier)]
         return
         yield
 
     def isAvailable(self, identifier, partname):
         try:
-            self._index[identifier]
+            self._index[str(identifier)]
             return True, True
         except KeyError:
             return False, False
 
     def _getData(self, identifier, partname):
-        stamp = self._index[identifier]
+        stamp = self._index[str(identifier)]
         return self._storage.getData(stamp, partname)
 
     def getStream(self, identifier, partname):
@@ -115,6 +115,7 @@ class _Index(object):
         self._doc.add(self._valueField)
 
     def __setitem__(self, key, value):
+        self._maybeReopen()
         self._keyField.setStringValue(key)
         self._valueField.setLongValue(long(value))
         self._writer.updateDocument(Term("key", key), self._doc)
@@ -126,10 +127,7 @@ class _Index(object):
             raise KeyError("Record deleted")
         elif stamp is not None:
             return stamp
-        if len(self._latestModifications) > 10000:
-            self._reader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
-            self._searcher = IndexSearcher(self._reader)
-            self._latestModifications.clear()
+        self._maybeReopen()
         topDocs = self._searcher.search(TermQuery(Term("key", key)), 1)
         if topDocs.totalHits == 0:
             raise KeyError("Record deleted")
@@ -138,6 +136,12 @@ class _Index(object):
     def __delitem__(self, key):
         self._writer.deleteDocuments(Term("key", key))
         self._latestModifications[key] = DELETED_RECORD
+
+    def _maybeReopen(self):
+        if len(self._latestModifications) > 10000:
+            self._reader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
+            self._searcher = IndexSearcher(self._reader)
+            self._latestModifications.clear()
 
     def close(self):
         self._writer.close()
