@@ -56,11 +56,12 @@ def lazyImport():
 
 
 class SequentialStorageComponent(object):
-    def __init__(self, path):
+    def __init__(self, path, name=None):
         self._directory = join(path, "data")
         self._storage = SequentialMultiStorage(self._directory)
         self._index = _Index(path + "/index")
         self._last_stamp = 0
+        self._name = name
 
     def isEmpty(self):
         return self._storage.isEmpty()
@@ -87,10 +88,6 @@ class SequentialStorageComponent(object):
         except KeyError:
             return False, False
 
-    def _getData(self, identifier, partname):
-        stamp = self._index[str(identifier)]
-        return self._storage.getData(stamp, partname)
-
     def getStream(self, identifier, partname):
         return StringIO(self._getData(identifier, partname))
 
@@ -102,6 +99,13 @@ class SequentialStorageComponent(object):
         from sys import stdout; stdout.flush()
         self._storage.handleShutdown()
         self._index.close()
+
+    def observable_name(self):
+        return self._name
+
+    def _getData(self, identifier, partname):
+        stamp = self._index[str(identifier)]
+        return self._storage.getData(stamp, partname)
 
 
 class _Index(object):
