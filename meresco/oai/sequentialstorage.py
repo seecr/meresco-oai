@@ -31,17 +31,22 @@ from zlib import compress, decompress, error as ZlibError
 from math import ceil
 import operator
 
+
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
 LARGER_THAN_ANY_INT = 2**64
 
 class SequentialMultiStorage(object):
-    def __init__(self, path):
+    def __init__(self, path, name=None):
         self._path = path
+        self._name = name
         isdir(self._path) or makedirs(self._path)
         self._storage = {}
         for name in listdir(path):
             self._getStorage(name)
+
+    def observable_name(self):
+        return self._name
 
     def _getStorage(self, name):
         storage = self._storage.get(name)
