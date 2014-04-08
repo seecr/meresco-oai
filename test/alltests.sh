@@ -28,7 +28,7 @@
 
 export LANG=en_US.UTF-8
 export PYTHONPATH=.:"$PYTHONPATH"
-#export WEIGHTLESS_COMPOSE_TEST="PYTHON"
+export WEIGHTLESS_COMPOSE_TEST="PYTHON"
 pyversions="python2.6"
 if [ -f /etc/debian_version ]; then
     if [ "$(cat /etc/debian_version | awk -F. '{print $1}')" = "7" ]; then
