@@ -34,7 +34,7 @@ import operator
 
 SENTINEL = "----"
 RECORD = "%(sentinel)s\n%(key)s\n%(length)s\n%(data)s\n"
-LARGER_THAN_ANY_INT = 2**64
+LARGER_THAN_ANY_KEY = 2**64
 
 class SequentialMultiStorage(object):
     def __init__(self, path, name=None):
@@ -66,7 +66,7 @@ class SequentialMultiStorage(object):
     def getData(self, key, name):
         return self._getStorage(name)[key]
 
-    def iterData(self, name, start, stop=LARGER_THAN_ANY_INT, **kwargs):
+    def iterData(self, name, start, stop=LARGER_THAN_ANY_KEY, **kwargs):
         return self._getStorage(name).iter(start, stop, **kwargs)
 
     def handleShutdown(self):
@@ -84,7 +84,7 @@ class SequentialStorage(object):
         self._f = open(fileName, "ab+")
         self._blkIndex = _BlkIndex(self, blockSize)
         self._lastKey = None
-        lastBlk = self._blkIndex.search(LARGER_THAN_ANY_INT)
+        lastBlk = self._blkIndex.search(LARGER_THAN_ANY_KEY)
         try:
             self._lastKey = self._blkIndex.scan(lastBlk, last=True)
         except StopIteration:
@@ -115,7 +115,7 @@ class SequentialStorage(object):
     def flush(self):
         self._f.flush()
 
-    def _readNext(self, target_key=None, greater=False, keyOnly=False, last=False):
+    def _readNext(self, target_key=None, greater=False, keyOnly=False, last=False, givenKeys=None):
         line = "sentinel not yet found"
         key = None; data = None
         while line != '':
@@ -129,13 +129,15 @@ class SequentialStorage(object):
                 except ValueError:
                     self._f.seek(retryPosition)
                     continue
+                if keyOnly:
+                    return key
                 if target_key:
                     if key < target_key:
                         continue
                     elif not greater and key != target_key:
                         raise StopIteration
-                if keyOnly:
-                    return key
+                if givenKeys and key not in givenKeys:
+                    continue
                 rawdata = self._f.read(length)
                 try:
                     data = decompress(rawdata)
@@ -153,20 +155,20 @@ class SequentialStorage(object):
             return key
         raise StopIteration
 
-    def iter(self, start, stop=LARGER_THAN_ANY_INT, inclusive=False):
+    def iter(self, start, stop=LARGER_THAN_ANY_KEY, inclusive=False, givenKeys=None):
         _intcheck(start); _intcheck(stop)
         cmp = operator.le if inclusive else operator.lt
         blk = self._blkIndex.search(start)
-        key, data = self._blkIndex.scan(blk, target_key=start, greater=True)
+        key, data = self._blkIndex.scan(blk, target_key=start, greater=True, givenKeys=givenKeys)
         offset = self._f.tell()
         while cmp(key, stop):
             yield key, data
             self._f.seek(offset)
-            key, data = self._readNext()
+            key, data = self._readNext(givenKeys=givenKeys)
             offset = self._f.tell()
 
-class _BlkIndex(object):
 
+class _BlkIndex(object):
     def __init__(self, src, blk_size):
         self._src = src
         self._blk_size = blk_size

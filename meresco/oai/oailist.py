@@ -41,6 +41,7 @@ from oaierror import oaiError
 from oaijazz import ForcedResumeException, DEFAULT_BATCH_SIZE
 from uuid import uuid4
 import sys
+from time import time
 
 
 class OaiList(Observable):
@@ -216,23 +217,23 @@ Error and Exception Conditions
 
     def _process(self, verb, result, validatedArguments, **httpkwargs):
         records = list(result.records)
+        keys = set(r.stamp for r in records)
         metadataPrefix = validatedArguments['metadataPrefix']
         fetchedRecords = None
         try:
+            t0 = time()
             fetchedRecords = dict(self.call.iterData(
                     name=metadataPrefix,
                     start=records[0].stamp,
                     stop=records[-1].stamp,
-                    inclusive=True
+                    inclusive=True,
+                    givenKeys=keys,
                 ))
-            sequentialVsOaiSelectResultRatio = len(fetchedRecords) / float(result.numberOfRecordsInBatch)
-            if sequentialVsOaiSelectResultRatio > MAX_RATIO:
-                sys.stderr.write("Sequential vs OaiSelectResult ratio > {0:.1f}: {1:d}/{2:d} = {3:.3f}\n".format(
-                    MAX_RATIO,
-                    len(fetchedRecords),
-                    result.numberOfRecordsInBatch,
-                    sequentialVsOaiSelectResultRatio)
-                )
+            deltaT = time() - t0
+            if deltaT > 10.0:
+                sys.stderr.write("SequentialStorage.iterData for {0} records took {1:.1f} seconds.\n".format(
+                    result.numberOfRecordsInBatch, deltaT
+                ))
                 sys.stderr.flush()
         except NoneOfTheObserversRespond:
             pass

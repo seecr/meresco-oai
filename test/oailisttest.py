@@ -34,7 +34,6 @@ from StringIO import StringIO
 from xml.sax.saxutils import escape as escapeXml
 from lxml.etree import parse
 from uuid import uuid4
-from os import makedirs
 from os.path import join
 
 from seecr.test import SeecrTestCase, CallTrace
@@ -89,6 +88,8 @@ class OaiListTest(SeecrTestCase):
         recordMethods = self.observer.calledMethods[4:]
         self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
+        keys = set([recordMethods[0].kwargs['record'].stamp, recordMethods[1].kwargs['record'].stamp])
+        self.assertEquals(keys, self.observer.calledMethods[3].kwargs['givenKeys'])
 
     def testListRecordsWithSequentialMultiStorage(self):
         oaijazz = OaiJazz(join(self.tempdir, '1'))
@@ -118,11 +119,8 @@ class OaiListTest(SeecrTestCase):
             consume(oaistorage.add(stamp, "oai_dc", "data_%s" % id))
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
-        with stderr_replaced() as err:
-            _, body = asString(response).split("\r\n\r\n")
-            self.assertEquals('Sequential vs OaiSelectResult ratio > 1.1: 3/2 = 1.500\n', err.getvalue())
+        _, body = asString(response).split("\r\n\r\n")
         self.assertEquals(["data_id0", "data_id1"], xpath(parse(StringIO(body)), '//oai:metadata/text()'))
-
 
     def testListIdentifiers(self):
         self._addRecords(['id:0&0', 'id:1&1'])

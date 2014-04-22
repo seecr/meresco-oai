@@ -125,6 +125,15 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals([(7, '<seven/>')], list(s.iterData("oai_dc", 5, 9)))
         self.assertEquals("<two/>", s.getData(2, "oai_dc"))
 
+    def testIterDataOnlyYieldsGivenKeys(self):
+        s = SequentialMultiStorage(self.tempdir)
+        consume(s.add(1, "oai_dc", "<one/>"))
+        consume(s.add(2, "oai_dc", "<two/>"))
+        consume(s.add(3, "oai_dc", "<three/>"))
+        consume(s.add(4, "oai_dc", "<four/>"))
+        result = list(s.iterData("oai_dc", 0, 5, givenKeys=set([2, 3])))
+        self.assertEquals([(2, "<two/>"), (3, "<three/>")], result)
+
     def testSentinalWritten(self):
         s = SequentialMultiStorage(self.tempdir)
         consume(s.add(3, "na", "data"))
