@@ -33,6 +33,10 @@ from random import random, randint
 from time import time
 from itertools import islice
 
+# Ideas:
+# - Galloping iso bisect for getMultiple
+# - Adjectenly entering new blk -> scan i.s.o. _readNext(), not needed - optimize?
+
 class SequentialStorageTest(SeecrTestCase):
 
     def testWriteFilePerPart(self):
