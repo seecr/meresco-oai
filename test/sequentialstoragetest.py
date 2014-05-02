@@ -135,18 +135,18 @@ class SequentialStorageTest(SeecrTestCase):
         consume(s.add(2, "oai_dc", "<two/>"))
         consume(s.add(3, "oai_dc", "<three/>"))
         consume(s.add(4, "oai_dc", "<four/>"))
-        result = list(s.getMultiple("oai_dc", [2, 3]))
+        result = list(s.getMultipleData("oai_dc", [2, 3]))
         self.assertEquals([(2, "<two/>"), (3, "<three/>")], result)
 
     def testGetMultipleNoResults(self):
         s = SequentialMultiStorage(self.tempdir)
-        result = list(s.getMultiple("na", []))
+        result = list(s.getMultipleData("na", []))
         self.assertEquals([], result)
 
     def testGetMultipleResultNotFound(self):
         s = SequentialMultiStorage(self.tempdir)
         try:
-            result = list(s.getMultiple("na", [42]))
+            result = list(s.getMultipleData("na", [42]))
             self.fail()
         except KeyError, e:
             self.assertEquals('42', str(e))
@@ -154,7 +154,7 @@ class SequentialStorageTest(SeecrTestCase):
     def testGetMultipleResultNotFound2(self):
         s = SequentialMultiStorage(self.tempdir)
         consume(s.add(1, "oai_dc", "<one/>"))
-        results = s.getMultiple("oai_dc", [1, 2])
+        results = s.getMultipleData("oai_dc", [1, 2])
         key, data = results.next()
         self.assertEquals((1, "<one/>"), (key, data))
         try:
@@ -358,7 +358,7 @@ class SequentialStorageTest(SeecrTestCase):
         s.add(4, "<data>four</data>")
         s.add(7, "<data>seven</data>")
         s.add(9, "<data>nine</data>")
-        i = s.iter(3)
+        i = s.range(3)
         self.assertEquals((4, "<data>four</data>"), i.next())
         self.assertEquals((7, "<data>seven</data>"), i.next())
         self.assertEquals((9, "<data>nine</data>"), i.next())
@@ -370,8 +370,8 @@ class SequentialStorageTest(SeecrTestCase):
         s.add(4, "<data>four</data>")
         s.add(7, "<data>seven</data>")
         s.add(9, "<data>nine</data>")
-        i1 = s.iter(4)
-        i2 = s.iter(7)
+        i1 = s.range(4)
+        i2 = s.range(7)
         self.assertEquals((7, "<data>seven</data>"), i2.next())
         self.assertEquals((4, "<data>four</data>"), i1.next())
         self.assertEquals((9, "<data>nine</data>"), i2.next())
@@ -388,13 +388,13 @@ class SequentialStorageTest(SeecrTestCase):
         s.add(7, "seven")
         s.add(8, "eight")
         s.add(9, "nine")
-        i = s.iter(0, 5)
+        i = s.range(0, 5)
         self.assertEquals([(2, "two"), (4, "four")], list(i))
-        i = s.iter(4, 7)
+        i = s.range(4, 7)
         self.assertEquals([(4, "four"), (6, "six")], list(i))
-        i = s.iter(4, 7, inclusive=True)
+        i = s.range(4, 7, inclusive=True)
         self.assertEquals([(4, "four"), (6, "six"), (7, 'seven')], list(i))
-        i = s.iter(5, 99)
+        i = s.range(5, 99)
         self.assertEquals([(6, "six"), (7, "seven"), (8, "eight"), (9, "nine")], list(i))
 
     def testIterDataUntil(self):
@@ -459,7 +459,7 @@ class SequentialStorageTest(SeecrTestCase):
         def readOne(s, count):
             s[randint(0, count-1)]
         def readBatch(s, count, size=100):
-            for _ in islice(s.iter(randint(0, count-1)), size):
+            for _ in islice(s.range(randint(0, count-1)), size):
                 pass
         def read(blksiz=2**13, fread=readOne):
             s = SequentialStorage(path, blockSize=blksiz)
@@ -590,7 +590,7 @@ class ReopeningSeqStorage(object):
 
     def items(self):
         s = SequentialStorage(self.tempfile)
-        return list(s.iter(0))
+        return list(s.range(0))
 
     def write(self, rubbish):
         with open(self.tempfile, 'ab') as f:

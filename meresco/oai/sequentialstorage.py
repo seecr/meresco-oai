@@ -67,9 +67,9 @@ class SequentialMultiStorage(object):
         return self._getStorage(name)[key]
 
     def iterData(self, name, start, stop=LARGER_THAN_ANY_KEY, **kwargs):
-        return self._getStorage(name).iter(start, stop, **kwargs)
+        return self._getStorage(name).range(start, stop, **kwargs)
 
-    def getMultiple(self, name, keys):
+    def getMultipleData(self, name, keys):
         return self._getStorage(name).getMultiple(keys)
 
     def handleShutdown(self):
@@ -156,7 +156,7 @@ class SequentialStorage(object):
             return key
         raise StopIteration
 
-    def iter(self, start, stop=LARGER_THAN_ANY_KEY, inclusive=False):
+    def range(self, start, stop=LARGER_THAN_ANY_KEY, inclusive=False):
         _intcheck(start); _intcheck(stop)
         cmp = operator.le if inclusive else operator.lt
         blk = self._blkIndex.search(start)
