@@ -163,6 +163,8 @@ class SequentialStorage(object):
         offset = self._f.tell()
         while cmp(key, stop):
             yield key, data
+            if key == stop:
+                return
             self._f.seek(offset)
             key, data = self._readNext(givenKeys=givenKeys)
             offset = self._f.tell()
