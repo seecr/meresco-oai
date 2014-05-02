@@ -32,9 +32,8 @@
 
 from meresco.core import Transparent
 from lxml.etree import iselement
-from meresco.components import lxmltostring
 from meresco.xml import xpath
-from meresco.xml.namespaces import xpathFirst
+from meresco.xml.namespaces import xpathFirst, expandNs
 
 
 class OaiAddRecordBase(Transparent):
@@ -79,8 +78,8 @@ class OaiAddRecord(OaiAddRecordBase):
         sets = set((str(s), str(s)) for s in setSpecs)
 
         namespace = record.nsmap.get(record.prefix or None, '')
-        schemaLocations = record.xpath('@xsi:schemaLocation', namespaces=namespaces)
-        ns2xsd = ''.join(schemaLocations).split()
+        schemaLocation = record.attrib.get(expandNs('xsi:schemaLocation'), '')
+        ns2xsd = schemaLocation.split()
         schema = dict(zip(ns2xsd[::2],ns2xsd[1::2])).get(namespace, '')
         schema, namespace = self._magicSchemaNamespace(record.prefix, partname, schema, namespace)
         metadataFormats=[(partname, schema, namespace)]
@@ -92,8 +91,3 @@ class OaiAddRecord(OaiAddRecordBase):
             if searchForPrefix == oldprefix:
                 return schema or oldschema, namespace or oldnamespace
         return schema, namespace
-
-namespaces = {
-    'oai': 'http://www.openarchives.org/OAI/2.0/',
-    'xsi': "http://www.w3.org/2001/XMLSchema-instance",
-}
