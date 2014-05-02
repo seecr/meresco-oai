@@ -131,8 +131,93 @@ class SequentialStorageTest(SeecrTestCase):
         consume(s.add(2, "oai_dc", "<two/>"))
         consume(s.add(3, "oai_dc", "<three/>"))
         consume(s.add(4, "oai_dc", "<four/>"))
-        result = list(s.iterData("oai_dc", 0, 5, givenKeys=set([2, 3])))
+        result = list(s.getMultiple("oai_dc", [2, 3]))
         self.assertEquals([(2, "<two/>"), (3, "<three/>")], result)
+
+    def testGetMultipleNoResults(self):
+        s = SequentialMultiStorage(self.tempdir)
+        result = list(s.getMultiple("na", []))
+        self.assertEquals([], result)
+
+    def testGetMultipleResultNotFound(self):
+        s = SequentialMultiStorage(self.tempdir)
+        try:
+            result = list(s.getMultiple("na", [42]))
+            self.fail()
+        except KeyError, e:
+            self.assertEquals('42', str(e))
+
+    def testGetMultipleResultNotFound2(self):
+        s = SequentialMultiStorage(self.tempdir)
+        consume(s.add(1, "oai_dc", "<one/>"))
+        results = s.getMultiple("oai_dc", [1, 2])
+        key, data = results.next()
+        self.assertEquals((1, "<one/>"), (key, data))
+        try:
+            results.next()
+            self.fail()
+        except KeyError, e:
+            self.assertEquals('2', str(e))
+
+    def testGetMultipleWithKeysInOneBlock(self):
+        s = SequentialStorage(self.tempfile, blockSize=102400)
+        s.add(1, "d1")
+        s.add(2, "d2")
+        s.add(3, "d3")
+        result = list(s.getMultiple(keys=(1, 3)))
+        self.assertEquals([(1, "d1"), (3, "d3")], result)
+
+    def testGetMultipleWithKeysAcrossMultipleBlocks(self):
+        s = SequentialStorage(self.tempfile, blockSize=20)
+        one = ''.join(chr(randint(0,255)) for _ in range(50))
+        three = ''.join(chr(randint(0,255)) for _ in range(50))
+        s.add(1, one )
+        s.add(2, ''.join(chr(randint(0,255)) for _ in range(50)))
+        s.add(3, three)
+        self.assertEquals(11, len(s._blkIndex))
+        result = list(s.getMultiple(keys=(1, 3)))
+        self.assertEquals([(1, one), (3, three)], result)
+
+    def testTwoAlternatingGetMultipleIterators(self):
+        s = SequentialStorage(self.tempfile)
+        s.add(2, "<data>two</data>")
+        s.add(4, "<data>four</data>")
+        s.add(7, "<data>seven</data>")
+        s.add(9, "<data>nine</data>")
+        i1 = s.getMultiple((4, 9))
+        i2 = s.getMultiple((2, 7))
+        self.assertEquals((4, "<data>four</data>"), i1.next())
+        self.assertEquals((2, "<data>two</data>"), i2.next())
+        self.assertEquals((9, "<data>nine</data>"), i1.next())
+        self.assertEquals((7, "<data>seven</data>"), i2.next())
+
+    def testKeysMustBeSortedForGetMultiple(self):
+        s = SequentialStorage(self.tempfile)
+        s.add(1, 'x')
+        s.add(2, '_')
+        s.add(3, 'z')
+        result = s.getMultiple(keys=[1, 3, 2])
+
+        self.assertEquals((1, 'x'), result.next())
+        self.assertEquals((3, 'z'), result.next())
+        try:
+            result.next()
+        except ValueError, e:
+            self.assertEquals('Keys should have been sorted.', str(e))
+        else: self.fail()
+
+        result = s.getMultiple(keys=[3, 3])
+        self.assertEquals((3, 'z'), result.next())
+        self.assertRaises(ValueError, lambda: result.next())
+
+    def testKeysMustBeIntsForGetMultiple(self):
+        s = SequentialStorage(self.tempfile)
+        result = s.getMultiple(keys=['1'])
+        try:
+            result.next()
+        except ValueError, e:
+            self.assertEquals('Expected int', str(e))
+        else: self.fail()
 
     def testSentinalWritten(self):
         s = SequentialMultiStorage(self.tempdir)

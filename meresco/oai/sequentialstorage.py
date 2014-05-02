@@ -69,6 +69,9 @@ class SequentialMultiStorage(object):
     def iterData(self, name, start, stop=LARGER_THAN_ANY_KEY, **kwargs):
         return self._getStorage(name).iter(start, stop, **kwargs)
 
+    def getMultiple(self, name, keys):
+        return self._getStorage(name).getMultiple(keys)
+
     def handleShutdown(self):
         print 'handle shutdown: saving SequentialMultiStorage %s' % self._path
         from sys import stdout; stdout.flush()
@@ -115,7 +118,7 @@ class SequentialStorage(object):
     def flush(self):
         self._f.flush()
 
-    def _readNext(self, target_key=None, greater=False, keyOnly=False, last=False, givenKeys=None):
+    def _readNext(self, target_key=None, greater=False, keyOnly=False, last=False):
         line = "sentinel not yet found"
         key = None; data = None
         while line != '':
@@ -136,8 +139,6 @@ class SequentialStorage(object):
                         continue
                     elif not greater and key != target_key:
                         raise StopIteration
-                if givenKeys and key not in givenKeys:
-                    continue
                 rawdata = self._f.read(length)
                 try:
                     data = decompress(rawdata)
@@ -155,19 +156,45 @@ class SequentialStorage(object):
             return key
         raise StopIteration
 
-    def iter(self, start, stop=LARGER_THAN_ANY_KEY, inclusive=False, givenKeys=None):
+    def iter(self, start, stop=LARGER_THAN_ANY_KEY, inclusive=False):
         _intcheck(start); _intcheck(stop)
         cmp = operator.le if inclusive else operator.lt
         blk = self._blkIndex.search(start)
-        key, data = self._blkIndex.scan(blk, target_key=start, greater=True, givenKeys=givenKeys)
+        key, data = self._blkIndex.scan(blk, target_key=start, greater=True)
         offset = self._f.tell()
         while cmp(key, stop):
             yield key, data
             if key == stop:
                 return
             self._f.seek(offset)
-            key, data = self._readNext(givenKeys=givenKeys)
+            key, data = self._readNext()
             offset = self._f.tell()
+
+    def getMultiple(self, keys):
+        offset = None
+        prev_blk = None
+        prev_key = None
+        for key in keys:
+            _intcheck(key)
+            if not prev_key < key:
+                raise ValueError('Keys should have been sorted.')
+
+            blk = self._blkIndex.search(key, lo=prev_blk or 0)
+            try:
+                if blk == prev_blk:
+                    if offset:
+                        self._f.seek(offset)
+                    key, data = self._readNext(target_key=key)
+                else:
+                    key, data = self._blkIndex.scan(blk, target_key=key)
+                offset = self._f.tell()
+            except StopIteration:
+                raise KeyError(key)
+
+            yield key, data
+
+            prev_blk = blk
+            prev_key = key
 
 
 class _BlkIndex(object):
@@ -193,8 +220,8 @@ class _BlkIndex(object):
         self._src._f.seek(blk * self._blk_size)
         return self._src._readNext(**kwargs)
 
-    def search(self, key):
-        return max(_bisect_left(self, key)-1, 0)
+    def search(self, key, lo=0):
+        return max(_bisect_left(self, key, lo=lo)-1, 0)
 
 
 def _intcheck(value):
