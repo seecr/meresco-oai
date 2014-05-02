@@ -33,6 +33,8 @@
 from meresco.core import Transparent
 from lxml.etree import iselement
 from meresco.components import lxmltostring
+from meresco.xml import xpath
+from meresco.xml.namespaces import xpathFirst
 
 
 class OaiAddRecordBase(Transparent):
@@ -69,7 +71,11 @@ class OaiAddRecordWithDefaults(OaiAddRecordBase):
 class OaiAddRecord(OaiAddRecordBase):
     def add(self, identifier, partname, lxmlNode):
         record = lxmlNode if iselement(lxmlNode) else lxmlNode.getroot()
-        setSpecs = record.xpath('//oai:header/oai:setSpec/text()', namespaces=namespaces)
+        oaiHeader = xpathFirst(record, 'oai:header')
+        if oaiHeader is None:
+            oaiHeader = xpathFirst(record, '/oai:header')
+
+        setSpecs = [] if oaiHeader is None else xpath(oaiHeader, 'oai:setSpec/text()')
         sets = set((str(s), str(s)) for s in setSpecs)
 
         namespace = record.nsmap.get(record.prefix or None, '')
