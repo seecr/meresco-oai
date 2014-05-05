@@ -217,7 +217,6 @@ Error and Exception Conditions
 
     def _process(self, verb, result, validatedArguments, **httpkwargs):
         records = list(result.records)
-        keys = [r.stamp for r in records]
         metadataPrefix = validatedArguments['metadataPrefix']
         fetchedRecords = None
         try:
@@ -225,7 +224,7 @@ Error and Exception Conditions
             fetchedRecords = dict(
                 self.call.getMultipleData(
                     name=metadataPrefix,
-                    keys=keys,
+                    keys=(r.stamp for r in records if not r.isDeleted),
                     ignoreMissing=True
                 )
             )

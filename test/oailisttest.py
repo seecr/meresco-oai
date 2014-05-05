@@ -63,7 +63,9 @@ class OaiListTest(SeecrTestCase):
         self.observer.methods['oaiRecordHeader'] = oaiRecord
         self.observer.methods['getAllPrefixes'] = self.oaiJazz.getAllPrefixes
         self.observer.methods['oaiSelect'] = self.oaiJazz.oaiSelect
+        self.getMultipleDataKeys = []
         def getMultipleData(**kwargs):
+            self.getMultipleDataKeys.append(list(kwargs.get('keys')))
             raise NoneOfTheObserversRespond('No one', 0)
         self.observer.methods['getMultipleData'] = getMultipleData
         self.oaiList.addObserver(self.observer)
@@ -89,7 +91,16 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
         keys = [recordMethods[0].kwargs['record'].stamp, recordMethods[1].kwargs['record'].stamp]
-        self.assertEquals(keys, self.observer.calledMethods[3].kwargs['keys'])
+        self.assertEquals([keys], self.getMultipleDataKeys)
+
+    def testListRecordsWithDeletes(self):
+        self._addRecords(['id:0&0', 'id:1&1'])
+        consume(self.oaiJazz.delete(identifier='id:1&1'))
+
+        consume(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))
+
+        idZeroStamp = self.oaiJazz.getRecord(identifier='id:0&0').stamp
+        self.assertEquals([[idZeroStamp]], self.getMultipleDataKeys)
 
     def testListRecordsWithSequentialMultiStorage(self):
         oaijazz = OaiJazz(join(self.tempdir, '1'))
