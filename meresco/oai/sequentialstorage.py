@@ -69,8 +69,8 @@ class SequentialMultiStorage(object):
     def iterData(self, name, start, stop=LARGER_THAN_ANY_KEY, **kwargs):
         return self._getStorage(name).range(start, stop, **kwargs)
 
-    def getMultipleData(self, name, keys):
-        return self._getStorage(name).getMultiple(keys)
+    def getMultipleData(self, name, keys, ignoreMissing=False):
+        return self._getStorage(name).getMultiple(keys, ignoreMissing=ignoreMissing)
 
     def handleShutdown(self):
         print 'handle shutdown: saving SequentialMultiStorage %s' % self._path
@@ -170,7 +170,7 @@ class SequentialStorage(object):
             key, data = self._readNext()
             offset = self._f.tell()
 
-    def getMultiple(self, keys):
+    def getMultiple(self, keys, ignoreMissing=False):
         offset = None
         prev_blk = None
         prev_key = None
@@ -189,6 +189,8 @@ class SequentialStorage(object):
                     key, data = self._blkIndex.scan(blk, target_key=key)
                 offset = self._f.tell()
             except StopIteration:
+                if ignoreMissing:
+                    continue
                 raise KeyError(key)
 
             yield key, data

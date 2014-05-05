@@ -217,21 +217,21 @@ Error and Exception Conditions
 
     def _process(self, verb, result, validatedArguments, **httpkwargs):
         records = list(result.records)
-        keys = set(r.stamp for r in records)
+        keys = [r.stamp for r in records]
         metadataPrefix = validatedArguments['metadataPrefix']
         fetchedRecords = None
         try:
             t0 = time()
-            fetchedRecords = dict(self.call.iterData(
+            fetchedRecords = dict(
+                self.call.getMultipleData(
                     name=metadataPrefix,
-                    start=records[0].stamp,
-                    stop=records[-1].stamp,
-                    inclusive=True,
-                    givenKeys=keys,
-                ))
+                    keys=keys,
+                    ignoreMissing=True
+                )
+            )
             deltaT = time() - t0
             if deltaT > 10.0:
-                sys.stderr.write("SequentialStorage.iterData for {0} records took {1:.1f} seconds.\n".format(
+                sys.stderr.write("SequentialStorage.getMultipleData for {0} records took {1:.1f} seconds.\n".format(
                     result.numberOfRecordsInBatch, deltaT
                 ))
                 sys.stderr.flush()

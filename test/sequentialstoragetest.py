@@ -171,6 +171,28 @@ class SequentialStorageTest(SeecrTestCase):
         result = list(s.getMultiple(keys=(1, 3)))
         self.assertEquals([(1, "d1"), (3, "d3")], result)
 
+    def testGetMultipleDataIgnoreMissingKeysWithFlag(self):
+        s = SequentialMultiStorage(self.tempdir)
+        result = list(s.getMultipleData(name='sub', keys=(1, 42), ignoreMissing=True))
+        self.assertEquals([], result)
+
+        s.addData(key=1, name="sub", data="d1")
+        s.addData(key=2, name="sub", data="d2")
+        s.addData(key=3, name="sub", data="d3")
+        result = list(s.getMultipleData(name="sub", keys=(1, 42), ignoreMissing=True))
+        self.assertEquals([(1, "d1")], result)
+
+    def testGetMultipleIgnoreMissingKeysWithFlag(self):
+        s = SequentialStorage(self.tempfile)
+        result = list(s.getMultiple(keys=(1, 42), ignoreMissing=True))
+        self.assertEquals([], result)
+
+        s.add(1, "d1")
+        s.add(2, "d2")
+        s.add(3, "d3")
+        result = list(s.getMultiple(keys=(1, 42), ignoreMissing=True))
+        self.assertEquals([(1, "d1")], result)
+
     def testGetMultipleWithKeysAcrossMultipleBlocks(self):
         s = SequentialStorage(self.tempfile, blockSize=20)
         one = ''.join(chr(randint(0,255)) for _ in range(50))
