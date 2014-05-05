@@ -194,15 +194,35 @@ class SequentialStorageTest(SeecrTestCase):
         self.assertEquals([(1, "d1")], result)
 
     def testGetMultipleWithKeysAcrossMultipleBlocks(self):
-        s = SequentialStorage(self.tempfile, blockSize=20)
+        class File(object):
+            def __init__(me):
+                me._f = open(self.tempfile, "ab+")
+                me.offsets = []
+            def __getattr__(me, name):
+                return getattr(me._f, name)
+            def seek(me, offset):
+                me.offsets.append(offset)
+                return me._f.seek(offset)
+        f = File()
+        s = SequentialStorage("na", file_=f, blockSize=100)
+        offsets = []
         one = ''.join(chr(randint(0,255)) for _ in range(50))
         three = ''.join(chr(randint(0,255)) for _ in range(50))
+        four = ''.join(chr(randint(0,255)) for _ in range(50))
         s.add(1, one )
+        offsets.append(f.tell())
         s.add(2, ''.join(chr(randint(0,255)) for _ in range(50)))
+        offsets.append(f.tell())
         s.add(3, three)
-        self.assertEquals(11, len(s._blkIndex))
-        result = list(s.getMultiple(keys=(1, 3)))
-        self.assertEquals([(1, one), (3, three)], result)
+        offsets.append(f.tell())
+        s.add(4, four)
+        offsets.append(f.tell())
+        list(s.getMultiple(keys=(1, 3, 4)))
+        self.assertEquals({0: 1, 1: 3, 2: 4}, s._blkIndex._cache)
+        f.offsets[:] = []
+        result = list(s.getMultiple(keys=(1, 3, 4)))
+        self.assertEquals([(1, one), (3, three), (4, four)], result)
+        self.assertEquals([0, offsets[0], offsets[2]], f.offsets)
 
     def testTwoAlternatingGetMultipleIterators(self):
         s = SequentialStorage(self.tempfile)

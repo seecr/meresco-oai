@@ -83,8 +83,11 @@ class SequentialMultiStorage(object):
 
 
 class SequentialStorage(object):
-    def __init__(self, fileName, blockSize=8192):
-        self._f = open(fileName, "ab+")
+    def __init__(self, fileName, file_=None, blockSize=8192):
+        if file_:
+            self._f = file_
+        else:
+            self._f = open(fileName, "ab+")
         self._blkIndex = _BlkIndex(self, blockSize)
         self._lastKey = None
         lastBlk = self._blkIndex.search(LARGER_THAN_ANY_KEY)
@@ -101,7 +104,7 @@ class SequentialStorage(object):
         data = compress(data)
         record = RECORD % dict(key=key, length=len(data), data=data, sentinel=SENTINEL)
         self._f.write(record)
-        self._blkIndex._size += len(record)
+        self._blkIndex.adjustSize(len(record))
 
     def __getitem__(self, key):
         _intcheck(key)
@@ -179,12 +182,12 @@ class SequentialStorage(object):
 
             blk = self._blkIndex.search(key, lo=prev_blk or 0)
             try:
-                if blk == prev_blk:
+                if self._blkIndex.offset(blk) > offset:
+                    key, data = self._blkIndex.scan(blk, target_key=key)
+                else:
                     if offset:
                         self._f.seek(offset)
                     key, data = self._readNext(target_key=key)
-                else:
-                    key, data = self._blkIndex.scan(blk, target_key=key)
                 offset = self._f.tell()
             except StopIteration:
                 if ignoreMissing:
@@ -213,6 +216,9 @@ class _BlkIndex(object):
                 raise IndexError
         return key
 
+    def adjustSize(self, s):
+        self._size += s
+
     def __len__(self):
         return ceil(self._size / float(self._blk_size))
 
@@ -223,6 +229,8 @@ class _BlkIndex(object):
     def search(self, key, lo=0):
         return max(_bisect_left(self, key, lo=lo)-1, 0)
 
+    def offset(self, blk):
+        return blk * self._blk_size
 
 def _intcheck(value):
     if not isinstance(value, (int, long)):
