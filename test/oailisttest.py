@@ -41,10 +41,10 @@ from seecr.test.io import stderr_replaced
 
 from weightless.core import compose, Yield, NoneOfTheObserversRespond, asString, consume
 from meresco.components.http.utils import CRLF
+from meresco.sequentialstore import SequentialMultiStorage
 
 from meresco.oai.oailist import OaiList
-from meresco.oai import OaiJazz, SequentialMultiStorage
-
+from meresco.oai import OaiJazz
 from meresco.oai.resumptiontoken import ResumptionToken
 from meresco.oai.oairecord import OaiRecord
 

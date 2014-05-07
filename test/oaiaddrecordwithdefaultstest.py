@@ -27,7 +27,8 @@
 
 from seecr.test import CallTrace, SeecrTestCase
 from weightless.core import compose, consume
-from meresco.oai import OaiAddRecordWithDefaults, OaiJazz, SequentialMultiStorage
+from meresco.oai import OaiAddRecordWithDefaults, OaiJazz
+from meresco.sequentialstore import SequentialMultiStorage
 from os import makedirs
 
 class OaiAddRecordWithDefaultsTest(SeecrTestCase):

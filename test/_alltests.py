@@ -72,8 +72,6 @@ from oaitooltest import OaiToolTest
 from resumptiontokentest import ResumptionTokenTest
 from streaminglxmltest import StreamingLxmlTest
 from updateadaptertest import UpdateAdapterTest
-from sequentialstoragetest import SequentialStorageTest
-from sequentialstoragecomponenttest import SequentialStorageComponentTest
 
 
 from info.oaijsoninfotest import OaiJsonInfoTest

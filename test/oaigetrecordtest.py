@@ -25,7 +25,8 @@
 ## end license ##
 
 from seecr.test import SeecrTestCase
-from meresco.oai import OaiJazz, SequentialMultiStorage
+from meresco.sequentialstore import SequentialMultiStorage
+from meresco.oai import OaiJazz
 from meresco.oai.oaigetrecord import OaiGetRecord
 from meresco.oai.oairecord import OaiRecord
 from uuid import uuid4

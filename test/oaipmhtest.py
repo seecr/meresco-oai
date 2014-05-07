@@ -30,7 +30,8 @@
 from seecr.test import SeecrTestCase, CallTrace
 from oaischema import assertValidOai
 
-from meresco.oai import OaiPmh, OaiJazz, OaiBranding, SequentialMultiStorage
+from meresco.oai import OaiPmh, OaiJazz, OaiBranding
+from meresco.sequentialstore import SequentialMultiStorage
 from meresco.core import Observable
 from meresco.components.http.utils import CRLF
 from meresco.components import StorageComponent

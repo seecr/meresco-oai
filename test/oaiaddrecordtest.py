@@ -31,7 +31,8 @@
 ## end license ##
 
 from seecr.test import SeecrTestCase, CallTrace
-from meresco.oai import OaiAddRecord, OaiJazz, SequentialMultiStorage
+from meresco.oai import OaiAddRecord, OaiJazz
+from meresco.sequentialstore import SequentialMultiStorage
 from weightless.core import compose, consume, be
 from os import makedirs
 
