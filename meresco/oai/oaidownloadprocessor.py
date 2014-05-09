@@ -69,6 +69,12 @@ class OaiDownloadProcessor(Observable):
             self._identifier = str(uuid4())
             open(self._identifierFilePath, 'w').write(self._identifier)
 
+    def setPath(self, path):
+        self._path = path
+
+    def setMetadataPrefix(self, metadataPrefix):
+        self._metadataPrefix = metadataPrefix
+
     def buildRequest(self):
         arguments = [('verb', self._verb)]
         if self._resumptionToken:
