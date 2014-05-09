@@ -54,6 +54,11 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.setMetadataPrefix('otherPrefix')
         self.assertEquals("""GET /otherOai?verb=ListRecords&metadataPrefix=otherPrefix&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
+    def testRequestWithAdditionalHeaders(self):
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+        request = oaiDownloadProcessor.buildRequest(additionalHeaders={'Host': 'example.org'})
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nHost: example.org\r\n\r\n""" % oaiDownloadProcessor._identifier, request)
+
     def testListIdentifiersRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, verb='ListIdentifiers')
         self.assertEquals("""GET /oai?verb=ListIdentifiers&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())

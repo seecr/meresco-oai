@@ -75,7 +75,7 @@ class OaiDownloadProcessor(Observable):
     def setMetadataPrefix(self, metadataPrefix):
         self._metadataPrefix = metadataPrefix
 
-    def buildRequest(self):
+    def buildRequest(self, additionalHeaders=None):
         arguments = [('verb', self._verb)]
         if self._resumptionToken:
             arguments.append(('resumptionToken', self._resumptionToken))
@@ -87,6 +87,8 @@ class OaiDownloadProcessor(Observable):
             arguments.append(('x-wait', 'True'))
         request = "GET %s?%s HTTP/1.0\r\n%s\r\n"
         headers = "X-Meresco-Oai-Client-Identifier: %s\r\n" % self._identifier
+        if additionalHeaders:
+            headers += ''.join("{0}: {1}\r\n".format(k, v) for k, v in additionalHeaders.items())
         return request % (self._path, urlencode(arguments), headers)
 
     def handle(self, lxmlNode):
