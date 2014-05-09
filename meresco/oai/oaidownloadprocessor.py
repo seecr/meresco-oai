@@ -1,30 +1,30 @@
 ## begin license ##
-# 
+#
 # "Meresco Oai" are components to build Oai repositories, based on
-# "Meresco Core" and "Meresco Components". 
-# 
+# "Meresco Core" and "Meresco Components".
+#
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
-# Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2012, 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011, 2014 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
-# 
+#
 # This file is part of "Meresco Oai"
-# 
+#
 # "Meresco Oai" is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # "Meresco Oai" is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with "Meresco Oai"; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-# 
+#
 ## end license ##
 
 from lxml.etree import ElementTree
@@ -69,7 +69,7 @@ class OaiDownloadProcessor(Observable):
             self._identifier = str(uuid4())
             open(self._identifierFilePath, 'w').write(self._identifier)
 
-    def buildRequest(self):
+    def buildRequest(self, additionalHeaders=None):
         arguments = [('verb', self._verb)]
         if self._resumptionToken:
             arguments.append(('resumptionToken', self._resumptionToken))
@@ -81,6 +81,8 @@ class OaiDownloadProcessor(Observable):
             arguments.append(('x-wait', 'True'))
         request = "GET %s?%s HTTP/1.0\r\n%s\r\n"
         headers = "X-Meresco-Oai-Client-Identifier: %s\r\n" % self._identifier
+        if additionalHeaders:
+            headers += ''.join("{0}: {1}\r\n".format(k, v) for k, v in additionalHeaders.items())
         return request % (self._path, urlencode(arguments), headers)
 
     def handle(self, lxmlNode):
