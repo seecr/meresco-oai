@@ -77,7 +77,7 @@ Error and Exception Conditions
         fetchedRecords = None
         if not record.isDeleted:
             try:
-                fetchedRecords = {record.stamp: self.call.getData(name=metadataPrefix, key=record.stamp)}
+                fetchedRecords = {record.identifier: self.call.getData(identifier=record.identifier, name=metadataPrefix)}
             except NoneOfTheObserversRespond:
                 pass
             except IndexError:

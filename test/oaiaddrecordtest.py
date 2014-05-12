@@ -32,16 +32,17 @@
 
 from seecr.test import SeecrTestCase, CallTrace
 from meresco.oai import OaiAddRecord, OaiJazz
-from meresco.sequentialstore import SequentialMultiStorage
-from weightless.core import compose, consume, be
+from meresco.sequentialstore import MultiSequentialStorage
+from weightless.core import consume, be
 from os import makedirs
 
 from StringIO import StringIO
-from lxml.etree import parse, ElementTree
+from lxml.etree import parse
 from meresco.core import Observable
 from meresco.components import XmlPrintLxml
 from meresco.xml.utils import createElement, createSubElement
 from meresco.xml import xpathFirst
+
 
 def parseLxml(aString):
     return parse(StringIO(aString)).getroot()
@@ -145,7 +146,7 @@ class OaiAddRecordTest(SeecrTestCase):
         addrecord = OaiAddRecord(useSequentialStorage=True)
         jazz =  OaiJazz(self.tempdir)
         makedirs(self.tempdir + '/1')
-        storage = SequentialMultiStorage(self.tempdir + '/1')
+        storage = MultiSequentialStorage(self.tempdir + '/1')
         observable = be((Observable(),
                 (addrecord,
                     (jazz,),

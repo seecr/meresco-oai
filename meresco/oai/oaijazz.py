@@ -200,7 +200,6 @@ class OaiJazz(object):
         self._writer.updateDocument(Term("identifier", identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume()
-        return newStamp
 
     @asyncreturn
     def delete(self, identifier):

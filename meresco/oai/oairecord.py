@@ -32,6 +32,7 @@ from meresco.core.generatorutils import decorate
 from weightless.core import compose
 from xml.sax.saxutils import escape as xmlEscape
 
+
 class OaiRecord(Transparent):
     def _oaiRecordHeader(self, record):
         isDeletedStr = ' status="deleted"' if record.isDeleted else ''
@@ -51,11 +52,13 @@ class OaiRecord(Transparent):
 
         if not record.isDeleted:
             yield '<metadata>'
-            data = None if fetchedRecords is None else fetchedRecords.get(int(record.stamp))
-            if not data is None:
-                yield data
+            if not fetchedRecords is None:
+                try:
+                    yield fetchedRecords[record.identifier]
+                except KeyError:
+                    pass
             else:
-                yield self.all.yieldRecord(record.identifier, metadataPrefix)
+                yield self.call.getData(identifier=record.identifier, name=metadataPrefix)
             yield '</metadata>'
 
             provenance = compose(self.all.provenance(record.identifier))

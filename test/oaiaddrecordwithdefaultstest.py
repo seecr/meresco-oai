@@ -28,8 +28,9 @@
 from seecr.test import CallTrace, SeecrTestCase
 from weightless.core import compose, consume
 from meresco.oai import OaiAddRecordWithDefaults, OaiJazz
-from meresco.sequentialstore import SequentialMultiStorage
+from meresco.sequentialstore import MultiSequentialStorage
 from os import makedirs
+
 
 class OaiAddRecordWithDefaultsTest(SeecrTestCase):
     def testAdd(self):
@@ -67,7 +68,7 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
         jazz =  OaiJazz(self.tempdir)
         addrecord.addObserver(jazz)
         makedirs(self.tempdir + '/1')
-        storage = SequentialMultiStorage(self.tempdir + '/1')
+        storage = MultiSequentialStorage(self.tempdir + '/1')
         addrecord.addObserver(storage)
         consume(addrecord.add("id0", data="<xml/>"))
         t, data = storage.iterData("part1", 0).next()
@@ -78,5 +79,3 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
         jazz =  OaiJazz(self.tempdir)
         addrecord.addObserver(jazz)
         self.assertRaises(ValueError, lambda: consume(addrecord.add("id0", data="<xml/>")))
-
-

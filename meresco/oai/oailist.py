@@ -224,7 +224,7 @@ Error and Exception Conditions
             fetchedRecords = dict(
                 self.call.getMultipleData(
                     name=metadataPrefix,
-                    keys=(r.stamp for r in records if not r.isDeleted),
+                    identifiers=(r.identifier for r in records if not r.isDeleted),
                     ignoreMissing=True
                 )
             )
