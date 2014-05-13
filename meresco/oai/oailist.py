@@ -113,7 +113,7 @@ Error and Exception Conditions
         while True:
             try:
                 responseDate = zuluTime()
-                result = self._preProcess(validatedArguments, **httpkwargs)
+                result = self._preProcess(validatedArguments)
                 break
             except OaiException, e:
                 if validatedArguments.get("x-wait", 'False') == 'True' and \
@@ -138,7 +138,7 @@ Error and Exception Conditions
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
-        yield self._process(verb, result, validatedArguments, **httpkwargs)
+        yield self._process(verb, result, validatedArguments)
         yield '</%s>' % verb
 
         yield oaiFooter()
@@ -166,7 +166,7 @@ Error and Exception Conditions
             checkNoMoreArguments(arguments)
         return validatedArguments
 
-    def _preProcess(self, validatedArguments, **httpkwargs):
+    def _preProcess(self, validatedArguments):
         if validatedArguments.get('resumptionToken', None):
             token = resumptionTokenFromString(validatedArguments['resumptionToken'])
             if not token:
@@ -215,7 +215,7 @@ Error and Exception Conditions
             raise OaiException('noRecordsMatch')
         return result
 
-    def _process(self, verb, result, validatedArguments, **httpkwargs):
+    def _process(self, verb, result, validatedArguments):
         records = list(result.records)
         metadataPrefix = validatedArguments['metadataPrefix']
         fetchedRecords = None

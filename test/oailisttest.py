@@ -92,6 +92,14 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
         self.assertEquals([['id:0&0', 'id:1&1']], self.getMultipleDataIdentifiers)
 
+    def testListRecordsUsesFetchedRecords(self):
+        self._addRecords(['id:0&0', 'id:1'])
+        self.observer.methods['getMultipleData'] = lambda name, identifiers, ignoreMissing=False: [('id:0&0', 'data1'), ('id:1', 'data2'), ('id:2', 'data3')]
+        consume(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))
+        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'getMultipleData', 'oaiRecord', 'oaiRecord'], self.observer.calledMethodNames())
+        self.assertEquals({'id:0&0': 'data1', 'id:1': 'data2', 'id:2': 'data3'}, self.observer.calledMethods[4].kwargs['fetchedRecords'])
+        self.assertEquals({'id:0&0': 'data1', 'id:1': 'data2', 'id:2': 'data3'}, self.observer.calledMethods[4].kwargs['fetchedRecords'])
+
     def testListRecordsWithDeletes(self):
         self._addRecords(['id:0&0', 'id:1&1'])
         consume(self.oaiJazz.delete(identifier='id:1&1'))
