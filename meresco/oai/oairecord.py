@@ -34,7 +34,7 @@ from xml.sax.saxutils import escape as xmlEscape
 
 
 class OaiRecord(Transparent):
-    def _oaiRecordHeader(self, record):
+    def oaiRecordHeader(self, record, **kwargs):
         isDeletedStr = ' status="deleted"' if record.isDeleted else ''
         datestamp = record.getDatestamp()
         yield '<header%s>' % isDeletedStr
@@ -43,12 +43,9 @@ class OaiRecord(Transparent):
         yield self._getSetSpecs(record)
         yield '</header>'
 
-    def oaiRecordHeader(self, record, **kwargs):
-        yield self._oaiRecordHeader(record=record)
-
     def oaiRecord(self, record, metadataPrefix, fetchedRecords=None):
         yield '<record>'
-        yield self._oaiRecordHeader(record)
+        yield self.oaiRecordHeader(record)
 
         if not record.isDeleted:
             yield '<metadata>'
@@ -71,4 +68,3 @@ class OaiRecord(Transparent):
         if record.sets:
             return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in record.sets)
         return ''
-

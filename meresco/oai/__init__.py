@@ -55,7 +55,7 @@ from oaisetselect import OaiSetSelect # deprecated
 from oaiidentifierrename import OaiIdentifierRename
 from fields2oairecord import Fields2OaiRecord
 from oaijazz import OaiJazz, stamp2zulutime
-from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults, OaiAddRecordBase
+from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults
 from oaidownloadprocessor import OaiDownloadProcessor
 from updateadapter import UpdateAdapterFromOaiDownloadProcessor
 from oaibranding import OaiBranding

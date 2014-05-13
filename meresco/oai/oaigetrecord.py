@@ -74,15 +74,7 @@ Error and Exception Conditions
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
-        fetchedRecords = None
-        if not record.isDeleted:
-            try:
-                fetchedRecords = {record.identifier: self.call.getData(identifier=record.identifier, name=metadataPrefix)}
-            except NoneOfTheObserversRespond:
-                pass
-            except IndexError:
-                sys.stderr.write("Data for record with stamp '%s' not found in storage (probably not completely written on crash)" % record.stamp)
-        yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix, fetchedRecords=fetchedRecords)
+        yield self.all.oaiRecord(record=record, metadataPrefix=metadataPrefix)
         yield '</%s>' % verb
         yield oaiFooter()
 

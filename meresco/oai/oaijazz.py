@@ -163,7 +163,7 @@ class OaiJazz(object):
                 if record.identifier not in inner.parent._latestModifications:
                     yield record
 
-    def addOaiRecord(self, identifier, sets=None, metadataFormats=None, **_):
+    def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         msg = 'No metadataFormat specified for record with identifier "%s"' % identifier
