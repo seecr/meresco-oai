@@ -103,6 +103,19 @@ class OaiJazzTest(SeecrTestCase):
         self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord("", metadataFormats=[('prefix', 'schema', 'namespace')]))
         self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord(None, metadataFormats=[('prefix', 'schema', 'namespace')]))
 
+    def testIdentifierWithSpace(self):
+        identifier = "a b"
+        self.jazz.addOaiRecord(identifier=identifier, sets=[], metadataFormats=[('prefix', 'schema', 'namespace')])
+        record = self.jazz.getRecord(identifier)
+        self.assertEquals(('a b', False), (record.identifier, record.isDeleted))
+        records = list(self.jazz.oaiSelect(prefix='prefix').records)
+        self.assertEquals([('a b', False)], [(r.identifier, r.isDeleted) for r in records])
+        list(self.jazz.delete(identifier))
+        records = list(self.jazz.oaiSelect(prefix='prefix').records)
+        self.assertEquals([('a b', True)], [(r.identifier, r.isDeleted) for r in records])
+        record = self.jazz.getRecord(identifier)
+        self.assertEquals(('a b', True), (record.identifier, record.isDeleted))
+
     def xtestPerformanceTestje(self):
         t0 = time()
         lastTime = t0
@@ -845,6 +858,7 @@ class OaiJazzTest(SeecrTestCase):
             self.fail()
         except Exception, e:
             self.assertTrue("no segments" in str(e), str(e))
+
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]

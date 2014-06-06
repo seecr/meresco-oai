@@ -168,13 +168,7 @@ class OaiJazz(object):
             raise ValueError("Empty identifier not allowed.")
         msg = 'No metadataFormat specified for record with identifier "%s"' % identifier
         assert [prefix for prefix, schema, namespace in metadataFormats], msg
-        doc = self._getDocument(identifier)
-        if not doc:
-            doc = Document()
-            doc.add(StringField("identifier", identifier, Field.Store.YES))
-        else:
-            doc.removeFields("tombstone")
-            doc.removeFields("stamp")
+        doc = self._getNewDocument(identifier, oldDoc=self._getDocument(identifier))
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
         doc.add(NumericDocValuesField("stamp", long(newStamp)))
@@ -206,14 +200,10 @@ class OaiJazz(object):
     def delete(self, identifier):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        doc = self._getDocument(identifier)
-        if doc:
-            doc.removeFields("stamp")
-        else:
-            if not self._deletePrefixes:
-                return
-            doc = Document()
-            doc.add(StringField("identifier", identifier, Field.Store.YES))
+        oldDoc = self._getDocument(identifier)
+        if oldDoc is None and not self._deletePrefixes:
+            return
+        doc = self._getNewDocument(identifier, oldDoc=oldDoc)
         for prefix in self._deletePrefixes:
             doc.add(StringField("prefix", prefix, Field.Store.YES))
         doc.add(StoredField("tombstone", BytesRef()))
@@ -363,6 +353,17 @@ class OaiJazz(object):
         if results.totalHits == 0:
             return None
         return results.scoreDocs[0].doc
+
+    def _getNewDocument(self, identifier, oldDoc):
+        doc = Document()
+        doc.add(StringField("identifier", identifier, Field.Store.YES))
+        if oldDoc is not None:
+            for oldPrefix in oldDoc.getValues("prefix"):
+                doc.add(StringField("prefix", oldPrefix, Field.Store.YES))
+            for oldSet in oldDoc.getValues("sets"):
+                doc.add(StringField("sets", oldSet, Field.Store.YES))
+        return doc
+
 
     def _newStamp(self):
         """time in microseconds"""
