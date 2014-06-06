@@ -30,7 +30,7 @@ from os.path import join
 from random import randint
 from threading import Thread
 from time import sleep
-from urllib2 import urlopen
+from urllib2 import urlopen, URLError
 from uuid import uuid4
 
 from lucene import getVMEnv
@@ -38,12 +38,13 @@ from lucene import getVMEnv
 from meresco.core import Observable
 from meresco.components.http import ObservableHttpServer
 from meresco.components.http.utils import CRLF
-from meresco.components import StorageComponent, XmlParseLxml, PeriodicDownload
+from meresco.components import XmlParseLxml, PeriodicDownload
 from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
 from meresco.xml import xpathFirst
+from meresco.sequentialstore import MultiSequentialStorage
 
 from seecr.test import SeecrTestCase, CallTrace
-from seecr.test.utils import getRequest
+from seecr.test.utils import getRequest, sleepWheel
 from seecr.test.io import stderr_replaced
 from weightless.io import Reactor
 from weightless.core import be, compose
@@ -57,19 +58,21 @@ class OaiIntegrationTest(SeecrTestCase):
     def testNearRealtimeOai(self):
         self.run = True
         portNumber = randint(50000, 60000)
-        observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
-        oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
-        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
-        self._addOaiRecords(storageComponent, oaiJazz, 3)
 
+        oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
+        self._addOaiRecords(storageComponent, oaiJazz, 3)
         oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
+
+        observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
         harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
+
         oaiPmhThread.start()
         harvestThread.start()
 
         try:
             requests = 3
-            sleep(1.0 + 1.0 * requests)
+            sleepWheel(1.0 + 1.0 * requests)
 
             self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
             ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods]
@@ -78,15 +81,15 @@ class OaiIntegrationTest(SeecrTestCase):
             self.assertEquals(1, len(oaiJazz._suspended))
 
             requests += 1
-            list(compose(storageComponent.add("id3", "prefix", "<a>a3</a>")))
+            storageComponent.addData(identifier="id3", name="prefix", data="<a>a3</a>")
             oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
-            sleep(1)
+            sleepWheel(1)
 
             self.assertEquals(0, len(oaiJazz._suspended))
             self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
             kwarg = lxmltostring(observer.calledMethods[-1].kwargs['lxmlNode'])
             self.assertTrue("id3" in kwarg, kwarg)
-            sleep(1.0)
+            sleepWheel(1.0)
             self.assertEquals(1, len(oaiJazz._suspended))
         finally:
             self.run = False
@@ -98,7 +101,7 @@ class OaiIntegrationTest(SeecrTestCase):
         self.run = True
         portNumber = randint(50000, 60000)
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
-        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+        storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         clientId = str(uuid4())
 
         requests = []
@@ -125,7 +128,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 self.assertTrue(clientId in oaiJazz._suspended)
                 self.assertTrue(harvest1Suspend != oaiJazz._suspended[clientId])
 
-                list(compose(storageComponent.add("id1", "prefix", "<a>a1</a>")))
+                storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
                 oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
                 sleep(0.1)
 
@@ -144,7 +147,7 @@ class OaiIntegrationTest(SeecrTestCase):
         self.run = True
         portNumber = randint(50000, 60000)
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'), maximumSuspendedConnections=5)
-        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+        storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
 
         def doOaiListRecord(port):
             header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, parse=False)
@@ -184,7 +187,7 @@ class OaiIntegrationTest(SeecrTestCase):
     def testUpdateRecordWhileSendingData(self):
         batchSize = 3
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
-        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+        storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, count=batchSize + 10)
         dna = be((Observable(),
             (OaiPmh(repositoryName='test', adminEmail='no@example.org', batchSize=batchSize),
@@ -214,7 +217,7 @@ class OaiIntegrationTest(SeecrTestCase):
     def testNearRealtimeOaiSavesState(self):
         observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
-        storageComponent = StorageComponent(join(self.tempdir, 'storage'))
+        storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, 1)
 
         oaiPmhThread = None
@@ -239,18 +242,18 @@ class OaiIntegrationTest(SeecrTestCase):
 
         start()
         requests = 1
-        sleep(1.0 + 1.0 * requests)
+        sleepWheel(1.0 + 1.0 * requests)
         self.assertEquals(1, len(observer.calledMethods))
         kwarg = lxmltostring(observer.calledMethods[0].kwargs['lxmlNode'])
         self.assertTrue("id0" in kwarg, kwarg)
         stop()
 
-        list(compose(storageComponent.add("id1", "prefix", "<a>a1</a>")))
+        storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
         oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
 
         start()
         requests = 1
-        sleep(1.0 + 1.0 * requests)
+        sleepWheel(1.0 + 1.0 * requests)
         self.assertEquals(2, len(observer.calledMethods))
         kwarg = lxmltostring(observer.calledMethods[1].kwargs['lxmlNode'])
         self.assertFalse("id0" in kwarg, kwarg)
@@ -291,7 +294,7 @@ class OaiIntegrationTest(SeecrTestCase):
 
     def _addOaiRecords(self, storageComponent, oaiJazz, count):
         for i in range(count):
-            list(compose(storageComponent.add("id%s" % i, "prefix", "<a>a%s</a>" % i)))
+            storageComponent.addData(identifier="id%s" % i, name="prefix", data="<a>a%s</a>" % i)
             oaiJazz.addOaiRecord(identifier="id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
 
     def _loopReactor(self, reactor):
@@ -300,6 +303,7 @@ class OaiIntegrationTest(SeecrTestCase):
         tick()
         while self.run:
             reactor.step()
+
 
 def xpath(node, path):
     return node.xpath(path, namespaces={'oai':'http://www.openarchives.org/OAI/2.0/'})

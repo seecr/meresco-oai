@@ -36,25 +36,9 @@ from meresco.xml import xpath
 from meresco.xml.namespaces import xpathFirst, expandNs
 
 
-class OaiAddRecordBase(Transparent):
-    def __init__(self, useSequentialStorage=False):
-        super(OaiAddRecordBase, self).__init__()
-        self._useSequentialStorage = useSequentialStorage
-
-    def add(self, identifier, sets, metadataFormats, **kwargs):
-        stamp = self.call.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
-        if self._useSequentialStorage:
-            if len(metadataFormats) != 1:
-                raise ValueError('There can be only one "metadataFormats".')
-            prefix, schema, namespace = metadataFormats[0]
-            kwargs.pop('partname', None)
-            yield self.all.add(identifier=stamp, partname=prefix, **kwargs)
-        else:
-            yield self.all.add(identifier=identifier, **kwargs)
-
-class OaiAddRecordWithDefaults(OaiAddRecordBase):
-    def __init__(self, metadataFormats=None, sets=None, **kwargs):
-        super(OaiAddRecordWithDefaults, self).__init__(**kwargs)
+class OaiAddRecordWithDefaults(Transparent):
+    def __init__(self, metadataFormats=None, sets=None, name=None):
+        Transparent.__init__(self, name=name)
         self._sets = self._prepare(sets)
         self._metadataFormats = self._prepare(metadataFormats)
 
@@ -65,9 +49,15 @@ class OaiAddRecordWithDefaults(OaiAddRecordBase):
         return iterableOrCallable if callable(iterableOrCallable) else lambda **kwargs: iterableOrCallable
 
     def add(self, identifier, **kwargs):
-        yield super(OaiAddRecordWithDefaults, self).add(identifier=identifier, sets=self._sets(identifier=identifier, **kwargs), metadataFormats=self._metadataFormats(identifier=identifier, **kwargs), **kwargs)
+        self.call.addOaiRecord(
+            identifier=identifier,
+            sets=self._sets(identifier=identifier, **kwargs),
+            metadataFormats=self._metadataFormats(identifier=identifier, **kwargs))
+        return
+        yield
 
-class OaiAddRecord(OaiAddRecordBase):
+
+class OaiAddRecord(Transparent):
     def add(self, identifier, partname, lxmlNode):
         record = lxmlNode if iselement(lxmlNode) else lxmlNode.getroot()
         oaiHeader = xpathFirst(record, 'oai:header')
@@ -83,7 +73,9 @@ class OaiAddRecord(OaiAddRecordBase):
         schema = dict(zip(ns2xsd[::2],ns2xsd[1::2])).get(namespace, '')
         schema, namespace = self._magicSchemaNamespace(record.prefix, partname, schema, namespace)
         metadataFormats=[(partname, schema, namespace)]
-        yield super(OaiAddRecord, self).add(identifier, sets, metadataFormats, partname=partname, lxmlNode=lxmlNode)
+        self.call.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
+        return
+        yield
 
     def _magicSchemaNamespace(self, prefix, name, schema, namespace):
         searchForPrefix = prefix or name

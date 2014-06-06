@@ -30,16 +30,14 @@
 #
 ## end license ##
 
-from lxml.etree import parse
-from StringIO import StringIO
-
-from seecr.test import SeecrTestCase, CallTrace
+from weightless.core import compose
 
 from meresco.oai.oairecord import OaiRecord
 
+from seecr.test import SeecrTestCase, CallTrace
+
 from mockoaijazz import MockRecord
 
-from weightless.core import compose
 
 class OaiRecordTest(SeecrTestCase):
     def setUp(self):
@@ -47,12 +45,11 @@ class OaiRecordTest(SeecrTestCase):
         self.oaiRecord = OaiRecord()
         self.observer = CallTrace('Observer')
         self.oaiRecord.addObserver(self.observer)
-        self.observer.returnValues['yieldRecord'] = (f for f in ['<da','ta/>'])
+        self.observer.returnValues['getData'] = '<data/>'
         self.observer.returnValues['provenance'] = (f for f in [])
 
     def testRecord(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords={})))
-
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords=None)))
         self.assertEqualsWS("""<record>
 <header>
     <identifier>id</identifier>
@@ -64,12 +61,11 @@ class OaiRecordTest(SeecrTestCase):
     <data/>
 </metadata>
 </record>""", result)
-        self.assertEquals(["yieldRecord('id', 'oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+        self.assertEquals(["getData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
 
-    def testRecordWithData(self):
+    def testRecordWithFetchedRecords(self):
         record = MockRecord('id')
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=record, metadataPrefix='oai_dc', fetchedRecords={int(record.stamp):"<the>data</the>"})))
-
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=record, metadataPrefix='oai_dc', fetchedRecords={record.identifier: "<the>data</the>", 'abc': '<some>other data</some>'})))
         self.assertEqualsWS("""<record>
 <header>
     <identifier>id</identifier>
@@ -84,8 +80,7 @@ class OaiRecordTest(SeecrTestCase):
         self.assertEquals(["provenance('id')"], [str(m) for m in self.observer.calledMethods])
 
     def testRecordIsDeleted(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', deleted=True), metadataPrefix='oai_dc', fetchedRecords={})))
-
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', deleted=True), metadataPrefix='oai_dc')))
         self.assertEqualsWS("""<record>
 <header status="deleted">
     <identifier>id</identifier>
@@ -97,8 +92,7 @@ class OaiRecordTest(SeecrTestCase):
         self.assertEquals([], [str(m) for m in self.observer.calledMethods])
 
     def testRecordsWithoutSets(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', sets=[]), metadataPrefix='oai_dc', fetchedRecords={})))
-
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', sets=[]), metadataPrefix='oai_dc')))
         self.assertEqualsWS("""<record>
 <header>
     <identifier>id</identifier>
@@ -108,12 +102,11 @@ class OaiRecordTest(SeecrTestCase):
     <data/>
 </metadata>
 </record>""", result)
-        self.assertEquals(["yieldRecord('id', 'oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+        self.assertEquals(["getData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
 
     def testRecordWithProvenance(self):
         self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords={})))
-
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc')))
         self.assertEqualsWS("""<record>
 <header>
     <identifier>id</identifier>
@@ -126,12 +119,11 @@ class OaiRecordTest(SeecrTestCase):
 </metadata>
 <about>PROVENANCE</about>
 </record>""", result)
-        self.assertEquals(["yieldRecord('id', 'oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+        self.assertEquals(["getData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
 
     def testDeletedRecordWithProvenance(self):
         self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
-        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id&0', deleted=True), metadataPrefix='oai_dc', fetchedRecords={})))
-
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id&0', deleted=True), metadataPrefix='oai_dc')))
         self.assertEqualsWS("""<record>
 <header status="deleted">
     <identifier>id&amp;0</identifier>
@@ -142,10 +134,8 @@ class OaiRecordTest(SeecrTestCase):
 </record>""", result)
         self.assertEquals([], [str(m) for m in self.observer.calledMethods])
 
-
     def testRecordForListIdentifiers(self):
-        result = ''.join(compose(self.oaiRecord.oaiRecordHeader(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords={})))
-
+        result = ''.join(compose(self.oaiRecord.oaiRecordHeader(record=MockRecord('id'), metadataPrefix='oai_dc', kwarg0="ignored")))
         self.assertEqualsWS("""<header>
     <identifier>id</identifier>
     <datestamp>2011-03-25T10:45:00Z</datestamp>
@@ -153,4 +143,3 @@ class OaiRecordTest(SeecrTestCase):
     <setSpec>set1</setSpec>
 </header>""", result)
         self.assertEquals([], [str(m) for m in self.observer.calledMethods])
-

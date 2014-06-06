@@ -63,7 +63,7 @@ from oaigetrecordtest import OaiGetRecordTest
 from oaiintegrationtest import OaiIntegrationTest
 from oaijazztest import OaiJazzTest
 from oailisttest import OaiListTest
-from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest, OaiPmhWithSequentialStorageTest
+from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest
 from oaiprovenancetest import OaiProvenanceTest
 from oairecordtest import OaiRecordTest
 from oaisetmasktest import OaiSetMaskTest

@@ -33,7 +33,7 @@
 from meresco.core import Transparent
 
 import re
-repositoryIdentifierRe = re.compile(r"[a-zA-Z][a-zA-Z0-9\-]*(\.[a-zA-Z][a-zA-Z0-9\-]+)+")
+
 
 class OaiIdentifierRename(Transparent):
     def __init__(self, repositoryIdentifier):
@@ -55,17 +55,26 @@ class OaiIdentifierRename(Transparent):
     def write(self, sink, id, partName):
         return self.call.write(sink, self._strip(id), partName)
 
-    def yieldRecord(self, identifier, partname):
-        return self.call.yieldRecord(self._strip(identifier), partname)
-
-    def getStream(self, id, partName):
-        return self.call.getStream(self._strip(id), partName)
+    def getData(self, identifier, name):
+        return self.call.getData(identifier=self._strip(identifier), name=name)
 
     def getRecord(self, identifier):
-        return self._append(self.call.getRecord(self._strip(identifier)))
+        return self._append(self.call.getRecord(identifier=self._strip(identifier)))
+
+    def getMultipleData(self, name, identifiers, ignoreMissing=False):
+        return (
+            (self._prefix + identifier, data)
+            for (identifier, data)
+            in self.call.getMultipleData(
+                name=name,
+                identifiers=(self._strip(identifier) for identifier in identifiers),
+                ignoreMissing=ignoreMissing)
+        )
 
     def oaiSelect(self, *args, **kwargs):
         result = self.call.oaiSelect(*args, **kwargs)
         result.records = (self._append(record) for record in result.records)
         return result
 
+
+repositoryIdentifierRe = re.compile(r"[a-zA-Z][a-zA-Z0-9\-]*(\.[a-zA-Z][a-zA-Z0-9\-]+)+")

@@ -31,10 +31,9 @@ from seecr.test import SeecrTestCase, CallTrace
 from oaischema import assertValidOai
 
 from meresco.oai import OaiPmh, OaiJazz, OaiBranding
-from meresco.sequentialstore import SequentialMultiStorage
+from meresco.sequentialstore import MultiSequentialStorage
 from meresco.core import Observable
 from meresco.components.http.utils import CRLF
-from meresco.components import StorageComponent
 from os.path import join
 from urllib import urlencode
 from lxml.etree import parse
@@ -44,16 +43,14 @@ from weightless.core import be, compose
 from socket import gethostname
 from time import sleep
 
+
 BATCHSIZE = 10
 HOSTNAME = gethostname()
 class _OaiPmhTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
         self.jazz = jazz = OaiJazz(join(self.tempdir, 'jazz'))
-        if not getattr(self, 'sequentialstore', False):
-            self.storage = StorageComponent(join(self.tempdir, 'storage'))
-        else:
-            self.storage = SequentialMultiStorage(join(self.tempdir, 'sequential-store'))
+        self.storage = MultiSequentialStorage(join(self.tempdir, 'sequential-store'))
         self.oaipmh = self.getOaiPmh()
         self.root = be((Observable(),
             (self.oaipmh,
@@ -74,16 +71,13 @@ class _OaiPmhTest(SeecrTestCase):
             if 10 <= i < 15:
                 sets.append(('hierarchical', 'hierarchical toplevel only'))
             sleep(0.001) # avoid timestamps being equals on VMs
-            stamp = jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
+            jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
             if i % 5 == 0:
                 list(compose(jazz.delete(recordId)))
 
-            if hasattr(self, 'sequentialstore'):
-                identifier = stamp
-
-            list(compose(self.storage.add(identifier=identifier, partname='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)))
+            self.storage.addData(identifier=identifier, name='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)
             if i >= 10:
-                list(compose(self.storage.add(identifier=identifier, partname='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)))
+                self.storage.addData(identifier=identifier, name='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)
 
     def tearDown(self):
         self.jazz.close()
@@ -383,6 +377,7 @@ class OaiPmhTest(_OaiPmhTest):
         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")
 
+
 class OaiPmhWithIdentifierTest(_OaiPmhTest):
     def setUp(self):
         _OaiPmhTest.setUp(self)
@@ -391,15 +386,11 @@ class OaiPmhWithIdentifierTest(_OaiPmhTest):
     def getOaiPmh(self):
         return OaiPmh(repositoryName='The Repository Name', adminEmail='admin@meresco.org', batchSize=BATCHSIZE, repositoryIdentifier='www.example.org')
 
+
 class HttpPostOaiPmhTest(OaiPmhTest):
     def setUp(self):
         OaiPmhTest.setUp(self)
         self.httpMethod = 'POST'
-
-class OaiPmhWithSequentialStorageTest(OaiPmhTest):
-    def setUp(self):
-        self.sequentialstore = True
-        OaiPmhTest.setUp(self)
 
 
 def xpath(node, path):

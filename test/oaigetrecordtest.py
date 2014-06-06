@@ -25,15 +25,16 @@
 ## end license ##
 
 from seecr.test import SeecrTestCase
-from meresco.sequentialstore import SequentialMultiStorage
+from meresco.sequentialstore import MultiSequentialStorage
 from meresco.oai import OaiJazz
 from meresco.oai.oaigetrecord import OaiGetRecord
 from meresco.oai.oairecord import OaiRecord
 from uuid import uuid4
-from weightless.core import asString, consume
+from weightless.core import asString
 from lxml.etree import parse
 from StringIO import StringIO
 from meresco.xml.namespaces import xpath
+
 
 class OaiGetRecordTest(SeecrTestCase):
     def setUp(self):
@@ -45,16 +46,16 @@ class OaiGetRecordTest(SeecrTestCase):
             'port':9000,
         }
 
-    def testGetRecordWithSequentialMultiStorage(self):
+    def testGetRecordWithMultiSequentialStorage(self):
         oaigetrecord = OaiGetRecord()
         oaijazz = OaiJazz(self.tempdir + '/jazz')
-        oaistorage = SequentialMultiStorage(self.tempdir + "/seq-store")
+        storage = MultiSequentialStorage(self.tempdir + "/seq-store")
         oairecord = OaiRecord()
+        oairecord.addObserver(storage)
         oaigetrecord.addObserver(oaijazz)
-        oaigetrecord.addObserver(oaistorage)
         oaigetrecord.addObserver(oairecord)
-        stamp = oaijazz.addOaiRecord("id0", (), metadataFormats=[('oai_dc', '', '')])
-        consume(oaistorage.add(stamp, "oai_dc", "data01"))
+        oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])
+        storage.addData(identifier="id0", name="oai_dc", data="data01")
         response = oaigetrecord.getRecord(arguments=dict(
                 verb=['GetRecord'],
                 metadataPrefix=['oai_dc'],

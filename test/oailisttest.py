@@ -41,7 +41,7 @@ from seecr.test.io import stderr_replaced
 
 from weightless.core import compose, Yield, NoneOfTheObserversRespond, asString, consume
 from meresco.components.http.utils import CRLF
-from meresco.sequentialstore import SequentialMultiStorage
+from meresco.sequentialstore import MultiSequentialStorage
 
 from meresco.oai.oailist import OaiList
 from meresco.oai import OaiJazz
@@ -63,9 +63,9 @@ class OaiListTest(SeecrTestCase):
         self.observer.methods['oaiRecordHeader'] = oaiRecord
         self.observer.methods['getAllPrefixes'] = self.oaiJazz.getAllPrefixes
         self.observer.methods['oaiSelect'] = self.oaiJazz.oaiSelect
-        self.getMultipleDataKeys = []
+        self.getMultipleDataIdentifiers = []
         def getMultipleData(**kwargs):
-            self.getMultipleDataKeys.append(list(kwargs.get('keys')))
+            self.getMultipleDataIdentifiers.append(list(kwargs.get('identifiers')))
             raise NoneOfTheObserversRespond('No one', 0)
         self.observer.methods['getMultipleData'] = getMultipleData
         self.oaiList.addObserver(self.observer)
@@ -90,28 +90,33 @@ class OaiListTest(SeecrTestCase):
         recordMethods = self.observer.calledMethods[4:]
         self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
-        keys = [recordMethods[0].kwargs['record'].stamp, recordMethods[1].kwargs['record'].stamp]
-        self.assertEquals([keys], self.getMultipleDataKeys)
+        self.assertEquals([['id:0&0', 'id:1&1']], self.getMultipleDataIdentifiers)
+
+    def testListRecordsUsesFetchedRecords(self):
+        self._addRecords(['id:0&0', 'id:1'])
+        self.observer.methods['getMultipleData'] = lambda name, identifiers, ignoreMissing=False: [('id:0&0', 'data1'), ('id:1', 'data2'), ('id:2', 'data3')]
+        consume(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))
+        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'getMultipleData', 'oaiRecord', 'oaiRecord'], self.observer.calledMethodNames())
+        self.assertEquals({'id:0&0': 'data1', 'id:1': 'data2', 'id:2': 'data3'}, self.observer.calledMethods[4].kwargs['fetchedRecords'])
+        self.assertEquals({'id:0&0': 'data1', 'id:1': 'data2', 'id:2': 'data3'}, self.observer.calledMethods[4].kwargs['fetchedRecords'])
 
     def testListRecordsWithDeletes(self):
         self._addRecords(['id:0&0', 'id:1&1'])
         consume(self.oaiJazz.delete(identifier='id:1&1'))
-
         consume(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))
+        self.assertEquals([['id:0&0']], self.getMultipleDataIdentifiers)
 
-        idZeroStamp = self.oaiJazz.getRecord(identifier='id:0&0').stamp
-        self.assertEquals([[idZeroStamp]], self.getMultipleDataKeys)
-
-    def testListRecordsWithSequentialMultiStorage(self):
+    def testListRecordsWithMultiSequentialStorage(self):
         oaijazz = OaiJazz(join(self.tempdir, '1'))
         oailist = OaiList(batchSize=2)
-        oaistorage = SequentialMultiStorage(join(self.tempdir, "2"))
+        storage = MultiSequentialStorage(join(self.tempdir, "2"))
         oailist.addObserver(oaijazz)
         oairecord = OaiRecord()
-        oailist.addObserver(oaistorage)
+        oailist.addObserver(storage)
         oailist.addObserver(oairecord)
-        stamp = oaijazz.addOaiRecord("id0", (), metadataFormats=[('oai_dc', '', '')])
-        consume(oaistorage.add(stamp, "oai_dc", "data01"))
+        identifier = "id0"
+        oaijazz.addOaiRecord(identifier, (), metadataFormats=[('oai_dc', '', '')])
+        storage.addData(identifier=identifier, name="oai_dc", data="data01")
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
@@ -120,14 +125,14 @@ class OaiListTest(SeecrTestCase):
     def testListRecordsWithALotOfDeletedRecords(self):
         oaijazz = OaiJazz(join(self.tempdir, '1'))
         oailist = OaiList(batchSize=2)
-        oaistorage = SequentialMultiStorage(join(self.tempdir, "2"))
+        storage = MultiSequentialStorage(join(self.tempdir, "2"))
         oailist.addObserver(oaijazz)
         oairecord = OaiRecord()
-        oailist.addObserver(oaistorage)
+        oailist.addObserver(storage)
         oailist.addObserver(oairecord)
         for id in ['id0', 'id1', 'id1']:
-            stamp = oaijazz.addOaiRecord(id, (), metadataFormats=[('oai_dc', '', '')])
-            consume(oaistorage.add(stamp, "oai_dc", "data_%s" % id))
+            oaijazz.addOaiRecord(id, (), metadataFormats=[('oai_dc', '', '')])
+            storage.addData(identifier=id, name="oai_dc", data="data_%s" % id)
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
