@@ -3,8 +3,8 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2013-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -42,7 +42,7 @@ if [ -f /etc/debian_version ]; then
     luceneJarDir=/usr/lib/python2.7/dist-packages/lucene
 fi
 
-classpath=${luceneJarDir}/lucene-core-4.3.0.jar:${luceneJarDir}/lucene-analyzers-common-4.3.0.jar:${luceneJarDir}/lucene-facet-4.3.0.jar:${luceneJarDir}/lucene-queries-4.3.0.jar:${luceneJarDir}/lucene-misc-4.3.0.jar
+classpath=${luceneJarDir}/lucene-core-4.8.0.jar:${luceneJarDir}/lucene-analyzers-common-4.8.0.jar:${luceneJarDir}/lucene-facet-4.8.0.jar:${luceneJarDir}/lucene-queries-4.8.0.jar:${luceneJarDir}/lucene-misc-4.8.0.jar
 
 javac -cp ${classpath} -d ${buildDir} org/meresco/oai/*.java
 (cd $buildDir; jar -c org > $buildDir/meresco-oai.jar)

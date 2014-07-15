@@ -40,12 +40,15 @@ from time import time, sleep
 from calendar import timegm
 
 from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
-from meresco.oai.oaijazz import _flattenSetHierarchy, SETSPEC_SEPARATOR, ForcedResumeException
+from meresco.oai.oaijazz import _flattenSetHierarchy, SETSPEC_SEPARATOR, ForcedResumeException, lazyImport
+lazyImport()
 from StringIO import StringIO
 from lxml.etree import parse
 from meresco.core import Observable, Transparent
 from weightless.core import be, compose
 from weightless.io import Suspend
+from org.apache.lucene.document import Document, LongField, Field, NumericDocValuesField, StringField
+from org.apache.lucene.index import Term
 
 parseLxml = lambda s: parse(StringIO(s)).getroot()
 
@@ -607,6 +610,22 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(1, len(recordIds(results)))
         results = self.jazz.oaiSelect(prefix='lom')
         self.assertEquals(['124', '121','122'], recordIds(results))
+
+    def testSortingOnNumericStampValue(self):
+        for i in range(1000):
+            self.jazz.addOaiRecord(str(i), metadataFormats=[('oai_dc', 'schema', 'namespace')])
+        self.jazz.commit()
+
+        doc = Document()
+        doc.add(StringField("identifier", "5", Field.Store.YES))
+        doc.add(LongField("stamp", long(1215320643123455), Field.Store.YES))
+        doc.add(NumericDocValuesField("numeric_stamp", long(1215320643123455)))
+        doc.add(StringField("prefix", "oai_dc", Field.Store.YES))
+        self.jazz._writer.updateDocument(Term("identifier", "5"), doc)
+        self.jazz._latestModifications.add(str("5"))
+
+        result = self.jazz.oaiSelect(prefix='oai_dc')
+        self.assertEquals('5', recordIds(result)[0])
 
     def testAddOaiRecordWithUniqueNumbersAndSorting(self):
         self.jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])

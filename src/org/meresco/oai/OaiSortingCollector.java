@@ -41,7 +41,6 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DocumentStoredFieldVisitor;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.index.sorter.EarlyTerminatingSortingCollector;
-import org.apache.lucene.index.sorter.NumericDocValuesSorter;
 import java.util.Set;
 import java.util.HashSet;
 
@@ -57,8 +56,8 @@ public class OaiSortingCollector extends Collector {
 
 
     public OaiSortingCollector(int maxDocsToCollect, boolean shouldCountHits) throws IOException {
-        this.topDocsCollector = TopFieldCollector.create(new Sort(new SortField("stamp", SortField.Type.LONG)), maxDocsToCollect, false, false, false, false);
-        this.earlyCollector = new EarlyTerminatingSortingCollector(this.topDocsCollector, new NumericDocValuesSorter("stamp", true), maxDocsToCollect + 1);
+        this.topDocsCollector = TopFieldCollector.create(new Sort(new SortField("numeric_stamp", SortField.Type.LONG)), maxDocsToCollect, false, false, false, false);
+        this.earlyCollector = new EarlyTerminatingSortingCollector(this.topDocsCollector, new Sort(new SortField("numeric_stamp", SortField.Type.LONG, true)), maxDocsToCollect + 1);
         this.maxDocsToCollect = maxDocsToCollect;
         this.shouldCountHits = shouldCountHits;
     }

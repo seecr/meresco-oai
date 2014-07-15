@@ -74,7 +74,7 @@ def lazyImport():
     from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
     from org.apache.lucene.store import FSDirectory
     from org.apache.lucene.document import NumericDocValuesField, StoredField
-    from org.apache.lucene.index.sorter import SortingMergePolicy, NumericDocValuesSorter
+    from org.apache.lucene.index.sorter import SortingMergePolicy
     from org.apache.lucene.util import BytesRef, Version
     from org.apache.lucene.analysis.core import WhitespaceAnalyzer
 
@@ -88,7 +88,7 @@ def lazyImport():
 DEFAULT_BATCH_SIZE = 200
 
 class OaiJazz(object):
-    version = '6'
+    version = '7'
 
     def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
         lazyImport()
@@ -171,7 +171,7 @@ class OaiJazz(object):
         doc = self._getNewDocument(identifier, oldDoc=self._getDocument(identifier))
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
-        doc.add(NumericDocValuesField("stamp", long(newStamp)))
+        doc.add(NumericDocValuesField("numeric_stamp", long(newStamp)))
         if metadataFormats:
             oldPrefixes = set(doc.getValues("prefix"))
             for prefix, schema, namespace in metadataFormats:
@@ -209,7 +209,7 @@ class OaiJazz(object):
         doc.add(NumericDocValuesField("tombstone", long(1)))
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
-        doc.add(NumericDocValuesField("stamp", long(newStamp)))
+        doc.add(NumericDocValuesField("numeric_stamp", long(newStamp)))
         self._writer.updateDocument(Term("identifier", identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume()
@@ -406,7 +406,7 @@ def getLucene(path):
     analyzer = WhitespaceAnalyzer(Version.LUCENE_43)
     config = IndexWriterConfig(Version.LUCENE_43, analyzer)
     mergePolicy = config.getMergePolicy()
-    sortingMergePolicy = SortingMergePolicy(mergePolicy, NumericDocValuesSorter("stamp", True))
+    sortingMergePolicy = SortingMergePolicy(mergePolicy, Sort(SortField("numeric_stamp", SortField.Type.LONG)))
     config.setMergePolicy(sortingMergePolicy)
     writer = IndexWriter(directory, config)
     reader = writer.getReader()
