@@ -319,6 +319,7 @@ class OaiJazz(object):
             return self._searcher
         newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
         if newreader:
+            self._reader.close()
             self._reader = newreader
             self._searcher = IndexSearcher(newreader)
         self._latestModifications.clear()

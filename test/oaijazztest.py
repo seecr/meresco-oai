@@ -34,7 +34,7 @@
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced, stdout_replaced
 
-from os import remove, makedirs
+from os import remove, makedirs, listdir
 from os.path import join, isdir
 from time import time, sleep
 from calendar import timegm
@@ -855,6 +855,21 @@ class OaiJazzTest(SeecrTestCase):
         print [r.identifier for r in records[:10]]
         # print [str(r.stamp) for r in records]
 
+    def testReaderClosed(self):
+        for i in xrange(1000):
+            self.jazz.addOaiRecord('id%s' % i, metadataFormats=[('prefix','schema', 'namespace')])
+        self.jazz.oaiSelect(prefix='prefix')
+        reader0 = self.jazz._reader
+        nfiles0 = len(listdir(self.jazz._directory))
+        for i in xrange(1000):
+            self.jazz.addOaiRecord('id%s' % i, metadataFormats=[('prefix','schema', 'namespace')])
+        self.jazz.oaiSelect(prefix='prefix')
+        reader1 = self.jazz._reader
+        self.assertTrue(reader0 != reader1)
+        self.jazz.oaiSelect(prefix='prefix')
+        nfiles1 = len(listdir(self.jazz._directory))
+        self.assertEquals(nfiles0, nfiles1)
+
     @stdout_replaced
     def testJazzWithShutdown(self):
         jazz = OaiJazz(self.tmpdir2("b"))
@@ -877,6 +892,7 @@ class OaiJazzTest(SeecrTestCase):
             self.fail()
         except Exception, e:
             self.assertTrue("no segments" in str(e), str(e))
+
 
 
 def recordIds(oaiSelectResult):
