@@ -48,7 +48,8 @@ if [ -f /etc/debian_version ]; then
     luceneJarDir=/usr/lib/python2.7/dist-packages/lucene
 fi
 
-classpath=${luceneJarDir}/lucene-core-4.8.0.jar:${luceneJarDir}/lucene-analyzers-common-4.8.0.jar:${luceneJarDir}/lucene-facet-4.8.0.jar:${luceneJarDir}/lucene-queries-4.8.0.jar:${luceneJarDir}/lucene-misc-4.8.0.jar
+LUCENE_VERSION=4.9.0
+classpath=${luceneJarDir}/lucene-core-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-analyzers-common-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-facet-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-queries-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-misc-${LUCENE_VERSION}.jar
 
 javac -cp ${classpath} -d ${buildDir} org/meresco/oai/*.java
 (cd $buildDir; jar -c org > $buildDir/meresco-oai.jar)
