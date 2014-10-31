@@ -404,8 +404,8 @@ def getReader(path):
 
 def getLucene(path):
     directory = FSDirectory.open(File(path))
-    analyzer = WhitespaceAnalyzer(Version.LUCENE_4_9)
-    config = IndexWriterConfig(Version.LUCENE_4_9, analyzer)
+    analyzer = WhitespaceAnalyzer()
+    config = IndexWriterConfig(Version.LATEST, analyzer)
     mergePolicy = config.getMergePolicy()
     sortingMergePolicy = SortingMergePolicy(mergePolicy, Sort(SortField("numeric_stamp", SortField.Type.LONG)))
     config.setMergePolicy(sortingMergePolicy)
