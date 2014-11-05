@@ -3,8 +3,9 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -32,7 +33,7 @@ from bsddb import btopen
 from seecr.test import SeecrTestCase
 from meresco.components import PersistentSortedIntegerList
 from meresco.components.integerlist import IntegerList
-from meresco.oai import OaiJazz
+from meresco.oai4 import OaiJazz
 
 mypath = dirname(abspath(__file__))
 binDir = join(dirname(mypath), 'bin')

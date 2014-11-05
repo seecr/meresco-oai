@@ -3,9 +3,10 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -29,7 +30,7 @@ from seecr.test import CallTrace
 from unittest import TestCase
 
 from weightless.core import compose
-from meresco.oai import OaiAddRecordWithDefaults
+from meresco.oai4 import OaiAddRecordWithDefaults
 
 
 class OaiAddRecordWithDefaultsTest(TestCase):

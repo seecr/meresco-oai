@@ -10,8 +10,9 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -39,9 +40,9 @@ from os.path import isfile, join
 from time import time, strptime, sleep
 from calendar import timegm
 
-from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
-from meresco.oai.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATOR, ForcedResumeException
-from meresco.oai.oailist import OaiList
+from meresco.oai4 import OaiJazz, OaiAddRecord, stamp2zulutime
+from meresco.oai4.oaijazz import _flattenSetHierarchy, RecordId, SETSPEC_SEPARATOR, ForcedResumeException
+from meresco.oai4.oailist import OaiList
 from StringIO import StringIO
 from lxml.etree import parse
 from meresco.core import Observable, Transparent

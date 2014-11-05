@@ -9,8 +9,9 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009-2010 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -33,10 +34,10 @@
 from distutils.core import setup
 
 setup(
-    name = 'meresco-oai',
+    name = 'meresco-oai4',
     packages = [
         'meresco',                  #DO_NOT_DISTRIBUTE
-        'meresco.oai',
+        'meresco.oai4',
     ],
     scripts=[
         'bin/convert_oai_v1_to_v2',

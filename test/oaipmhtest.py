@@ -6,8 +6,9 @@
 # Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -30,7 +31,7 @@
 from seecr.test import SeecrTestCase, CallTrace
 from oaischema import assertValidOai
 
-from meresco.oai import OaiPmh, OaiJazz, OaiBranding
+from meresco.oai4 import OaiPmh, OaiJazz, OaiBranding
 from meresco.core import Observable
 from meresco.components.http.utils import CRLF
 from meresco.components import StorageComponent
