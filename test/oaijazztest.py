@@ -10,8 +10,9 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -449,6 +450,15 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals('00004', record4.identifier)
         self.assertEquals(record4.stamp, oaiSelectResult.continueAfter)
         self.assertEquals(3, oaiSelectResult.recordsRemaining)
+
+    def testBatchWithMoreRemainingButNotCounting(self):
+        for i in range(7):
+            self._addRecord(i+1)
+        oaiSelectResult = self.jazz.oaiSelect(prefix='oai_dc', batchSize=4, shouldCountHits=False)
+        self.assertEquals(['00001', '00002', '00003', '00004'], [r.identifier for r in oaiSelectResult.records])
+        self.assertEquals(4, oaiSelectResult.numberOfRecordsInBatch)
+        self.assertTrue(oaiSelectResult.moreRecordsAvailable)
+        self.assertFalse(hasattr(oaiSelectResult, 'recordsRemaining'))
 
     def testEmptyBatch(self):
         result = []

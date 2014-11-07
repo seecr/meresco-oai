@@ -12,6 +12,7 @@
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -148,7 +149,9 @@ class OaiJazz(object):
         def __init__(inner, docs, collector, parent):
             inner.docs = docs
             inner.moreRecordsAvailable = collector.moreRecordsAvailable
-            inner.recordsRemaining = collector.remainingRecords()
+            recordsRemaining = collector.remainingRecords()
+            if recordsRemaining != -1:
+                inner.recordsRemaining = recordsRemaining
             inner.parent = parent
             inner.records = inner._records()
             inner.numberOfRecordsInBatch = len(docs)
