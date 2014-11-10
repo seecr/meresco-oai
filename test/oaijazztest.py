@@ -87,7 +87,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals('someName', jazz.observable_name())
 
         result = observable.call['someName'].getNrOfRecords()
-        self.assertEquals(0, result)
+        self.assertEquals({'total': 0, 'deletes': 0}, result)
 
     def testOriginalStamp(self):
         jazz = OaiJazz(self.tmpdir2("b"))
@@ -314,14 +314,14 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(set(['setSpec']), r.sets)
 
     def testGetNrOfRecords(self):
-        self.assertEquals(0, self.jazz.getNrOfRecords('aPrefix'))
+        self.assertEquals({'total': 0, 'deletes': 0}, self.jazz.getNrOfRecords('aPrefix'))
         self.jazz.addOaiRecord('id1', metadataFormats=[('aPrefix', 'schema', 'namespace')])
-        self.assertEquals(1, self.jazz.getNrOfRecords('aPrefix'))
-        self.assertEquals(0, self.jazz.getNrOfRecords('anotherPrefix'))
+        self.assertEquals({'total': 1, 'deletes': 0}, self.jazz.getNrOfRecords('aPrefix'))
+        self.assertEquals({'total': 0, 'deletes': 0}, self.jazz.getNrOfRecords('anotherPrefix'))
         self.jazz.addOaiRecord('id2', metadataFormats=[('aPrefix', 'schema', 'namespace')])
-        self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
+        self.assertEquals({'total': 2, 'deletes': 0}, self.jazz.getNrOfRecords('aPrefix'))
         list(compose(self.jazz.delete('id1')))
-        self.assertEquals(2, self.jazz.getNrOfRecords('aPrefix'))
+        self.assertEquals({'total': 2, 'deletes': 1}, self.jazz.getNrOfRecords('aPrefix'))
 
     def testMoreRecordsAvailable(self):
         def reopen():

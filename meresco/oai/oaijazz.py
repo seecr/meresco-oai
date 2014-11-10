@@ -69,7 +69,7 @@ def lazyImport():
 
     from java.lang import Long
     from java.io import File
-    from org.apache.lucene.document import Document, StringField, Field, LongField
+    from org.apache.lucene.document import Document, StringField, Field, LongField, IntField
     from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery, MatchAllDocsQuery
     from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
     from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
@@ -89,7 +89,7 @@ def lazyImport():
 DEFAULT_BATCH_SIZE = 200
 
 class OaiJazz(object):
-    version = '7'
+    version = '8'
 
     def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
         lazyImport()
@@ -208,8 +208,7 @@ class OaiJazz(object):
         doc = self._getNewDocument(identifier, oldDoc=oldDoc)
         for prefix in self._deletePrefixes:
             doc.add(StringField("prefix", prefix, Field.Store.YES))
-        doc.add(StoredField("tombstone", BytesRef()))
-        doc.add(NumericDocValuesField("tombstone", long(1)))
+        doc.add(StringField("tombstone", "1", Field.Store.YES))
         newStamp = self._newStamp()
         doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
         doc.add(NumericDocValuesField("numeric_stamp", long(newStamp)))
@@ -237,17 +236,23 @@ class OaiJazz(object):
 
     def getNrOfRecords(self, prefix='oai_dc', setSpec=None):
         searcher = self._getSearcher()
-        collector = TotalHitCountCollector()
+        totalCollector = TotalHitCountCollector()
         if prefix is None and setSpec is None:
-            query = MatchAllDocsQuery()
+            query = BooleanQuery()
+            query.add(MatchAllDocsQuery(), BooleanClause.Occur.MUST)
         else:
             query = BooleanQuery()
             if prefix is not None:
                 query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
             if setSpec is not None:
                 query.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.MUST)
-        searcher.search(query, collector)
-        return collector.getTotalHits()
+        searcher.search(query, totalCollector)
+
+        query.add(TermQuery(Term("tombstone", "1")), BooleanClause.Occur.MUST)
+        deleteCollector = TotalHitCountCollector()
+        searcher.search(query, deleteCollector)
+
+        return {"total": totalCollector.getTotalHits(), "deletes": deleteCollector.getTotalHits()}
 
     def getRecord(self, identifier):
         doc = self._getDocument(identifier)
@@ -366,7 +371,6 @@ class OaiJazz(object):
             for oldSet in oldDoc.getValues("sets"):
                 doc.add(StringField("sets", oldSet, Field.Store.YES))
         return doc
-
 
     def _newStamp(self):
         """time in microseconds"""
