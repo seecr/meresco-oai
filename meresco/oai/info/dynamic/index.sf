@@ -3,6 +3,7 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
@@ -32,7 +33,8 @@ def main(pathPrefix, **kwargs):
     yield '<h2>Info</h2>\n'
     yield '<dl>\n'
     yield '<dt>version</dt><dd>%s</dd>\n' % VERSION
-    yield '<dt>records</dt><dd>{0}</dd>\n'.format(page.formatInt(info['totalRecords']))
+    yield '<dt>records</dt><dd>{0}</dd>\n'.format(page.formatInt(info['totalRecords']['total']))
+    yield '<dt>deleted records</dt><dd>{0}</dd>\n'.format(page.formatInt(info['totalRecords']['deletes']))
     yield '<dt>last update</dt><dd>{0}</dd>\n'.format(page.formatStamp(info['lastStamp']))
     yield '</dl>\n'
     yield '<h3>Sets</h3>\n'

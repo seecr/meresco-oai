@@ -3,6 +3,7 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
@@ -36,10 +37,13 @@ def main(arguments, **kwargs):
     <dd>{0}</dd>
     <dt>Total number of records</dt>
     <dd>{1}</dd>
+    <dt>Total number of deleted records</dt>
+    <dd>{2}</dd>
     <dt>Last update</dt>
-    <dd>{2}</dd>\n'''.format(
+    <dd>{3}</dd>\n'''.format(
             escapeHtml(info['name']),
-            page.formatInt(info['nrOfRecords']),
+            page.formatInt(info['nrOfRecords']['total']),
+            page.formatInt(info['nrOfRecords']['deletes']),
             page.formatStamp(info['lastStamp'])
         )
     yield '</dl>\n'
