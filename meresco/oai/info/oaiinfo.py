@@ -3,6 +3,7 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
@@ -23,6 +24,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 ## end license ##
+
 from meresco.core import Observable, Transparent
 from seecr.html import DynamicHtml
 from os.path import abspath, dirname, join
@@ -86,9 +88,9 @@ class OaiInfo(Observable):
         Observable.addStrand(self, *args, **kwargs)
         self._outside.addStrand(*args, **kwargs)
 
-    def handleRequest(self, path, Method, Body=None, **kwargs):
+    def handleRequest(self, path, **kwargs):
         if '/info' in path:
             originalPath = path
             pathPrefix, _, path = path.rpartition('/info')
-            yield self._internalTree.all.handleRequest(path=path or '/', originalPath=originalPath, pathPrefix=pathPrefix, Method=Method, Body=Body, **kwargs)
+            yield self._internalTree.all.handleRequest(path=path or '/', originalPath=originalPath, pathPrefix=pathPrefix, **kwargs)
 

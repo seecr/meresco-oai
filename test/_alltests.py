@@ -14,6 +14,7 @@
 # Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -70,7 +71,7 @@ from streaminglxmltest import StreamingLxmlTest
 from updateadaptertest import UpdateAdapterTest
 
 
-from info.oaijsoninfotest import OaiJsonInfoTest
+from info.oaiinfotest import OaiInfoTest
 
 if __name__ == '__main__':
     unittest.main()

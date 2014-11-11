@@ -25,22 +25,24 @@
 #
 ## end license ##
 
-from seecr.test import SeecrTestCase
-from meresco.oai.info import OaiJsonInfo
+from seecr.test import SeecrTestCase, CallTrace
+from meresco.oai.info import OaiInfo
 from meresco.oai import OaiJazz, ResumptionToken
-from weightless.core import asString, consume
+from weightless.core import asString, consume, be
 from simplejson import loads
 from meresco.core import Observable
 
-class OaiJsonInfoTest(SeecrTestCase):
+class OaiInfoTest(SeecrTestCase):
 
     def setUp(self):
-        super(OaiJsonInfoTest, self).setUp()
-        self.observable = Observable()
-        self.oaiJsonInfo = OaiJsonInfo()
-        self.observable.addObserver(self.oaiJsonInfo)
+        super(OaiInfoTest, self).setUp()
+        self.oaiInfo = OaiInfo(reactor=CallTrace(), oaiPath='/')
         self.jazz = OaiJazz(self.tempdir)
-        self.oaiJsonInfo.addObserver(self.jazz)
+        self.top = be((Observable(),
+            (self.oaiInfo,
+                (self.jazz,)
+            )
+        ))
         self.jazz.addOaiRecord(identifier='record1', sets=[('set1', 'set1')], metadataFormats=[('prefix1', '', '')])
         self.jazz.addOaiRecord(identifier='record2', sets=[('set1', 'set1')], metadataFormats=[('prefix1', '', ''), ('oai', 'oai-schema', 'oai-namespace')])
         self.jazz.addOaiRecord(identifier='record3', sets=[('set1', 'set1'), ('set2', 'set name 2')], metadataFormats=[('prefix1', '', '')])
@@ -48,31 +50,31 @@ class OaiJsonInfoTest(SeecrTestCase):
         self.jazz.commit()
 
     def testInfo(self):
-        result = asString(self.observable.all.handleRequest(path='/info/json/info', arguments={}))
+        result = asString(self.top.all.handleRequest(path='/info/json', arguments={}))
         header, body = result.split('\r\n\r\n')
         lastStamp = self.jazz.getLastStampId(prefix=None)
         self.assertTrue(lastStamp != None)
         self.assertEquals({'totalRecords': {'total': 3, 'deletes': 1}, 'lastStamp': lastStamp}, loads(body))
 
     def testGetAllSets(self):
-        result = asString(self.observable.all.handleRequest(path='/info/json/sets', arguments={}))
+        result = asString(self.top.all.handleRequest(path='/info/json/sets', arguments={}))
         header, body = result.split('\r\n\r\n')
         self.assertEquals(['set1', 'set2'], loads(body))
 
     def testGetAllPrefixes(self):
-        result = asString(self.observable.all.handleRequest(path='/info/json/prefixes', arguments={}))
+        result = asString(self.top.all.handleRequest(path='/info/json/prefixes', arguments={}))
         header, body = result.split('\r\n\r\n')
         self.assertEquals(['oai', 'prefix1'], loads(body))
 
     def testPrefixInfo(self):
-        result = asString(self.observable.all.handleRequest(path='/info/json/prefix', arguments=dict(prefix=['prefix1'])))
+        result = asString(self.top.all.handleRequest(path='/info/json/prefix', arguments=dict(prefix=['prefix1'])))
         header, body = result.split('\r\n\r\n')
 
         lastStamp = self.jazz.getLastStampId(prefix='prefix1')
         self.assertTrue(lastStamp != None)
         self.assertEquals(dict(prefix='prefix1', schema='', namespace='', nrOfRecords=dict(total=3, deletes=1), lastStamp=lastStamp), loads(body))
 
-        result = asString(self.observable.all.handleRequest(path='/info/json/prefix',
+        result = asString(self.top.all.handleRequest(path='/info/json/prefix',
             arguments=dict(prefix=['oai'])))
         header, body = result.split('\r\n\r\n')
 
@@ -82,20 +84,20 @@ class OaiJsonInfoTest(SeecrTestCase):
         self.assertEquals(dict(prefix='oai', schema='oai-schema', namespace='oai-namespace', nrOfRecords=dict(total=1, deletes=0), lastStamp=oaiLastStamp), loads(body))
 
     def testUnknownPrefixInfo(self):
-        result = asString(self.observable.all.handleRequest(path='/info/json/prefix',
+        result = asString(self.top.all.handleRequest(path='/info/json/prefix',
             arguments=dict(prefix=['unknown'])))
         header, body = result.split('\r\n\r\n')
         self.assertEquals({}, loads(body))
 
     def testSetInfo(self):
-        result = asString(self.observable.all.handleRequest(path='/info/json/set', arguments=dict(set=['set1'])))
+        result = asString(self.top.all.handleRequest(path='/info/json/set', arguments=dict(set=['set1'])))
         header, body = result.split('\r\n\r\n')
 
         lastStamp = self.jazz.getLastStampId(setSpec='set1', prefix=None)
         self.assertTrue(lastStamp != None)
         self.assertEquals(dict(setSpec='set1', name='set1', nrOfRecords=dict(total=3, deletes=1), lastStamp=lastStamp), loads(body))
 
-        result = asString(self.observable.all.handleRequest(path='/info/json/set',
+        result = asString(self.top.all.handleRequest(path='/info/json/set',
             arguments=dict(set=['set2'])))
         header, body = result.split('\r\n\r\n')
         set2LastStamp = self.jazz.getLastStampId(setSpec='set2', prefix=None)
@@ -105,6 +107,6 @@ class OaiJsonInfoTest(SeecrTestCase):
     def testResumptionTokenInfo(self):
         firstRecord = self.jazz.oaiSelect(prefix='prefix1', batchSize=1).records.next()
         resumptionToken =  ResumptionToken(metadataPrefix='prefix1', continueAfter=firstRecord.stamp)
-        result = asString(self.observable.all.handleRequest(path='/info/json/resumptiontoken', arguments=dict(resumptionToken=[str(resumptionToken)])))
+        result = asString(self.top.all.handleRequest(path='/info/json/resumptiontoken', arguments=dict(resumptionToken=[str(resumptionToken)])))
         header, body = result.split('\r\n\r\n')
         self.assertEquals({'prefix':'prefix1', 'set':None, 'from':None, 'until':None, 'nrOfRecords':3, 'nrOfRemainingRecords':2, 'timestamp': firstRecord.stamp}, loads(body))

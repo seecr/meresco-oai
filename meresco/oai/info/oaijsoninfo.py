@@ -3,6 +3,7 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
@@ -33,6 +34,7 @@ class OaiJsonInfo(Observable):
 
     def handleRequest(self, path, arguments, **kwargs):
         method = path.rpartition('/')[-1]
+        method = 'info' if method in ['json', ''] else method
         yield 'HTTP/1.0 200 OK\r\n'
         yield 'Content-Type: application/json\r\n'
         yield '\r\n'
