@@ -35,20 +35,23 @@ def main(arguments, **kwargs):
     yield '<h2>Prefix: {0}</h2>\n'.format(escapeHtml(info['prefix']))
     yield '''<dl>
     <dt>Schema</dt>
-    <dd>{0}</dd>
+    <dd>{schema}</dd>
     <dt>Namespace</dt>
-    <dd>{1}</dd>
+    <dd>{namespace}</dd>
     <dt>Total number of records</dt>
-    <dd>{2}</dd>
+    <dd>{total}</dd>
     <dt>Total number of deleted records</dt>
-    <dd>{3}</dd>
+    <dd>{deletes}</dd>
+    <dt>Total number of deleted without deletes</dt>
+    <dd>{records}</dd>
     <dt>Last update</dt>
-    <dd>{4}</dd>\n'''.format(
-            info['schema'] or '--',
-            info['namespace'] or '--',
-            page.formatInt(info['nrOfRecords']['total']),
-            page.formatInt(info['nrOfRecords']['deletes']),
-            page.formatStamp(info['lastStamp'])
+    <dd>{update}</dd>\n'''.format(
+            schema=info['schema'] or '--',
+            namespace=info['namespace'] or '--',
+            total=page.formatInt(info['nrOfRecords']['total']),
+            deletes=page.formatInt(info['nrOfRecords']['deletes']),
+            records=page.formatInt(info['nrOfRecords']['total'] - info['nrOfRecords']['deletes']),
+            update=page.formatStamp(info['lastStamp']),
         )
     yield '<dt>Link</dt>\n<dd><a href="%s?%s">ListRecords</a></dd>\n' % (oaiPath, urlencode(dict(verb="ListRecords", metadataPrefix=info['prefix'])))
     yield '</dl>\n'

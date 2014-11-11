@@ -34,17 +34,20 @@ def main(arguments, **kwargs):
     yield '<h2>Setspec: {0}</h2>\n'.format(escapeHtml(info['setSpec']))
     yield '''<dl>
     <dt>Name</dt>
-    <dd>{0}</dd>
+    <dd>{name}</dd>
     <dt>Total number of records</dt>
-    <dd>{1}</dd>
+    <dd>{total}</dd>
     <dt>Total number of deleted records</dt>
-    <dd>{2}</dd>
+    <dd>{deletes}</dd>
+    <dt>Total number of deleted without deletes</dt>
+    <dd>{records}</dd>
     <dt>Last update</dt>
-    <dd>{3}</dd>\n'''.format(
-            escapeHtml(info['name']),
-            page.formatInt(info['nrOfRecords']['total']),
-            page.formatInt(info['nrOfRecords']['deletes']),
-            page.formatStamp(info['lastStamp'])
+    <dd>{update}</dd>\n'''.format(
+            name=escapeHtml(info['name'] or '--'),
+            total=page.formatInt(info['nrOfRecords']['total']),
+            deletes=page.formatInt(info['nrOfRecords']['deletes']),
+            records=page.formatInt(info['nrOfRecords']['total'] - info['nrOfRecords']['deletes']),
+            update=page.formatStamp(info['lastStamp']),
         )
     yield '</dl>\n'
     yield page.footer(**kwargs)
