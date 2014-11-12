@@ -39,7 +39,7 @@ def main(arguments, **kwargs):
     <dd>{total}</dd>
     <dt>Total number of deleted records</dt>
     <dd>{deletes}</dd>
-    <dt>Total number of deleted without deletes</dt>
+    <dt>Total number of records without deletes</dt>
     <dd>{records}</dd>
     <dt>Last update</dt>
     <dd>{update}</dd>\n'''.format(
