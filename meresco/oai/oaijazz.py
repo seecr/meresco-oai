@@ -125,17 +125,17 @@ class OaiJazz(object):
         if oaiFrom or continueAfter or oaiUntil:
             start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
             stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
-            fromRange = NumericRangeQuery.newLongRange("stamp", start, stop, True, True)
+            fromRange = NumericRangeQuery.newLongRange(STAMP_FIELD, start, stop, True, True)
             query.add(fromRange, BooleanClause.Occur.MUST)
-        query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
+        query.add(TermQuery(Term(PREFIX_FIELD, prefix)), BooleanClause.Occur.MUST)
         if sets:
             setQuery = BooleanQuery()
             for setSpec in sets:
-                setQuery.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.SHOULD)
+                setQuery.add(TermQuery(Term(SETS_FIELD, setSpec)), BooleanClause.Occur.SHOULD)
             query.add(setQuery, BooleanClause.Occur.MUST)
         if setsMask:
             for set_ in setsMask:
-                query.add(TermQuery(Term("sets", set_)), BooleanClause.Occur.MUST)
+                query.add(TermQuery(Term(SETS_FIELD, set_)), BooleanClause.Occur.MUST)
 
         collector = OaiSortingCollector(batchSize, shouldCountHits)
         searcher.search(query, None, collector)
@@ -173,16 +173,16 @@ class OaiJazz(object):
         assert [prefix for prefix, schema, namespace in metadataFormats], msg
         doc = self._getNewDocument(identifier, oldDoc=self._getDocument(identifier))
         newStamp = self._newStamp()
-        doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
-        doc.add(NumericDocValuesField("numeric_stamp", long(newStamp)))
+        doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
+        doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
         if metadataFormats:
-            oldPrefixes = set(doc.getValues("prefix"))
+            oldPrefixes = set(doc.getValues(PREFIX_FIELD))
             for prefix, schema, namespace in metadataFormats:
                 self._prefixes[prefix] = (schema, namespace)
                 if not prefix in oldPrefixes:
-                    doc.add(StringField("prefix", prefix, Field.Store.YES))
+                    doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
         if sets:
-            oldSets = set(doc.getValues('sets'))
+            oldSets = set(doc.getValues(SETS_FIELD))
             for setSpec, setName in sets:
                 msg = 'SetSpec "%s" contains illegal characters' % setSpec
                 assert SETSPEC_SEPARATOR not in setSpec, msg
@@ -192,9 +192,9 @@ class OaiJazz(object):
                     if setName:
                         self._sets[fullSetSpec] = setName
                     if not fullSetSpec in oldSets:
-                        doc.add(StringField("sets", fullSetSpec, Field.Store.YES))
+                        doc.add(StringField(SETS_FIELD, fullSetSpec, Field.Store.YES))
                     subsets.pop()
-        self._writer.updateDocument(Term("identifier", identifier), doc)
+        self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume()
 
@@ -207,12 +207,12 @@ class OaiJazz(object):
             return
         doc = self._getNewDocument(identifier, oldDoc=oldDoc)
         for prefix in self._deletePrefixes:
-            doc.add(StringField("prefix", prefix, Field.Store.YES))
-        doc.add(StringField("tombstone", "1", Field.Store.YES))
+            doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
+        doc.add(StringField(TOMBSTONE_FIELD, TOMBSTONE_VALUE, Field.Store.YES))
         newStamp = self._newStamp()
-        doc.add(LongField("stamp", long(newStamp), Field.Store.YES))
-        doc.add(NumericDocValuesField("numeric_stamp", long(newStamp)))
-        self._writer.updateDocument(Term("identifier", identifier), doc)
+        doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
+        doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
+        self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume()
 
@@ -243,12 +243,12 @@ class OaiJazz(object):
         else:
             query = BooleanQuery()
             if prefix is not None:
-                query.add(TermQuery(Term("prefix", prefix)), BooleanClause.Occur.MUST)
+                query.add(TermQuery(Term(PREFIX_FIELD, prefix)), BooleanClause.Occur.MUST)
             if setSpec is not None:
-                query.add(TermQuery(Term("sets", setSpec)), BooleanClause.Occur.MUST)
+                query.add(TermQuery(Term(SETS_FIELD, setSpec)), BooleanClause.Occur.MUST)
         searcher.search(query, totalCollector)
 
-        query.add(TermQuery(Term("tombstone", "1")), BooleanClause.Occur.MUST)
+        query.add(TermQuery(Term(TOMBSTONE_FIELD, TOMBSTONE_VALUE)), BooleanClause.Occur.MUST)
         deleteCollector = TotalHitCountCollector()
         searcher.search(query, deleteCollector)
 
@@ -270,9 +270,9 @@ class OaiJazz(object):
             query = MatchAllDocsQuery()
         else:
             if prefix is None:
-                query = TermQuery(Term("sets", setSpec))
+                query = TermQuery(Term(SETS_FIELD, setSpec))
             else:
-                query = TermQuery(Term("prefix", prefix))
+                query = TermQuery(Term(PREFIX_FIELD, prefix))
         results = searcher.search(query, 1, sort)
         if results.totalHits < 1:
             return None
@@ -317,7 +317,7 @@ class OaiJazz(object):
         maxDoc = searcher.getIndexReader().maxDoc()
         if maxDoc < 1:
             return 0
-        return int(searcher.doc(maxDoc - 1).getField("stamp").numericValue().longValue())
+        return int(searcher.doc(maxDoc - 1).getField(STAMP_FIELD).numericValue().longValue())
 
     def _getSearcher(self, identifier=None):
         modifications = len(self._latestModifications)
@@ -357,19 +357,19 @@ class OaiJazz(object):
 
     def _getDocId(self, identifier):
         searcher = self._getSearcher(identifier)
-        results = searcher.search(TermQuery(Term("identifier", identifier)), 1)
+        results = searcher.search(TermQuery(Term(IDENTIFIER_FIELD, identifier)), 1)
         if results.totalHits == 0:
             return None
         return results.scoreDocs[0].doc
 
     def _getNewDocument(self, identifier, oldDoc):
         doc = Document()
-        doc.add(StringField("identifier", identifier, Field.Store.YES))
+        doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
         if oldDoc is not None:
-            for oldPrefix in oldDoc.getValues("prefix"):
-                doc.add(StringField("prefix", oldPrefix, Field.Store.YES))
-            for oldSet in oldDoc.getValues("sets"):
-                doc.add(StringField("sets", oldSet, Field.Store.YES))
+            for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
+                doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))
+            for oldSet in oldDoc.getValues(SETS_FIELD):
+                doc.add(StringField(SETS_FIELD, oldSet, Field.Store.YES))
         return doc
 
     def _newStamp(self):
@@ -386,7 +386,7 @@ class OaiJazz(object):
             suspend.resume()
 
     def _purge(self, identifier):
-        self._writer.deleteDocuments(Term("identifier", identifier))
+        self._writer.deleteDocuments(Term(IDENTIFIER_FIELD, identifier))
 
     def _getStamp(self, identifier):
         doc = self._getDocument(identifier)
@@ -414,7 +414,7 @@ def getLucene(path):
     analyzer = WhitespaceAnalyzer()
     config = IndexWriterConfig(Version.LATEST, analyzer)
     mergePolicy = config.getMergePolicy()
-    sortingMergePolicy = SortingMergePolicy(mergePolicy, Sort(SortField("numeric_stamp", SortField.Type.LONG)))
+    sortingMergePolicy = SortingMergePolicy(mergePolicy, Sort(SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)))
     config.setMergePolicy(sortingMergePolicy)
     writer = IndexWriter(directory, config)
     reader = writer.getReader()
@@ -430,7 +430,7 @@ class Record(object):
     @property
     def identifier(self):
         if not hasattr(self, '_identifier'):
-            self._identifier = str(self._doc.getField("identifier").stringValue())
+            self._identifier = str(self._doc.getField(IDENTIFIER_FIELD).stringValue())
         return self._identifier
 
     @identifier.setter
@@ -446,19 +446,19 @@ class Record(object):
     @property
     def isDeleted(self):
         if not hasattr(self, 'tombstone'):
-            self.tombstone = self._doc.getField("tombstone")
+            self.tombstone = self._doc.getField(TOMBSTONE_FIELD)
         return self.tombstone is not None
 
     @property
     def prefixes(self):
         if not hasattr(self, '_prefixes'):
-            self._prefixes = set(self._doc.getValues('prefix'))
+            self._prefixes = set(self._doc.getValues(PREFIX_FIELD))
         return self._prefixes
 
     @property
     def sets(self):
         if not hasattr(self, '_sets'):
-            self._sets = set(self._doc.getValues('sets'))
+            self._sets = set(self._doc.getValues(SETS_FIELD))
         return self._sets
 
     def getDatestamp(self):
@@ -483,10 +483,18 @@ def _stamp2zulutime(stamp, preciseDatestamp=False):
     return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp / DATESTAMP_FACTOR)), microseconds)
 
 def _stampFromDocument(doc):
-    return int(doc.getField("stamp").numericValue().longValue())
+    return int(doc.getField(STAMP_FIELD).numericValue().longValue())
 
 class ForcedResumeException(Exception):
     pass
 
 SETSPEC_SEPARATOR = ","
 DATESTAMP_FACTOR = 1000000
+
+PREFIX_FIELD = "prefix"
+SETS_FIELD = "sets"
+IDENTIFIER_FIELD = "identifier"
+STAMP_FIELD = "stamp"
+NUMERIC_STAMP_FIELD = "numeric_stamp"
+TOMBSTONE_FIELD = "tombstone"
+TOMBSTONE_VALUE = "T"
