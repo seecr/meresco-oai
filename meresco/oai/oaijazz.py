@@ -59,6 +59,11 @@ def importVM():
     return VM
 
 imported = False
+Long = File = Document = StringField = Field = LongField = IntField = IndexSearcher = TermQuery = \
+    BooleanQuery = NumericRangeQuery = MatchAllDocsQuery = BooleanClause = TotalHitCountCollector = \
+    Sort = SortField = DirectoryReader = Term = IndexWriter = IndexWriterConfig = FSDirectory = \
+    NumericDocValuesField = SortingMergePolicy = BytesRef = Version = WhitespaceAnalyzer = \
+    OaiSortingCollector = None
 def lazyImport():
     global imported
     if imported:
@@ -74,7 +79,7 @@ def lazyImport():
     from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
     from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
     from org.apache.lucene.store import FSDirectory
-    from org.apache.lucene.document import NumericDocValuesField, StoredField
+    from org.apache.lucene.document import NumericDocValuesField
     from org.apache.lucene.index.sorter import SortingMergePolicy
     from org.apache.lucene.util import BytesRef, Version
     from org.apache.lucene.analysis.core import WhitespaceAnalyzer
@@ -317,7 +322,7 @@ class OaiJazz(object):
         maxDoc = searcher.getIndexReader().maxDoc()
         if maxDoc < 1:
             return 0
-        return int(searcher.doc(maxDoc - 1).getField(STAMP_FIELD).numericValue().longValue())
+        return _stampFromDocument(searcher.doc(maxDoc - 1))
 
     def _getSearcher(self, identifier=None):
         modifications = len(self._latestModifications)

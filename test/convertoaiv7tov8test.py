@@ -31,6 +31,7 @@ from shutil import copytree
 
 from seecr.test import SeecrTestCase
 from meresco.oai import OaiJazz
+import sys
 
 mypath = dirname(abspath(__file__))
 binDir = join(dirname(mypath), 'bin')
@@ -49,8 +50,8 @@ class ConvertOaiV7ToV8Test(SeecrTestCase):
         print open(join(self.tempdir, 'oai_conversion_v7_to_v8.log')).read()
         self.assertEquals('8', open(join(datadir, 'oai.version')).read())
         jazz = OaiJazz(datadir)
-        self.assertEquals({'total':5, 'deletes':1}, jazz.getNrOfRecords())
         result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True)
         records = list(result.records)
         self.assertEquals(['oai:1', 'oai:3', 'oai:5', 'oai:4', 'oai:2'], [r.identifier for r in records])
         self.assertEquals([False, False, False, False, True], [r.isDeleted for r in records])
+        self.assertEquals({'total':5, 'deletes':1}, jazz.getNrOfRecords())
