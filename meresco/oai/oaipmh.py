@@ -10,8 +10,9 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -32,9 +33,11 @@
 ## end license ##
 
 from urlparse import parse_qs
+import re
 
-from meresco.core import Transparent, Observable
 from weightless.core import be, compose
+from meresco.core import Transparent, Observable
+
 from oaiidentify import OaiIdentify
 from oailist import OaiList
 from oaijazz import DEFAULT_BATCH_SIZE
@@ -42,31 +45,36 @@ from oaigetrecord import OaiGetRecord
 from oailistmetadataformats import OaiListMetadataFormats
 from oailistsets import OaiListSets
 from oaierror import OaiError
-from oaiidentifierrename import OaiIdentifierRename
 from oairecord import OaiRecord
+from oairepository import OaiRepository
+
 
 class OaiPmh(object):
     def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False):
-        outside = Transparent() if repositoryIdentifier == None else OaiIdentifierRename(repositoryIdentifier)
+        repository = OaiRepository(
+            identifier=repositoryIdentifier,
+            name=repositoryName,
+            adminEmail=adminEmail)
+        outside = Transparent()
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
         self._internalObserverTree = be(
             (Observable(),
                 (OaiError(),
-                    (OaiIdentify(repositoryName=repositoryName, adminEmail=adminEmail, repositoryIdentifier=repositoryIdentifier),
+                    (OaiIdentify(repository),
                         (outside,)
                     ),
                     (OaiList(batchSize=batchSize, supportXWait=supportXWait),
-                        (OaiRecord(),
+                        (OaiRecord(repository),
                             (outside,)
                         )
                     ),
-                    (OaiGetRecord(),
-                        (OaiRecord(),
+                    (OaiGetRecord(repository),
+                        (OaiRecord(repository),
                             (outside,)
                         )
                     ),
-                    (OaiListMetadataFormats(),
+                    (OaiListMetadataFormats(repository),
                         (outside,)
                     ),
                     (OaiListSets(),
@@ -85,4 +93,5 @@ class OaiPmh(object):
         verb = arguments.get('verb', [None])[0]
         message = verb[0].lower() + verb[1:] if verb else ''
         yield self._internalObserverTree.all.unknown(message, arguments=arguments, **kwargs)
+
 

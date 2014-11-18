@@ -7,6 +7,7 @@
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -26,19 +27,26 @@
 #
 ## end license ##
 
+from xml.sax.saxutils import escape as xmlEscape
 
+from weightless.core import compose
 from meresco.core import Transparent
 from meresco.core.generatorutils import decorate
-from weightless.core import compose
-from xml.sax.saxutils import escape as xmlEscape
 
 
 class OaiRecord(Transparent):
+    def __init__(self, repository=None, **kwargs):
+        super(OaiRecord, self).__init__(**kwargs)
+        self._repository = repository
+
     def oaiRecordHeader(self, record, **kwargs):
         isDeletedStr = ' status="deleted"' if record.isDeleted else ''
         datestamp = record.getDatestamp()
+        identifier = record.identifier.encode('utf-8')
+        if self._repository:
+            identifier = self._repository.prefixIdentifier(identifier)
         yield '<header%s>' % isDeletedStr
-        yield '<identifier>%s</identifier>' % xmlEscape(record.identifier.encode('utf-8'))
+        yield '<identifier>%s</identifier>' % xmlEscape(identifier)
         yield '<datestamp>%s</datestamp>' % datestamp
         yield self._getSetSpecs(record)
         yield '</header>'

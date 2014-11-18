@@ -11,6 +11,7 @@
 # Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -30,10 +31,8 @@
 #
 ## end license ##
 
-import sys
-
-from weightless.core import NoneOfTheObserversRespond
 from meresco.core.observable import Observable
+
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
 
@@ -55,6 +54,11 @@ Error and Exception Conditions
     * cannotDisseminateFormat - The value of the metadataPrefix argument is not supported by the item identified by the value of the identifier argument.
     * idDoesNotExist - The value of the identifier argument is unknown or illegal in this repository.
 """
+
+    def __init__(self, repository=None, **kwargs):
+        super(OaiGetRecord, self).__init__(**kwargs)
+        self._repository = repository
+
     def getRecord(self, arguments, **httpkwargs):
         responseDate = zuluTime()
         verb = arguments.get('verb', [None])[0]
@@ -63,9 +67,11 @@ Error and Exception Conditions
 
         try:
             validatedArguments = self._validateArguments(arguments)
-            recordId = validatedArguments['identifier']
+            identifier = validatedArguments['identifier']
+            if self._repository:
+                identifier = self._repository.unprefixIdentifier(identifier)
+            record = self.call.getRecord(identifier=identifier)
             metadataPrefix = validatedArguments['metadataPrefix']
-            record = self.call.getRecord(recordId)
             self._validateValues(record, metadataPrefix)
         except OaiException, e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
@@ -104,4 +110,3 @@ Error and Exception Conditions
                 " and ".join(missing) + ".")
         checkNoMoreArguments(arguments)
         return validatedArguments
-

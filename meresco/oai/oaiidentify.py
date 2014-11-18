@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 ## begin license ##
-# 
+#
 # "Meresco Oai" are components to build Oai repositories, based on
-# "Meresco Core" and "Meresco Components". 
-# 
+# "Meresco Core" and "Meresco Components".
+#
 # Copyright (C) 2007-2008 SURF Foundation. http://www.surf.nl
 # Copyright (C) 2007-2010 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
@@ -12,29 +12,32 @@
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2011-2012 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
-# 
+#
 # This file is part of "Meresco Oai"
-# 
+#
 # "Meresco Oai" is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
-# 
+#
 # "Meresco Oai" is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with "Meresco Oai"; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-# 
+#
 ## end license ##
 
 from xml.sax.saxutils import escape as escapeXml
+
 from meresco.core import Observable
+
 from oaiutils import oaiHeader, oaiFooter, requestUrl, oaiRequestArgs, zuluTime
 from oaierror import oaiError
+
 
 class OaiIdentify(Observable):
     """
@@ -71,11 +74,9 @@ The response may include multiple instances of the following optional elements:
     * description : an extensible mechanism for communities to describe their repositories. For example, the description container could be used to include collection-level metadata in the response to the Identify request. Implementation Guidelines are available to give directions with this respect. Each description container must be accompanied by the URL of an XML schema describing the structure of the description container.
 
     """
-    def __init__(self, repositoryName = "The Repository Name", adminEmail = 'not available', repositoryIdentifier=None):
+    def __init__(self, repository):
         Observable.__init__(self)
-        self._repositoryName = repositoryName
-        self._adminEmail = adminEmail
-        self._repositoryIdentifier = repositoryIdentifier
+        self._repository = repository
 
     def identify(self, arguments, **httpkwargs):
         responseDate = zuluTime()
@@ -87,12 +88,13 @@ The response may include multiple instances of the following optional elements:
                     **httpkwargs)
             return
 
-        descriptionRepositoryIdentifier = '' if not self._repositoryIdentifier else DESCRIPTION_REPOSITORY_IDENTIFIER % { 'repositoryIdentifier': escapeXml(self._repositoryIdentifier)}
+        repositoryIdentifier = self._repository.identifier
+        descriptionRepositoryIdentifier = '' if not repositoryIdentifier else DESCRIPTION_REPOSITORY_IDENTIFIER % {'repositoryIdentifier': escapeXml(repositoryIdentifier)}
 
         values = {
-            'repositoryName': escapeXml(self._repositoryName),
+            'repositoryName': escapeXml(self._repository.name),
             'baseURL': escapeXml(requestUrl(**httpkwargs)),
-            'adminEmails': ''.join([ADMIN_EMAIL % escapeXml(email) for email in [self._adminEmail]]),
+            'adminEmails': ''.join([ADMIN_EMAIL % escapeXml(email) for email in [self._repository.adminEmail]]),
             'deletedRecord': self.call.getDeletedRecordType(),
         }
         values.update(hardcoded_values)

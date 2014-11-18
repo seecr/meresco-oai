@@ -11,6 +11,7 @@
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -32,9 +33,10 @@
 
 from weightless.core import compose
 
-from meresco.oai.oairecord import OaiRecord
-
 from seecr.test import SeecrTestCase, CallTrace
+
+from meresco.oai.oairecord import OaiRecord
+from meresco.oai.oairepository import OaiRepository
 
 from mockoaijazz import MockRecord
 
@@ -42,7 +44,10 @@ from mockoaijazz import MockRecord
 class OaiRecordTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
-        self.oaiRecord = OaiRecord()
+        self.setUpOaiRecord()
+
+    def setUpOaiRecord(self, **kwargs):
+        self.oaiRecord = OaiRecord(**kwargs)
         self.observer = CallTrace('Observer')
         self.oaiRecord.addObserver(self.observer)
         self.observer.returnValues['getData'] = '<data/>'
@@ -143,3 +148,36 @@ class OaiRecordTest(SeecrTestCase):
     <setSpec>set1</setSpec>
 </header>""", result)
         self.assertEquals([], [str(m) for m in self.observer.calledMethods])
+
+    def testRecordWithRepositoryIdentifier(self):
+        self.setUpOaiRecord(repository=OaiRepository(identifier='example.org'))
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords=None)))
+        self.assertEqualsWS("""<record>
+<header>
+    <identifier>oai:example.org:id</identifier>
+    <datestamp>2011-03-25T10:45:00Z</datestamp>
+    <setSpec>set0</setSpec>
+    <setSpec>set1</setSpec>
+</header>
+<metadata>
+    <data/>
+</metadata>
+</record>""", result)
+        self.assertEquals(["getData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+
+    def testRecordWithFetchedRecordsWithRepositoryIdentifier(self):
+        self.setUpOaiRecord(repository=OaiRepository(identifier='example.org'))
+        record = MockRecord('id')
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=record, metadataPrefix='oai_dc', fetchedRecords={record.identifier: "<the>data</the>", 'abc': '<some>other data</some>'})))
+        self.assertEqualsWS("""<record>
+<header>
+    <identifier>oai:example.org:id</identifier>
+    <datestamp>2011-03-25T10:45:00Z</datestamp>
+    <setSpec>set0</setSpec>
+    <setSpec>set1</setSpec>
+</header>
+<metadata>
+    <the>data</the>
+</metadata>
+</record>""", result)
+        self.assertEquals(["provenance('id')"], [str(m) for m in self.observer.calledMethods])

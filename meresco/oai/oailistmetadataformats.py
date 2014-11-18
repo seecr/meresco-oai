@@ -8,9 +8,10 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -30,10 +31,13 @@
 #
 ## end license ##
 
+from xml.sax.saxutils import escape as xmlEscape
+
+from meresco.core import Observable
+
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
-from meresco.core import Observable
-from xml.sax.saxutils import escape as xmlEscape
+
 
 class OaiListMetadataFormats(Observable):
     """4.4 ListMetadataFormats
@@ -51,8 +55,9 @@ Error and Exception Conditions
     * noMetadataFormats - There are no metadata formats available for the specified item.
     """
 
-    def __init__(self):
-        Observable.__init__(self)
+    def __init__(self, repository=None, **kwargs):
+        super(OaiListMetadataFormats, self).__init__(**kwargs)
+        self._repository = repository
 
     def listMetadataFormats(self, arguments, **httpkwargs):
         responseDate = zuluTime()
@@ -65,7 +70,9 @@ Error and Exception Conditions
             metadataFormats = self.call.getAllMetadataFormats()
             if 'identifier' in validatedArguments:
                 identifier = validatedArguments['identifier']
-                record = self.call.getRecord(identifier)
+                if self._repository:
+                    identifier = self._repository.unprefixIdentifier(identifier)
+                record = self.call.getRecord(identifier=identifier)
                 if record is None:
                     raise OaiException('idDoesNotExist')
                 metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in record.prefixes]
@@ -94,4 +101,3 @@ Error and Exception Conditions
         checkArgument(arguments, 'identifier', validatedArguments)
         checkNoMoreArguments(arguments)
         return validatedArguments
-

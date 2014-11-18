@@ -3,6 +3,7 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
@@ -24,25 +25,28 @@
 #
 ## end license ##
 
-from seecr.test import SeecrTestCase
+from StringIO import StringIO
+from lxml.etree import parse, XML
+
+from seecr.test import SeecrTestCase, CallTrace
+
+from weightless.core import asString, consume
+from meresco.xml.namespaces import xpath
+
 from meresco.sequentialstore import MultiSequentialStorage
+
 from meresco.oai import OaiJazz
 from meresco.oai.oaigetrecord import OaiGetRecord
 from meresco.oai.oairecord import OaiRecord
-from uuid import uuid4
-from weightless.core import asString
-from lxml.etree import parse
-from StringIO import StringIO
-from meresco.xml.namespaces import xpath
+from meresco.oai.oairepository import OaiRepository
 
 
 class OaiGetRecordTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
-        self.clientId = str(uuid4())
         self.httpkwargs = {
             'path': '/path/to/oai',
-            'Headers':{'Host':'server', 'X-Meresco-Oai-Client-Identifier': self.clientId},
+            'Headers':{'Host':'server'},
             'port':9000,
         }
 
@@ -64,3 +68,35 @@ class OaiGetRecordTest(SeecrTestCase):
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
         self.assertEquals("data01", xpath(parse(StringIO(body)), '//oai:metadata')[0].text)
+
+    def testGetRecordWithRepositoryIdentifier(self):
+        oaigetrecord = OaiGetRecord(OaiRepository(identifier='example.org'))
+        record = CallTrace('record')
+        record.identifier = 'id0'
+        record.prefixes = ['oai_dc']
+        record.sets = []
+        record.isDeleted = False
+        observer = CallTrace(returnValues={
+            'getAllPrefixes': ['oai_dc'],
+            'getRecord': record},
+            emptyGeneratorMethods=['oaiWatermark', 'oaiRecord'])
+        oaigetrecord.addObserver(observer)
+        consume(oaigetrecord.getRecord(arguments=dict(
+                verb=['GetRecord'],
+                metadataPrefix=['oai_dc'],
+                identifier=['oai:example.org:id0'],
+            ),
+            **self.httpkwargs))
+        self.assertEquals(['getRecord', 'getAllPrefixes', 'oaiWatermark', 'oaiRecord'], observer.calledMethodNames())
+        self.assertEquals(dict(identifier='id0'), observer.calledMethods[0].kwargs)
+
+    def testGetRecordWithRepositoryIdentifierMissingExpectedPrefix(self):
+        oaigetrecord = OaiGetRecord(OaiRepository(identifier='example.org'))
+        result = asString(oaigetrecord.getRecord(arguments=dict(
+            verb=['GetRecord'],
+            metadataPrefix=['oai_dc'],
+            identifier=['not:properly:prefixed:id0'],
+        ),
+        **self.httpkwargs))
+        header, body = result.split('\r\n\r\n')
+        self.assertTrue(xpath(XML(body), '/oai:OAI-PMH/oai:error[@code="idDoesNotExist"]'), body)

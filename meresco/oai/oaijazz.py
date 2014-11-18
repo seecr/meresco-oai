@@ -39,12 +39,12 @@ from os import makedirs, listdir, getenv
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from random import choice
+from warnings import warn
 
 from meresco.core import asyncreturn
 from weightless.io import Suspend
 
 from json import load, dump
-from warnings import warn
 
 def importVM():
     maxheap = getenv('PYLUCENE_MAXHEAP')
@@ -64,6 +64,7 @@ Long = File = Document = StringField = Field = LongField = IntField = IndexSearc
     Sort = SortField = DirectoryReader = Term = IndexWriter = IndexWriterConfig = FSDirectory = \
     NumericDocValuesField = SortingMergePolicy = BytesRef = Version = WhitespaceAnalyzer = \
     OaiSortingCollector = None
+
 def lazyImport():
     global imported
     if imported:
@@ -90,6 +91,7 @@ def lazyImport():
     from org.meresco.oai import OaiSortingCollector
 
     globals().update(locals())
+
 
 DEFAULT_BATCH_SIZE = 200
 
@@ -437,10 +439,6 @@ class Record(object):
         if not hasattr(self, '_identifier'):
             self._identifier = str(self._doc.getField(IDENTIFIER_FIELD).stringValue())
         return self._identifier
-
-    @identifier.setter
-    def identifier(self, value):
-        self._identifier = value
 
     @property
     def stamp(self):

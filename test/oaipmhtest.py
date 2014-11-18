@@ -8,6 +8,7 @@
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
 # Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -372,7 +373,7 @@ class OaiPmhTest(_OaiPmhTest):
             OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId")
             self.fail()
         except ValueError, e:
-            self.assertEquals("Invalid repositoryIdentifier: repoId", str(e))
+            self.assertEquals("Invalid repository identifier: repoId", str(e))
 
         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")
@@ -385,6 +386,14 @@ class OaiPmhWithIdentifierTest(_OaiPmhTest):
 
     def getOaiPmh(self):
         return OaiPmh(repositoryName='The Repository Name', adminEmail='admin@meresco.org', batchSize=BATCHSIZE, repositoryIdentifier='www.example.org')
+
+    def testBadRepositoryIdentifier(self):
+        def oaipmh(repositoryIdentifier):
+            return OaiPmh(repositoryName='The Repository Name', adminEmail='admin@meresco.org', batchSize=BATCHSIZE, repositoryIdentifier=repositoryIdentifier)
+        self.assertRaises(ValueError, lambda: oaipmh('01234'))
+        self.assertRaises(ValueError, lambda: oaipmh('a*'))
+        self.assertRaises(ValueError, lambda: oaipmh('a34.0834'))
+
 
 
 class HttpPostOaiPmhTest(OaiPmhTest):

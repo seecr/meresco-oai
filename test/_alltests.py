@@ -61,9 +61,11 @@ from oaigetrecordtest import OaiGetRecordTest
 from oaiintegrationtest import OaiIntegrationTest
 from oaijazztest import OaiJazzTest
 from oailisttest import OaiListTest
+from oailistmetadataformatstest import OaiListMetadataFormatsTest
 from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest
 from oaiprovenancetest import OaiProvenanceTest
 from oairecordtest import OaiRecordTest
+from oairepositorytest import OaiRepositoryTest
 from oaisetmasktest import OaiSetMaskTest
 from oaisetselecttest import OaiSetSelectTest
 from oaitooltest import OaiToolTest
