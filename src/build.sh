@@ -5,6 +5,7 @@
 #
 # Copyright (C) 2013-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
 #
@@ -26,11 +27,6 @@
 
 set -o errexit
 
-if ! javac -version 2>&1 | grep 1.7 > /dev/null; then
-    echo "javac should be java 7"
-    exit 1
-fi
-
 mydir=$(cd $(dirname $0); pwd)
 buildDir=$mydir/build
 libDir=$1
@@ -43,15 +39,17 @@ mkdir $buildDir
 rm -rf $libDir
 mkdir -p $libDir
 
+javac=/usr/lib/jvm/java-1.7.0-openjdk.x86_64/bin/javac
 luceneJarDir=/usr/lib64/python2.6/site-packages/lucene
 if [ -f /etc/debian_version ]; then
+    javac=/usr/lib/jvm/java-7-openjdk-amd64/bin/javac
     luceneJarDir=/usr/lib/python2.7/dist-packages/lucene
 fi
 
 LUCENE_VERSION=4.10.1
 classpath=${luceneJarDir}/lucene-core-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-analyzers-common-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-facet-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-queries-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-misc-${LUCENE_VERSION}.jar
 
-javac -cp ${classpath} -d ${buildDir} org/meresco/oai/*.java
+${javac} -cp ${classpath} -d ${buildDir} org/meresco/oai/*.java
 (cd $buildDir; jar -c org > $buildDir/meresco-oai.jar)
 
 python -m jcc.__main__ \
