@@ -128,22 +128,7 @@ class OaiJazz(object):
             batchSize=DEFAULT_BATCH_SIZE,
             shouldCountHits=False):
         searcher = self._getSearcher()
-        query = BooleanQuery()
-        if oaiFrom or continueAfter or oaiUntil:
-            start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
-            stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
-            fromRange = NumericRangeQuery.newLongRange(STAMP_FIELD, start, stop, True, True)
-            query.add(fromRange, BooleanClause.Occur.MUST)
-        query.add(TermQuery(Term(PREFIX_FIELD, prefix)), BooleanClause.Occur.MUST)
-        if sets:
-            setQuery = BooleanQuery()
-            for setSpec in sets:
-                setQuery.add(TermQuery(Term(SETS_FIELD, setSpec)), BooleanClause.Occur.SHOULD)
-            query.add(setQuery, BooleanClause.Occur.MUST)
-        if setsMask:
-            for set_ in setsMask:
-                query.add(TermQuery(Term(SETS_FIELD, set_)), BooleanClause.Occur.MUST)
-
+        query = self._luceneQuery(prefix, sets, continueAfter, oaiFrom, oaiUntil, setsMask)
         collector = OaiSortingCollector(batchSize, shouldCountHits)
         searcher.search(query, None, collector)
 
@@ -151,6 +136,26 @@ class OaiJazz(object):
                 collector=collector,
                 parent=self,
             )
+
+    def _luceneQuery(self, prefix, sets=None, continueAfter=None, oaiFrom=None, oaiUntil=None, setsMask=None):
+        query = BooleanQuery()
+        if oaiFrom or continueAfter or oaiUntil:
+            start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
+            stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
+            fromRange = NumericRangeQuery.newLongRange(STAMP_FIELD, start, stop, True, True)
+            query.add(fromRange, BooleanClause.Occur.MUST)
+        if prefix:
+            query.add(TermQuery(Term(PREFIX_FIELD, prefix)), BooleanClause.Occur.MUST)
+        if sets:
+            setQuery = BooleanQuery()
+            for setSpec in sets:
+                setQuery.add(TermQuery(Term(SETS_FIELD, setSpec)), BooleanClause.Occur.SHOULD)
+            query.add(setQuery, BooleanClause.Occur.MUST)
+        for set_ in setsMask or []:
+            query.add(TermQuery(Term(SETS_FIELD, set_)), BooleanClause.Occur.MUST)
+        if query.clauses().size() == 0:
+            query.add(MatchAllDocsQuery(), BooleanClause.Occur.MUST)
+        return query
 
     class _OaiSelectResult(object):
         def __init__(inner, docs, collector, parent):
@@ -241,18 +246,10 @@ class OaiJazz(object):
             return set(self._sets.items())
         return set(self._sets.keys())
 
-    def getNrOfRecords(self, prefix='oai_dc', setSpec=None):
+    def getNrOfRecords(self, prefix='oai_dc', setSpec=None, continueAfter=None, oaiFrom=None, oaiUntil=None):
         searcher = self._getSearcher()
         totalCollector = TotalHitCountCollector()
-        if prefix is None and setSpec is None:
-            query = BooleanQuery()
-            query.add(MatchAllDocsQuery(), BooleanClause.Occur.MUST)
-        else:
-            query = BooleanQuery()
-            if prefix is not None:
-                query.add(TermQuery(Term(PREFIX_FIELD, prefix)), BooleanClause.Occur.MUST)
-            if setSpec is not None:
-                query.add(TermQuery(Term(SETS_FIELD, setSpec)), BooleanClause.Occur.MUST)
+        query = self._luceneQuery(prefix, sets=[setSpec] if setSpec else None, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil)
         searcher.search(query, totalCollector)
 
         query.add(TermQuery(Term(TOMBSTONE_FIELD, TOMBSTONE_VALUE)), BooleanClause.Occur.MUST)

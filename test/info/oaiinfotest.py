@@ -109,4 +109,12 @@ class OaiInfoTest(SeecrTestCase):
         resumptionToken =  ResumptionToken(metadataPrefix='prefix1', continueAfter=firstRecord.stamp)
         result = asString(self.top.all.handleRequest(path='/info/json/resumptiontoken', arguments=dict(resumptionToken=[str(resumptionToken)])))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals({'prefix':'prefix1', 'set':None, 'from':None, 'until':None, 'nrOfRecords':3, 'nrOfRemainingRecords':2, 'timestamp': firstRecord.stamp}, loads(body))
+        self.assertEquals({
+                'prefix':'prefix1',
+                'set':None,
+                'from':None,
+                'until':None,
+                'nrOfRecords': {'total': 3, 'deletes': 1},
+                'nrOfRemainingRecords': {'total': 2, 'deletes': 1},
+                'timestamp': firstRecord.stamp
+            }, loads(body))

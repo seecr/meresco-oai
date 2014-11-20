@@ -3,6 +3,7 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
+# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
@@ -33,8 +34,8 @@ MAPPING = {
 }
 
 FORMAT_MAPPING = {
-    'nrOfRecords': page.formatInt,
-    'nrOfRemainingRecords': page.formatInt,
+    'nrOfRecords': lambda vDict: '{total} (deletes: {deletes})'.format(total=page.formatInt(vDict['total']), deletes=page.formatInt(vDict['deletes'])),
+    'nrOfRemainingRecords': lambda vDict: '{total} (deletes: {deletes})'.format(total=page.formatInt(vDict['total']), deletes=page.formatInt(vDict['deletes'])),
     'timestamp': page.formatStamp
 }
 

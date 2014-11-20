@@ -77,17 +77,14 @@ class OaiJsonInfo(Observable):
 
     def resumptiontoken(self, resumptionToken):
         resumptionToken = ResumptionToken.fromString(resumptionToken[0])
-        selectKwargs = dict(
+        kwargs = dict(
                 prefix=resumptionToken.metadataPrefix or None,
-                sets=[resumptionToken.set_] if resumptionToken.set_ else None,
+                setSpec=resumptionToken.set_ if resumptionToken.set_ else None,
                 oaiFrom=resumptionToken.from_,
-                oaiUntil=resumptionToken.until,
-                batchSize=1,
-                shouldCountHits=True)
-        result = self.call.oaiSelect(**selectKwargs)
-        nrOfRecords = result.recordsRemaining + result.numberOfRecordsInBatch
-        result = self.call.oaiSelect(continueAfter=resumptionToken.continueAfter, **selectKwargs)
-        nrOfRemainingRecords = result.recordsRemaining + result.numberOfRecordsInBatch
+                oaiUntil=resumptionToken.until
+            )
+        nrOfRecords = self.call.getNrOfRecords(**kwargs)
+        nrOfRemainingRecords = self.call.getNrOfRecords(continueAfter=resumptionToken.continueAfter, **kwargs)
 
         return {
                 'prefix': resumptionToken.metadataPrefix,
