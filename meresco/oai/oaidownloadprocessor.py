@@ -105,8 +105,8 @@ class OaiDownloadProcessor(Observable):
             itemXPath, headerXPath = VERB_XPATHS[self._verb]
             for item in xpath(verbNode, itemXPath):
                 header = xpath(item, headerXPath)[0]
-                datestamp = xpath(header, 'oai:datestamp/text()')[0]
-                identifier = xpath(header, 'oai:identifier/text()')[0]
+                datestamp = str(xpath(header, 'oai:datestamp/text()')[0])
+                identifier = str(xpath(header, 'oai:identifier/text()')[0])
                 try:
                     yield self._add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
                 except Exception, e:
