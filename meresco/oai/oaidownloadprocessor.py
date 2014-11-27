@@ -34,6 +34,7 @@ from os.path import join, isfile, isdir
 from urllib import urlencode
 
 from meresco.core import Observable
+from meresco.xml import xpath, xpathFirst
 try:
     from meresco.components import lxmltostring
 except ImportError:
@@ -105,8 +106,8 @@ class OaiDownloadProcessor(Observable):
             itemXPath, headerXPath = VERB_XPATHS[self._verb]
             for item in xpath(verbNode, itemXPath):
                 header = xpath(item, headerXPath)[0]
-                datestamp = str(xpath(header, 'oai:datestamp/text()')[0])
-                identifier = str(xpath(header, 'oai:identifier/text()')[0])
+                datestamp = xpath(header, 'oai:datestamp/text()')[0]
+                identifier = xpath(header, 'oai:identifier/text()')[0]
                 try:
                     yield self._add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
                 except Exception, e:
@@ -117,7 +118,7 @@ class OaiDownloadProcessor(Observable):
                     raise
                 self._errorState = None
                 yield # some room for others
-            self._resumptionToken = head(xpath(verbNode, "oai:resumptionToken/text()"))
+            self._resumptionToken = xpathFirst(verbNode, "oai:resumptionToken/text()")
         finally:
             self._maybeCommit()
 
@@ -176,12 +177,6 @@ class HarvestStateView(object):
     @property
     def resumptionToken(self):
         return self._processor._resumptionToken
-
-def head(l):
-    return l[0] if l else ""
-
-def xpath(node, path):
-    return node.xpath(path, namespaces=namespaces)
 
 RESUMPTIONTOKEN_STATE = "Resumptiontoken: "
 
