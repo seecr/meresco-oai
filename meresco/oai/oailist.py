@@ -42,6 +42,7 @@ from oaijazz import ForcedResumeException, DEFAULT_BATCH_SIZE
 from uuid import uuid4
 import sys
 from time import time
+from traceback import print_exc
 
 
 class OaiList(Observable):
@@ -94,29 +95,30 @@ Error and Exception Conditions
         self._supportXWait = supportXWait
 
     def listRecords(self, arguments, **httpkwargs):
-        yield self._doProcess(arguments, **httpkwargs)
+        yield self._list(arguments, **httpkwargs)
 
     def listIdentifiers(self, arguments, **httpkwargs):
-        yield self._doProcess(arguments, **httpkwargs)
+        yield self._list(arguments, **httpkwargs)
 
-    def _doProcess(self, arguments, **httpkwargs):
+    def _list(self, arguments, **httpkwargs):
         verb = arguments.get('verb', [None])[0]
         if not verb in self._supportedVerbs:
             return
 
+        originalArguments = dict(arguments)
         try:
-            validatedArguments = self._validateArguments(arguments)
+            arguments = self._validateAndParseArguments(arguments)
         except OaiBadArgumentException, e:
-            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+            yield oaiError(e.statusCode, e.additionalMessage, originalArguments, **httpkwargs)
             return
 
         while True:
             try:
                 responseDate = zuluTime()
-                result = self._preProcess(validatedArguments)
+                result = self._preProcess(**arguments)
                 break
             except OaiException, e:
-                if validatedArguments.get("x-wait", 'False') == 'True' and \
+                if arguments.get("x-wait", 'False') == 'True' and \
                         e.statusCode in ["noRecordsMatch", "cannotDisseminateFormat"]:
                     clientId = httpkwargs['Headers'].get('X-Meresco-Oai-Client-Identifier')
                     if clientId is None:
@@ -124,51 +126,53 @@ Error and Exception Conditions
                         sys.stderr.write("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for OAI client from %s\n" % httpkwargs['Client'][0])
                         sys.stderr.flush()
                     try:
-                        yield self.any.suspend(clientIdentifier=clientId)
+                        yield self.any.suspend(
+                            clientIdentifier=clientId,
+                            metadataPrefix=arguments['metadataPrefix'],
+                            set=arguments.get('set_'))
                     except ForcedResumeException, e:
                         yield successNoContentPlainText + str(e)
                         return
                     except Exception, e:
+                        print_exc()
                         yield serverErrorPlainText + str(e)
                         raise e
                 else:
-                    yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+                    yield oaiError(e.statusCode, e.additionalMessage, originalArguments, **httpkwargs)
                     return
 
         yield oaiHeader(self, responseDate)
-        yield oaiRequestArgs(arguments, **httpkwargs)
+        yield oaiRequestArgs(originalArguments, **httpkwargs)
         yield '<%s>' % verb
-        yield self._process(verb, result, validatedArguments)
+        yield self._process(verb, result, arguments)
         yield '</%s>' % verb
 
         yield oaiFooter()
 
-    def _validateArguments(self, arguments):
+    def _validateAndParseArguments(self, arguments):
         arguments = dict(arguments)
-        validatedArguments = {}
+        parsedArguments = {}
         checkNoRepeatedArguments(arguments)
         arguments.pop('verb')
         if self._supportXWait:
-            checkArgument(arguments, 'x-wait', validatedArguments)
-            if validatedArguments.get('x-wait', None) not in ['True', None]:
+            checkArgument(arguments, 'x-wait', parsedArguments)
+            if parsedArguments.get('x-wait', None) not in ['True', None]:
                 raise OaiBadArgumentException("The argument 'x-wait' only supports 'True' as valid value.")
-        checkArgument(arguments, 'x-count', validatedArguments)
-        if validatedArguments.get('x-count', None) not in ['True', None]:
+        checkArgument(arguments, 'x-count', parsedArguments)
+        if parsedArguments.get('x-count', None) not in ['True', None]:
             raise OaiBadArgumentException("The argument 'x-count' only supports 'True' as valid value.")
-        if checkArgument(arguments, 'resumptionToken', validatedArguments):
+        if checkArgument(arguments, 'resumptionToken', parsedArguments):
             if len(arguments) > 0:
                 raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')
         else:
-            if not checkArgument(arguments, 'metadataPrefix', validatedArguments):
+            if not checkArgument(arguments, 'metadataPrefix', parsedArguments):
                 raise OaiBadArgumentException('Missing argument(s) "resumptionToken" or "metadataPrefix".')
             for name in ['from', 'until', 'set']:
-                checkArgument(arguments, name, validatedArguments)
+                checkArgument(arguments, name, parsedArguments)
             checkNoMoreArguments(arguments)
-        return validatedArguments
 
-    def _preProcess(self, validatedArguments):
-        if validatedArguments.get('resumptionToken', None):
-            token = resumptionTokenFromString(validatedArguments['resumptionToken'])
+        if parsedArguments.get('resumptionToken', None):
+            token = resumptionTokenFromString(parsedArguments['resumptionToken'])
             if not token:
                 raise OaiException("badResumptionToken")
             continueAfter = token.continueAfter
@@ -178,10 +182,10 @@ Error and Exception Conditions
             metadataPrefix = token.metadataPrefix
         else:
             continueAfter = '0'
-            from_ = validatedArguments.get('from', None)
-            until = validatedArguments.get('until', None)
-            set_ = validatedArguments.get('set', None)
-            metadataPrefix = validatedArguments.get('metadataPrefix', None)
+            from_ = parsedArguments.get('from', None)
+            until = parsedArguments.get('until', None)
+            set_ = parsedArguments.get('set', None)
+            metadataPrefix = parsedArguments.get('metadataPrefix', None)
 
             try:
                 from_ = from_ and ISO8601(from_)
@@ -196,13 +200,16 @@ Error and Exception Conditions
             except ISO8601Exception:
                 raise OaiBadArgumentException('From and/or until arguments are faulty.')
 
+        parsedArguments['continueAfter'] = continueAfter
+        parsedArguments['from_'] = from_
+        parsedArguments['until'] = until
+        parsedArguments['set_'] = set_
+        parsedArguments['metadataPrefix'] = metadataPrefix
+        return parsedArguments
+
+    def _preProcess(self, metadataPrefix, continueAfter, from_, until, set_, **kwargs):
         if not metadataPrefix in set(self.call.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
-
-        validatedArguments['from'] = from_
-        validatedArguments['until'] = until
-        validatedArguments['set'] = set_
-        validatedArguments['metadataPrefix'] = metadataPrefix
         result = self.call.oaiSelect(
             sets=[set_] if set_ else None,
             prefix=metadataPrefix,
@@ -210,14 +217,14 @@ Error and Exception Conditions
             oaiFrom=from_,
             oaiUntil=until,
             batchSize=self._batchSize,
-            shouldCountHits='x-count' in validatedArguments)
+            shouldCountHits='x-count' in kwargs)
         if result.numberOfRecordsInBatch == 0:
             raise OaiException('noRecordsMatch')
         return result
 
-    def _process(self, verb, result, validatedArguments):
+    def _process(self, verb, result, arguments):
         records = list(result.records)
-        metadataPrefix = validatedArguments['metadataPrefix']
+        metadataPrefix = arguments['metadataPrefix']
         fetchedRecords = None
         try:
             t0 = time()
@@ -238,21 +245,21 @@ Error and Exception Conditions
             pass
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
         for record in records:
-            yield self.all.unknown(message, record=record, metadataPrefix=validatedArguments['metadataPrefix'], fetchedRecords=fetchedRecords)
+            yield self.all.unknown(message, record=record, metadataPrefix=arguments['metadataPrefix'], fetchedRecords=fetchedRecords)
 
-        if result.moreRecordsAvailable or 'x-wait' in validatedArguments:
-            if 'x-count' in validatedArguments:
+        if result.moreRecordsAvailable or 'x-wait' in arguments:
+            if 'x-count' in arguments:
                 yield '<resumptionToken recordsRemaining="%s">' % result.recordsRemaining
             else:
                 yield '<resumptionToken>'
             yield '%s</resumptionToken>' % ResumptionToken(
-                    metadataPrefix=validatedArguments['metadataPrefix'],
+                    metadataPrefix=arguments['metadataPrefix'],
                     continueAfter=result.continueAfter,
-                    from_=validatedArguments['from'],
-                    until=validatedArguments['until'],
-                        set_=validatedArguments['set'])
+                    from_=arguments['from_'],
+                    until=arguments['until'],
+                    set_=arguments['set_'])
         else:
-            if 'resumptionToken' in validatedArguments:
+            if 'resumptionToken' in arguments:
                 yield '<resumptionToken/>'
 
 MAX_RATIO = 1.1

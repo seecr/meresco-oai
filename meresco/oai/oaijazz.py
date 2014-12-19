@@ -187,14 +187,15 @@ class OaiJazz(object):
         newStamp = self._newStamp()
         doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
         doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
+        metadataPrefixes = set(doc.getValues(PREFIX_FIELD))
         if metadataFormats:
-            oldPrefixes = set(doc.getValues(PREFIX_FIELD))
             for prefix, schema, namespace in metadataFormats:
                 self._prefixes[prefix] = (schema, namespace)
-                if not prefix in oldPrefixes:
+                if not prefix in metadataPrefixes:
                     doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
+                    metadataPrefixes.add(prefix)
+        allSets = set(doc.getValues(SETS_FIELD))
         if sets:
-            oldSets = set(doc.getValues(SETS_FIELD))
             for setSpec, setName in sets:
                 msg = 'SetSpec "%s" contains illegal characters' % setSpec
                 assert SETSPEC_SEPARATOR not in setSpec, msg
@@ -203,12 +204,13 @@ class OaiJazz(object):
                     fullSetSpec = ':'.join(subsets)
                     if setName:
                         self._sets[fullSetSpec] = setName
-                    if not fullSetSpec in oldSets:
+                    if not fullSetSpec in allSets:
                         doc.add(StringField(SETS_FIELD, fullSetSpec, Field.Store.YES))
+                        allSets.add(fullSetSpec)
                     subsets.pop()
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
-        self._resume()
+        self._resume(metadataPrefixes=metadataPrefixes, sets=allSets)
 
     @asyncreturn
     def delete(self, identifier):
@@ -226,7 +228,7 @@ class OaiJazz(object):
         doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
-        self._resume()
+        self._resume(metadataPrefixes=set(doc.getValues(PREFIX_FIELD)), sets=set(doc.getValues(SETS_FIELD)))
 
     def purge(self, identifier):
         if self._persistentDelete:
@@ -298,8 +300,11 @@ class OaiJazz(object):
     def observable_name(self):
         return self._name
 
-    def suspend(self, clientIdentifier):
+    def suspend(self, clientIdentifier, metadataPrefix, set=None):
+        print 'suspend', metadataPrefix, set
         suspend = Suspend()
+        suspend.metadataPrefix = metadataPrefix
+        suspend.set = set
         if clientIdentifier in self._suspended:
             self._suspended.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
         if len(self._suspended) == self._maximumSuspendedConnections:
@@ -384,10 +389,19 @@ class OaiJazz(object):
         self._newestStamp = newStamp
         return newStamp
 
-    def _resume(self):
-        while len(self._suspended) > 0:
-            clientId, suspend = self._suspended.popitem()
-            suspend.resume()
+    def _resume(self, metadataPrefixes, sets):
+        count = 0
+        for clientId, suspend in self._suspended.items()[:]:
+            if suspend.metadataPrefix in metadataPrefixes:
+                if suspend.set and not suspend.set in sets:
+                    continue
+                del self._suspended[clientId]
+                print "resuming suspend for metadataPrefix=" + suspend.metadataPrefix + (" and set=" + suspend.set if suspend.set else '')
+                suspend.resume()
+                count += 1
+        if count > 0:
+            print 'resumed %s suspended generators' % count
+        from sys import stdout; stdout.flush()
 
     def _purge(self, identifier):
         self._writer.deleteDocuments(Term(IDENTIFIER_FIELD, identifier))
