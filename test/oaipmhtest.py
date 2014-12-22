@@ -339,6 +339,9 @@ class _OaiPmhTest(SeecrTestCase):
     def testRottenTokenListRecords(self):
         self.assertOaiError({'verb': ['ListRecords'], 'resumptionToken': ['someResumptionToken']}, errorCode="badResumptionToken")
 
+    def testEmptyResumptionTokenEdgeCase(self):
+        self.assertOaiError({'verb': ['ListIdentifiers'], 'resumptionToken': ['']}, errorCode="badResumptionToken")
+
     def testIllegalArgumentsListMetadataFormats(self):
         self.assertOaiError({'verb': ['ListMetadataFormats'], 'somethingElse': ['illegal']}, errorCode='badArgument')
 

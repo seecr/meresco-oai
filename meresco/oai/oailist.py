@@ -158,22 +158,22 @@ Error and Exception Conditions
                 checkArgument(arguments, name, selectArguments)
             checkNoMoreArguments(arguments)
 
-        resumptionTokenString = selectArguments.get('resumptionToken')
-        if resumptionTokenString:
-            token = resumptionTokenFromString(resumptionTokenString)
+        resumptionToken = selectArguments.get('resumptionToken')
+        if not resumptionToken is None:
+            token = resumptionTokenFromString(resumptionToken)
             if not token:
                 raise OaiException("badResumptionToken")
             continueAfter = token.continueAfter
+            metadataPrefix = token.metadataPrefix
             from_ = token.from_
             until = token.until
             set_ = token.set_
-            metadataPrefix = token.metadataPrefix
         else:
             continueAfter = '0'
+            metadataPrefix = selectArguments.pop('metadataPrefix')
             from_ = selectArguments.pop('from', None)
             until = selectArguments.pop('until', None)
             set_ = selectArguments.pop('set', None)
-            metadataPrefix = selectArguments.pop('metadataPrefix')
             try:
                 from_ = from_ and ISO8601(from_)
                 until = until and ISO8601(until)
