@@ -5,7 +5,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
@@ -29,11 +29,10 @@
 export LANG=en_US.UTF-8
 export PYTHONPATH=.:"$PYTHONPATH"
 export WEIGHTLESS_COMPOSE_TEST="PYTHON"
-pyversions="python2.6"
 if [ -f /etc/debian_version ]; then
-    if [ "$(cat /etc/debian_version | awk -F. '{print $1}')" = "7" ]; then
-        pyversions="python2.7"
-    fi
+    pyversions="$(pyversions --installed)"
+else
+    pyversions="python2.6"
 fi
 option=$1
 if [ "${option:0:10}" == "--python2." ]; then
