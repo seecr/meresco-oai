@@ -9,7 +9,7 @@ python-weightless-core (<< 0.10)
 python-escaping (>= 0.1.2)
 python-escaping (<< 0.2)
 python-lxml (>= 2.2.8)
-python-lxml (<< 3.0)
+python-lxml (<< 3.5)
 python-simplejson
 pylucene (>= 4.10.1)
 pylucene (<< 4.11)
