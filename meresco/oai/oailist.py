@@ -36,7 +36,7 @@ from weightless.core import NoneOfTheObserversRespond
 
 from resumptiontoken import resumptionTokenFromString, ResumptionToken
 from oaitool import ISO8601, ISO8601Exception
-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
+from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, checkBooleanArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from oaierror import oaiError
 from oaijazz import ForcedResumeException, DEFAULT_BATCH_SIZE
 from uuid import uuid4
@@ -100,36 +100,27 @@ Error and Exception Conditions
     def listIdentifiers(self, arguments, **httpkwargs):
         yield self._list(arguments, **httpkwargs)
 
-    def _list(self, arguments, **httpkwargs):
-        verb = arguments.get('verb', [None])[0]
+    def _list(self, requestArguments, **httpkwargs):
+        verb = requestArguments.get('verb', [None])[0]
         if not verb in self._supportedVerbs:
             return
 
-        originalArguments = dict(arguments)
         try:
-            arguments = self._validateAndParseArguments(arguments)
-        except OaiBadArgumentException, e:
-            yield oaiError(e.statusCode, e.additionalMessage, originalArguments, **httpkwargs)
+            selectArguments = self._validateAndParseArguments(requestArguments)
+        except (OaiBadArgumentException, OaiException), e:
+            yield oaiError(e.statusCode, e.additionalMessage, requestArguments, **httpkwargs)
             return
 
         while True:
             try:
                 responseDate = zuluTime()
-                result = self._preProcess(**arguments)
+                result = self._oaiSelect(**selectArguments)
                 break
             except OaiException, e:
-                if arguments.get("x-wait", 'False') == 'True' and \
+                if selectArguments['x-wait'] and \
                         e.statusCode in ["noRecordsMatch", "cannotDisseminateFormat"]:
-                    clientId = httpkwargs['Headers'].get('X-Meresco-Oai-Client-Identifier')
-                    if clientId is None:
-                        clientId = str(uuid4())
-                        sys.stderr.write("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for OAI client from %s\n" % httpkwargs['Client'][0])
-                        sys.stderr.flush()
                     try:
-                        yield self.any.suspend(
-                            clientIdentifier=clientId,
-                            metadataPrefix=arguments['metadataPrefix'],
-                            set=arguments.get('set_'))
+                        yield self._suspend(selectArguments, httpkwargs)
                     except ForcedResumeException, e:
                         yield successNoContentPlainText + str(e)
                         return
@@ -138,41 +129,38 @@ Error and Exception Conditions
                         yield serverErrorPlainText + str(e)
                         raise e
                 else:
-                    yield oaiError(e.statusCode, e.additionalMessage, originalArguments, **httpkwargs)
+                    yield oaiError(e.statusCode, e.additionalMessage, requestArguments, **httpkwargs)
                     return
 
         yield oaiHeader(self, responseDate)
-        yield oaiRequestArgs(originalArguments, **httpkwargs)
+        yield oaiRequestArgs(requestArguments, **httpkwargs)
         yield '<%s>' % verb
-        yield self._process(verb, result, arguments)
+        yield self._renderRecords(verb, result, selectArguments)
+        yield self._renderResumptionToken(result, selectArguments)
         yield '</%s>' % verb
 
         yield oaiFooter()
 
     def _validateAndParseArguments(self, arguments):
+        selectArguments = {}
         arguments = dict(arguments)
-        parsedArguments = {}
         checkNoRepeatedArguments(arguments)
         arguments.pop('verb')
-        if self._supportXWait:
-            checkArgument(arguments, 'x-wait', parsedArguments)
-            if parsedArguments.get('x-wait', None) not in ['True', None]:
-                raise OaiBadArgumentException("The argument 'x-wait' only supports 'True' as valid value.")
-        checkArgument(arguments, 'x-count', parsedArguments)
-        if parsedArguments.get('x-count', None) not in ['True', None]:
-            raise OaiBadArgumentException("The argument 'x-count' only supports 'True' as valid value.")
-        if checkArgument(arguments, 'resumptionToken', parsedArguments):
+        selectArguments['x-wait'] = self._supportXWait and checkBooleanArgument(arguments, 'x-wait', selectArguments)
+        checkBooleanArgument(arguments, 'x-count', selectArguments)
+        if checkArgument(arguments, 'resumptionToken', selectArguments):
             if len(arguments) > 0:
                 raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')
         else:
-            if not checkArgument(arguments, 'metadataPrefix', parsedArguments):
+            if not checkArgument(arguments, 'metadataPrefix', selectArguments):
                 raise OaiBadArgumentException('Missing argument(s) "resumptionToken" or "metadataPrefix".')
             for name in ['from', 'until', 'set']:
-                checkArgument(arguments, name, parsedArguments)
+                checkArgument(arguments, name, selectArguments)
             checkNoMoreArguments(arguments)
 
-        if parsedArguments.get('resumptionToken', None):
-            token = resumptionTokenFromString(parsedArguments['resumptionToken'])
+        resumptionTokenString = selectArguments.get('resumptionToken')
+        if resumptionTokenString:
+            token = resumptionTokenFromString(resumptionTokenString)
             if not token:
                 raise OaiException("badResumptionToken")
             continueAfter = token.continueAfter
@@ -182,11 +170,10 @@ Error and Exception Conditions
             metadataPrefix = token.metadataPrefix
         else:
             continueAfter = '0'
-            from_ = parsedArguments.get('from', None)
-            until = parsedArguments.get('until', None)
-            set_ = parsedArguments.get('set', None)
-            metadataPrefix = parsedArguments.get('metadataPrefix', None)
-
+            from_ = selectArguments.pop('from', None)
+            until = selectArguments.pop('until', None)
+            set_ = selectArguments.pop('set', None)
+            metadataPrefix = selectArguments.pop('metadataPrefix')
             try:
                 from_ = from_ and ISO8601(from_)
                 until = until and ISO8601(until)
@@ -200,14 +187,14 @@ Error and Exception Conditions
             except ISO8601Exception:
                 raise OaiBadArgumentException('From and/or until arguments are faulty.')
 
-        parsedArguments['continueAfter'] = continueAfter
-        parsedArguments['from_'] = from_
-        parsedArguments['until'] = until
-        parsedArguments['set_'] = set_
-        parsedArguments['metadataPrefix'] = metadataPrefix
-        return parsedArguments
+        selectArguments['continueAfter'] = continueAfter
+        selectArguments['from_'] = from_
+        selectArguments['until'] = until
+        selectArguments['set_'] = set_
+        selectArguments['metadataPrefix'] = metadataPrefix
+        return selectArguments
 
-    def _preProcess(self, metadataPrefix, continueAfter, from_, until, set_, **kwargs):
+    def _oaiSelect(self, metadataPrefix, continueAfter, from_, until, set_, **kwargs):
         if not metadataPrefix in set(self.call.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
         result = self.call.oaiSelect(
@@ -217,14 +204,25 @@ Error and Exception Conditions
             oaiFrom=from_,
             oaiUntil=until,
             batchSize=self._batchSize,
-            shouldCountHits='x-count' in kwargs)
+            shouldCountHits=kwargs['x-count'])
         if result.numberOfRecordsInBatch == 0:
             raise OaiException('noRecordsMatch')
         return result
 
-    def _process(self, verb, result, arguments):
+    def _suspend(self, selectArguments, httpkwargs):
+        clientId = httpkwargs['Headers'].get('X-Meresco-Oai-Client-Identifier')
+        if clientId is None:
+            clientId = str(uuid4())
+            sys.stderr.write("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for OAI client from %s\n" % httpkwargs['Client'][0])
+            sys.stderr.flush()
+        yield self.any.suspend(
+            clientIdentifier=clientId,
+            metadataPrefix=selectArguments['metadataPrefix'],
+            set=selectArguments.get('set_'))
+
+    def _renderRecords(self, verb, result, selectArguments):
         records = list(result.records)
-        metadataPrefix = arguments['metadataPrefix']
+        metadataPrefix = selectArguments['metadataPrefix']
         fetchedRecords = None
         try:
             t0 = time()
@@ -245,21 +243,21 @@ Error and Exception Conditions
             pass
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
         for record in records:
-            yield self.all.unknown(message, record=record, metadataPrefix=arguments['metadataPrefix'], fetchedRecords=fetchedRecords)
+            yield self.all.unknown(message, record=record, metadataPrefix=selectArguments['metadataPrefix'], fetchedRecords=fetchedRecords)
 
-        if result.moreRecordsAvailable or 'x-wait' in arguments:
-            if 'x-count' in arguments:
+    def _renderResumptionToken(self, result, selectArguments):
+        if result.moreRecordsAvailable or selectArguments['x-wait']:
+            if selectArguments['x-count']:
                 yield '<resumptionToken recordsRemaining="%s">' % result.recordsRemaining
             else:
                 yield '<resumptionToken>'
             yield '%s</resumptionToken>' % ResumptionToken(
-                    metadataPrefix=arguments['metadataPrefix'],
+                    metadataPrefix=selectArguments['metadataPrefix'],
                     continueAfter=result.continueAfter,
-                    from_=arguments['from_'],
-                    until=arguments['until'],
-                    set_=arguments['set_'])
-        else:
-            if 'resumptionToken' in arguments:
-                yield '<resumptionToken/>'
+                    from_=selectArguments['from_'],
+                    until=selectArguments['until'],
+                    set_=selectArguments['set_'])
+        elif 'resumptionToken' in selectArguments:
+            yield '<resumptionToken/>'
 
 MAX_RATIO = 1.1

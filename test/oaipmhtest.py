@@ -331,13 +331,13 @@ class _OaiPmhTest(SeecrTestCase):
         self.assertOaiError({'verb':['GetRecord'], 'metadataPrefix': ['oai_dc'], 'identifier': ['oai:ident', '2']}, additionalMessage='Argument "identifier" may not be repeated.', errorCode='badArgument')
 
     def testResumptionTokensNotSupportedListSets(self):
-        self.assertOaiError({'verb': ['ListSets'], 'resumptionToken': ['someResumptionToken']}, errorCode = "badResumptionToken")
+        self.assertOaiError({'verb': ['ListSets'], 'resumptionToken': ['someResumptionToken']}, errorCode="badResumptionToken")
 
     def testNonsenseArgumentsListSets(self):
         self.assertOaiError({'verb': ['ListSets'], 'nonsense': ['aDate'], 'nonsense': ['more nonsense'], 'bla': ['b']}, additionalMessage='Argument(s) "bla", "nonsense" is/are illegal.', errorCode='badArgument')
 
     def testRottenTokenListRecords(self):
-        self.assertOaiError({'verb': ['ListRecords'], 'resumptionToken': ['someResumptionToken']}, errorCode = "badResumptionToken")
+        self.assertOaiError({'verb': ['ListRecords'], 'resumptionToken': ['someResumptionToken']}, errorCode="badResumptionToken")
 
     def testIllegalArgumentsListMetadataFormats(self):
         self.assertOaiError({'verb': ['ListMetadataFormats'], 'somethingElse': ['illegal']}, errorCode='badArgument')

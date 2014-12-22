@@ -149,10 +149,10 @@ class OaiIntegrationTest(SeecrTestCase):
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'), maximumSuspendedConnections=5)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
 
-        def doOaiListRecord(port):
-            header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, parse=False)
+        # def doOaiListRecord(port):
+        #     header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, parse=False)
 
-        def doUrlOpenWith1SecTimeout(port, basket):
+        def doUrlOpenWithTimeout(port, basket):
             try:
                 response = urlopen("http://localhost:%s/?verb=ListRecords&metadataPrefix=prefix&x-wait=True" % port, timeout=0.5)
             except URLError, e:
@@ -161,7 +161,7 @@ class OaiIntegrationTest(SeecrTestCase):
 
         oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
         threads = []
-        todo = [doUrlOpenWith1SecTimeout] * 7
+        todo = [doUrlOpenWithTimeout] * 7
 
         statusCodes = []
         oaiPmhThread.start()

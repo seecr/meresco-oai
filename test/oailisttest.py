@@ -55,7 +55,7 @@ class OaiListTest(SeecrTestCase):
         self.oaiJazz = OaiJazz(self.tempdir)
         self.oaiList = OaiList(batchSize=2)
         self.observer = CallTrace('observer')
-        self.observer.methods['suspend'] = lambda clientIdentifier: (s for s in ['SUSPEND'])
+        self.observer.methods['suspend'] = lambda clientIdentifier, metadataPrefix, set=None: (s for s in ['SUSPEND'])
         self.observer.methods['oaiWatermark'] = lambda o=None: (x for x in ["Crafted By Seecr"])
         def oaiRecord(record, metadataPrefix, fetchedRecords=None):
             yield '<mock:record xmlns:mock="uri:mock">%s/%s</mock:record>' % (escapeXml(record.identifier), escapeXml(metadataPrefix))
@@ -72,8 +72,8 @@ class OaiListTest(SeecrTestCase):
         self.clientId = str(uuid4())
         self.httpkwargs = {
             'path': '/path/to/oai',
-            'Headers':{'Host':'server', 'X-Meresco-Oai-Client-Identifier': self.clientId},
-            'port':9000,
+            'Headers': {'Host':'server', 'X-Meresco-Oai-Client-Identifier': self.clientId},
+            'port': 9000,
         }
 
     def testListRecords(self):
@@ -218,7 +218,7 @@ class OaiListTest(SeecrTestCase):
         result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
         result.next()
         self.assertEquals(['getAllPrefixes', 'suspend'], [m.name for m in self.observer.calledMethods])
-        self.assertEquals({"clientIdentifier": self.clientId}, self.observer.calledMethods[-1].kwargs)
+        self.assertEquals({"clientIdentifier": self.clientId, "metadataPrefix": 'oai_dc', 'set': None}, self.observer.calledMethods[-1].kwargs)
         self._addRecords(['id:1&1'])
         self.observer.calledMethods.reset()
 

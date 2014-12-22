@@ -337,7 +337,6 @@ class OaiJazzTest(SeecrTestCase):
         result = self.jazz.oaiSelect(prefix='aPrefix', sets=['set1'], batchSize=2)
         self.assertTrue(result.moreRecordsAvailable)
 
-
     def testGetLastStampId(self):
         stampFunction = self.jazz._newStamp
         self.jazz = OaiJazz(self.tmpdir2("b"), persistentDelete=False)
@@ -747,7 +746,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['123'], recordIds(self.jazz.oaiSelect(prefix='oai_dc')))
 
     def testAddSuspendedListRecord(self):
-        suspend = self.jazz.suspend(clientIdentifier="a-client-id").next()
+        suspend = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
         self.assertTrue({'a-client-id': suspend}, self.jazz._suspended)
         self.assertEquals(Suspend, type(suspend))
 
@@ -755,10 +754,10 @@ class OaiJazzTest(SeecrTestCase):
         reactor = CallTrace("reactor")
         resumed = []
 
-        suspendGen1 = self.jazz.suspend(clientIdentifier="a-client-id")
+        suspendGen1 = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix')
         suspend1 = suspendGen1.next()
         suspend1(reactor, lambda: resumed.append(True))
-        suspend2 = self.jazz.suspend(clientIdentifier="a-client-id").next()
+        suspend2 = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
 
         try:
             suspendGen1.next()
@@ -771,11 +770,11 @@ class OaiJazzTest(SeecrTestCase):
         reactor = CallTrace("reactor")
         resumed = []
         jazz = OaiJazz(self.tmpdir2("b"), maximumSuspendedConnections=1)
-        suspendGen1 = jazz.suspend(clientIdentifier="a-client-id")
+        suspendGen1 = jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix')
         suspend1 = suspendGen1.next()
         suspend1(reactor, lambda: resumed.append(True))
         with stderr_replaced() as s:
-            suspend2 = jazz.suspend(clientIdentifier="another-client-id").next()
+            suspend2 = jazz.suspend(clientIdentifier="another-client-id", metadataPrefix='prefix').next()
 
         self.assertRaises(ForcedResumeException, lambda: suspendGen1.next())
         self.assertTrue([True], resumed)
@@ -784,26 +783,55 @@ class OaiJazzTest(SeecrTestCase):
 
     def testAddOaiRecordResumes(self):
         reactor = CallTrace("reactor")
-        suspend = self.jazz.suspend(clientIdentifier="a-client-id").next()
+        suspend = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
-
+        self.assertEquals([], resumed)
         self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
-
         self.assertEquals([True], resumed)
         self.assertEquals({}, self.jazz._suspended)
 
     def testDeleteResumes(self):
         self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
         reactor = CallTrace("reactor")
-        suspend = self.jazz.suspend(clientIdentifier="a-client-id").next()
+        suspend = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
-
+        self.assertEquals([], resumed)
         list(compose(self.jazz.delete(identifier='identifier')))
-
         self.assertEquals([True], resumed)
         self.assertEquals({}, self.jazz._suspended)
+
+    def testResumeOnlyMatchingSuspends(self):
+        reactor = CallTrace("reactor")
+        resumed = []
+
+        def suspend(clientIdentifier, metadataPrefix, set=None):
+            if not clientIdentifier in self.jazz._suspended:
+                suspendObject = self.jazz.suspend(clientIdentifier=clientIdentifier, metadataPrefix=metadataPrefix, set=set).next()
+                suspendObject(reactor, lambda: resumed.append(clientIdentifier))
+
+        def prepareSuspends():
+            resumed[:] = []
+            suspend(clientIdentifier="client 1", metadataPrefix='prefix1')
+            suspend(clientIdentifier="client 2", metadataPrefix='prefix2')
+            suspend(clientIdentifier="client 3", metadataPrefix='prefix2', set='set_a')
+
+        prepareSuspends()
+        self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix2', 'schema', 'namespace')], sets=[('set_b', 'set B')])
+        self.assertEquals(['client 2'], resumed)
+
+        prepareSuspends()
+        list(compose(self.jazz.delete(identifier='identifier')))
+        self.assertEquals(['client 2'], resumed)
+
+        prepareSuspends()
+        self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix2', 'schema', 'namespace')], sets=[('set_a', 'set A')])
+        self.assertEquals(['client 2', 'client 3'], sorted(resumed))
+
+        prepareSuspends()
+        list(compose(self.jazz.delete(identifier='identifier')))
+        self.assertEquals(['client 2', 'client 3'], sorted(resumed))
 
     def testStamp2Zulutime(self):
         self.assertEquals("2012-10-04T09:21:04Z", stamp2zulutime("1349342464630008"))

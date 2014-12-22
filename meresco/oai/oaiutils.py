@@ -119,6 +119,17 @@ def checkArgument(arguments, name, validatedArguments):
     validatedArguments[name] = value[0]
     return True
 
+def checkBooleanArgument(arguments, name, validatedArguments):
+    try:
+        value = arguments.pop(name)[0]
+    except KeyError:
+        value = 'False'
+    else:
+        if value.lower() != 'true':
+            raise OaiBadArgumentException("The argument '%s' only supports 'True' as valid value." % name)
+    b = validatedArguments[name] = (value.lower() == 'true')
+    return b
+
 def _select(neededNess, argsDef):
     result = []
     for arg, definition in argsDef.items():

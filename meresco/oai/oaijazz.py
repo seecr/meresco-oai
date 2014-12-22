@@ -301,10 +301,8 @@ class OaiJazz(object):
         return self._name
 
     def suspend(self, clientIdentifier, metadataPrefix, set=None):
-        print 'suspend', metadataPrefix, set
         suspend = Suspend()
-        suspend.metadataPrefix = metadataPrefix
-        suspend.set = set
+        suspend.oaiListResumeMask = dict(metadataPrefix=metadataPrefix, set=set)
         if clientIdentifier in self._suspended:
             self._suspended.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
         if len(self._suspended) == self._maximumSuspendedConnections:
@@ -392,15 +390,16 @@ class OaiJazz(object):
     def _resume(self, metadataPrefixes, sets):
         count = 0
         for clientId, suspend in self._suspended.items()[:]:
-            if suspend.metadataPrefix in metadataPrefixes:
-                if suspend.set and not suspend.set in sets:
+            if suspend.oaiListResumeMask['metadataPrefix'] in metadataPrefixes:
+                setMask = suspend.oaiListResumeMask['set']
+                if setMask and not setMask in sets:
                     continue
                 del self._suspended[clientId]
-                print "resuming suspend for metadataPrefix=" + suspend.metadataPrefix + (" and set=" + suspend.set if suspend.set else '')
+                # print "resuming suspend for metadataPrefix=" + suspend.metadataPrefix + (" and set=" + suspend.set if suspend.set else '')
                 suspend.resume()
                 count += 1
-        if count > 0:
-            print 'resumed %s suspended generators' % count
+        # if count > 0:
+            # print 'resumed %s suspended generators' % count
         from sys import stdout; stdout.flush()
 
     def _purge(self, identifier):
