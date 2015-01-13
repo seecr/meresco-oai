@@ -10,9 +10,10 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -35,28 +36,16 @@
 import sys
 from sys import maxint
 from os.path import isdir, join, isfile
-from os import makedirs, listdir, getenv
+from os import makedirs, listdir
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from random import choice
-from warnings import warn
 
 from meresco.core import asyncreturn
 from weightless.io import Suspend
 
 from json import load, dump
-
-def importVM():
-    maxheap = getenv('PYLUCENE_MAXHEAP')
-    if not maxheap:
-        maxheap = '4g'
-        warn("Using '4g' as maxheap for lucene.initVM(). To override use PYLUCENE_MAXHEAP environment variable.")
-    from lucene import initVM, getVMEnv
-    try:
-        VM = initVM(maxheap=maxheap)#, vmargs='-agentlib:hprof=heap=sites')
-    except ValueError:
-        VM = getVMEnv()
-    return VM
+from meresco.pylucene import getJVM
 
 imported = False
 Long = File = Document = StringField = Field = LongField = IntField = IndexSearcher = TermQuery = \
@@ -71,7 +60,7 @@ def lazyImport():
         return
     imported = True
 
-    importVM()
+    VM = getJVM()
 
     from java.lang import Long
     from java.io import File
