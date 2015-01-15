@@ -10,9 +10,10 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
-# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -89,7 +90,7 @@ class OaiPmh(object):
 
     def handleRequest(self, Method, arguments, Body=None, **kwargs):
         if Method == 'POST':
-            arguments.update(parse_qs(Body))
+            arguments.update(parse_qs(Body, keep_blank_values=True))
         verb = arguments.get('verb', [None])[0]
         message = verb[0].lower() + verb[1:] if verb else ''
         yield self._internalObserverTree.all.unknown(message, arguments=arguments, **kwargs)
