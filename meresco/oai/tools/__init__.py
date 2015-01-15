@@ -1,13 +1,10 @@
-#!/bin/bash
 ## begin license ##
 #
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
-# Copyright (C) 2012-2015 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2015 Seecr (Seek You Too B.V.) http://seecr.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -27,21 +24,17 @@
 #
 ## end license ##
 
-export LANG=en_US.UTF-8
-export PYTHONPATH=.:"$PYTHONPATH"
-export WEIGHTLESS_COMPOSE_TEST="PYTHON"
-if [ -f /etc/debian_version ]; then
-    pyversions="python2.7"
-else
-    pyversions="python2.6"
-fi
-option=$1
-if [ "${option:0:10}" == "--python2." ]; then
-    shift
-    pyversions="${option:2}"
-fi
-echo Found Python versions: $pyversions
-for pycmd in $pyversions; do
-    echo "================ $pycmd _alltests.py $@ ================"
-    $pycmd _alltests.py "$@"
-done
+from iterateoaipmh import iterateOaiPmh, OaiListRequest, OaiBatch, OaiItem
+from urlparse import parse_qs
+
+def parseOaiPmhListArguments(url):
+    baseurl, metadataPrefix, set = url, None, None
+    parts = baseurl.rsplit('?', 1)
+    if len(parts) == 2:
+        baseurl, query = parts
+        if query:
+            arguments = parse_qs(query)
+            metadataPrefix = arguments.get('metadataPrefix', [None])[0]
+            set = arguments.get('set', [None])[0]
+    return baseurl, metadataPrefix, set
+
