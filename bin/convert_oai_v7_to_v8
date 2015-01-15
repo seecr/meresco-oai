@@ -6,7 +6,8 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -26,7 +27,7 @@
 #
 ## end license ##
 
-from seecr.test.utils import includeParentAndDeps #DO_NOT_DISTRIBUTE
+from seecr.deps import includeParentAndDeps       #DO_NOT_DISTRIBUTE
 includeParentAndDeps(__file__)                    #DO_NOT_DISTRIBUTE
 
 from meresco.oai import OaiJazz
