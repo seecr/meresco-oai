@@ -4,7 +4,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
@@ -26,7 +26,7 @@
 ## end license ##
 
 from meresco.core import Observable, Transparent
-from seecr.html import DynamicHtml
+from meresco.html import DynamicHtml
 from os.path import abspath, dirname, join
 from meresco.oai import VERSION
 from meresco.components.http import StringServer, PathFilter, PathRename, FileServer
