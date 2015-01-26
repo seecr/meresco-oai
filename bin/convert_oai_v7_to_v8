@@ -27,8 +27,8 @@
 #
 ## end license ##
 
-from seecr.deps import includeParentAndDeps       #DO_NOT_DISTRIBUTE
-includeParentAndDeps(__file__)                    #DO_NOT_DISTRIBUTE
+from seecrdeps import includeParentAndDeps       #DO_NOT_DISTRIBUTE
+includeParentAndDeps(__file__)                   #DO_NOT_DISTRIBUTE
 
 from meresco.oai import OaiJazz
 from meresco.oai.oaijazz import IDENTIFIER_FIELD, PREFIX_FIELD, SETS_FIELD, STAMP_FIELD, NUMERIC_STAMP_FIELD, TOMBSTONE_FIELD, TOMBSTONE_VALUE
