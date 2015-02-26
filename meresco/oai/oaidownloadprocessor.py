@@ -55,6 +55,7 @@ class OaiDownloadProcessor(Observable):
         self._resumptionToken = None
         self._errorState = None
         self._set = set
+        self._from = None
         self._xWait = xWait
         self._path = path
         self._err = err or stderr
@@ -81,6 +82,8 @@ class OaiDownloadProcessor(Observable):
         if self._resumptionToken:
             arguments.append(('resumptionToken', self._resumptionToken))
         else:
+            if self._from:
+                return None
             arguments.append(('metadataPrefix', self._metadataPrefix))
             if self._set:
                 arguments.append(('set', self._set))
@@ -118,6 +121,7 @@ class OaiDownloadProcessor(Observable):
                     raise
                 self._errorState = None
                 yield # some room for others
+            self._from = xpathFirst(lxmlNode, '/oai:OAI-PMH/oai:responseDate/text()')
             self._resumptionToken = xpathFirst(verbNode, "oai:resumptionToken/text()")
         finally:
             self._maybeCommit()
@@ -132,6 +136,7 @@ class OaiDownloadProcessor(Observable):
     def commit(self):
         with open(self._stateFilePath, 'w') as f:
             dump({
+                'from': self._from,
                 'resumptionToken': self._resumptionToken,
                 'errorState': self._errorState,
             },f)
@@ -152,6 +157,7 @@ class OaiDownloadProcessor(Observable):
                 self._maybeCommit()
                 return
             d = loads(state)
+            self._from = d.get('from')
             self._resumptionToken = d['resumptionToken']
             self._errorState = d['errorState']
 

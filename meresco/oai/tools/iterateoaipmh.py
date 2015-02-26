@@ -24,9 +24,11 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 ## end license ##
+
 from lxml.etree import parse, tostring
 from urllib import urlencode, urlopen
 from meresco.xml import xpathFirst, xpath
+
 
 def iterateOaiPmh(baseurl, metadataPrefix, verb=None, **kwargs):
     oaiListRequest = OaiListRequest(

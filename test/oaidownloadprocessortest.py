@@ -250,6 +250,29 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.handleShutdown()
         self.assertEquals({"errorState": None, "resumptionToken": state.resumptionToken}, load(open(join(self.tempdir, 'harvester.state'))))
 
+    def testResponseDateAsFrom(self):
+        observer = CallTrace()
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO())
+        oaiDownloadProcessor.addObserver(observer)
+        list(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))
+        self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
+
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO())
+        self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
+
+    def testBuildRequestNoneWhenNoResumptionToken(self):
+        observer = CallTrace()
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO())
+        oaiDownloadProcessor.addObserver(observer)
+        list(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))
+        self.assertEquals(None, oaiDownloadProcessor._resumptionToken)
+        self.assertEquals(None, oaiDownloadProcessor.buildRequest())
+
+    def testIncrementalHarvestWithFromAfterSomePeriod(self):
+        self.fail('hier verder')
+
+
+
 ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>'
 
 LISTRECORDS_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
