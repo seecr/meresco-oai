@@ -138,13 +138,6 @@ class OaiDownloadProcessor(Observable):
         finally:
             self._maybeCommit()
 
-    def _add(self, identifier, lxmlNode, datestamp):
-        yield self.all.add(identifier=identifier, lxmlNode=lxmlNode, datestamp=datestamp)
-
-    def _maybeCommit(self):
-        if self._autoCommit:
-            self.commit()
-
     def commit(self):
         tmpFilePath = self._stateFilePath + '.tmp'
         with open(tmpFilePath, 'w') as f:
@@ -155,10 +148,20 @@ class OaiDownloadProcessor(Observable):
             },f)
         rename(tmpFilePath, self._stateFilePath)
 
+    def getState(self):
+        return HarvestStateView(self)
+
     def handleShutdown(self):
         print 'handle shutdown: saving OaiDownloadProcessor %s' % self._stateFilePath
         from sys import stdout; stdout.flush()
         self.commit()
+
+    def _add(self, identifier, lxmlNode, datestamp):
+        yield self.all.add(identifier=identifier, lxmlNode=lxmlNode, datestamp=datestamp)
+
+    def _maybeCommit(self):
+        if self._autoCommit:
+            self.commit()
 
     def _readState(self):
         self._resumptionToken = ''
@@ -188,9 +191,6 @@ class OaiDownloadProcessor(Observable):
 
     def _time(self):
         return time()
-
-    def getState(self):
-        return HarvestStateView(self)
 
 
 class HarvestStateView(object):
