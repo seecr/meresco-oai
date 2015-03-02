@@ -27,42 +27,47 @@
 #
 ## end license ##
 
-from lxml.etree import ElementTree
-from traceback import format_exc
-from os import makedirs
+from sys import stderr
+from os import makedirs, rename
 from os.path import join, isfile, isdir
+from traceback import format_exc
+from time import time
 from urllib import urlencode
+from uuid import uuid4
+from simplejson import dump, loads
+
+from lxml.etree import ElementTree
 
 from meresco.core import Observable
 from meresco.xml import xpath, xpathFirst
-try:
-    from meresco.components import lxmltostring
-except ImportError:
-    from lxml.etree import tostring
-    lxmltostring = lambda x: tostring(x, encoding="UTF-8")
-
-from simplejson import dump, loads
-from uuid import uuid4
-from sys import stderr
+from meresco.components import lxmltostring, Schedule
 
 
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiDownloadProcessor(Observable):
-    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, autoCommit=True, name=None):
+    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, autoCommit=True, incrementalHarvestSchedule=None, restartAfterFinish=False, name=None):
         Observable.__init__(self, name=name)
-        self._metadataPrefix = metadataPrefix
-        self._resumptionToken = None
-        self._errorState = None
-        self._set = set
-        self._from = None
-        self._xWait = xWait
         self._path = path
+        self._metadataPrefix = metadataPrefix
+        isdir(workingDirectory) or makedirs(workingDirectory)
+        self._stateFilePath = join(workingDirectory, "harvester.state")
+        self._set = set
+        self._xWait = xWait
         self._err = err or stderr
         self._verb = verb or 'ListRecords'
         self._autoCommit = autoCommit
-        isdir(workingDirectory) or makedirs(workingDirectory)
-        self._stateFilePath = join(workingDirectory, "harvester.state")
+        self._incrementalHarvestSchedule = incrementalHarvestSchedule
+        if restartAfterFinish and incrementalHarvestSchedule:
+            raise ValueError("In case restartAfterFinish==True, incrementalHarvestSchedule must not be set")
+        self._restartAfterFinish = restartAfterFinish
+        if not restartAfterFinish and incrementalHarvestSchedule is None:
+            self._incrementalHarvestSchedule = Schedule(timeOfDay='00:00')
+
+        self._resumptionToken = None
+        self._from = None
+        self._errorState = None
+        self._incrementalHarvestTime = None
         self._readState()
         self._identifierFilePath = join(workingDirectory, "harvester.identifier")
         if isfile(self._identifierFilePath):
@@ -83,7 +88,9 @@ class OaiDownloadProcessor(Observable):
             arguments.append(('resumptionToken', self._resumptionToken))
         else:
             if self._from:
-                return None
+                if not self._timeForIncrementalHarvest():
+                    return None
+                arguments.append(('from', self._from))
             arguments.append(('metadataPrefix', self._metadataPrefix))
             if self._set:
                 arguments.append(('set', self._set))
@@ -123,6 +130,11 @@ class OaiDownloadProcessor(Observable):
                 yield # some room for others
             self._from = xpathFirst(lxmlNode, '/oai:OAI-PMH/oai:responseDate/text()')
             self._resumptionToken = xpathFirst(verbNode, "oai:resumptionToken/text()")
+            if self._resumptionToken is None:
+                if self._restartAfterFinish:
+                    self._from = None
+                elif self._incrementalHarvestSchedule:
+                    self._incrementalHarvestTime = self._time() + self._incrementalHarvestSchedule.secondsFromNow()
         finally:
             self._maybeCommit()
 
@@ -134,12 +146,14 @@ class OaiDownloadProcessor(Observable):
             self.commit()
 
     def commit(self):
-        with open(self._stateFilePath, 'w') as f:
+        tmpFilePath = self._stateFilePath + '.tmp'
+        with open(tmpFilePath, 'w') as f:
             dump({
                 'from': self._from,
                 'resumptionToken': self._resumptionToken,
                 'errorState': self._errorState,
             },f)
+        rename(tmpFilePath, self._stateFilePath)
 
     def handleShutdown(self):
         print 'handle shutdown: saving OaiDownloadProcessor %s' % self._stateFilePath
@@ -167,8 +181,17 @@ class OaiDownloadProcessor(Observable):
             self._err.write('\n')
         self._err.flush()
 
+    def _timeForIncrementalHarvest(self):
+        if not self._incrementalHarvestTime:
+            return False
+        return self._time() >= self._incrementalHarvestTime
+
+    def _time(self):
+        return time()
+
     def getState(self):
         return HarvestStateView(self)
+
 
 class HarvestStateView(object):
     def __init__(self, oaiDownloadProcessor):
