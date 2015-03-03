@@ -82,6 +82,9 @@ class OaiDownloadProcessor(Observable):
     def setMetadataPrefix(self, metadataPrefix):
         self._metadataPrefix = metadataPrefix
 
+    def setSet(self, set):
+        self._set = set
+
     def buildRequest(self, additionalHeaders=None):
         arguments = [('verb', self._verb)]
         if self._resumptionToken:
