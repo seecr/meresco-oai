@@ -151,12 +151,12 @@ class OaiDownloadProcessorTest(SeecrTestCase):
 
     def testReadResumptionTokenWhenNoState(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
-        self.assertEquals('', oaiDownloadProcessor._resumptionToken)
+        self.assertEquals(None, oaiDownloadProcessor._resumptionToken)
 
     def testReadInvalidState(self):
         open(join(self.tempdir, 'harvester.state'), 'w').write("invalid")
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
-        self.assertEquals('', oaiDownloadProcessor._resumptionToken)
+        self.assertEquals(None, oaiDownloadProcessor._resumptionToken)
 
     def testKeepResumptionTokenOnFailingAddCall(self):
         resumptionToken = "u|c1286437597991025|mprefix|s|f"
@@ -200,14 +200,20 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         observer = CallTrace(emptyGeneratorMethods=['add'])
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         oaiDownloadProcessor.addObserver(observer)
+        state = oaiDownloadProcessor.getState()
+        self.assertEquals(None, state.resumptionToken)
+        self.assertEquals(None, state.from_)
+        self.assertEquals(None, state.errorState)
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))
         state = oaiDownloadProcessor.getState()
         self.assertEquals("x?y&z", state.resumptionToken)
+        self.assertEquals('2002-06-01T19:20:30Z', state.from_)
         self.assertEquals(None, state.errorState)
 
         oaiDownloadProcessor2 = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         state2 = oaiDownloadProcessor2.getState()
         self.assertEquals("x?y&z", state2.resumptionToken)
+        self.assertEquals('2002-06-01T19:20:30Z', state.from_)
         self.assertEquals(None, state2.errorState)
 
     def testHarvesterStateWithError(self):
@@ -220,6 +226,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))))
         state = oaiDownloadProcessor.getState()
         self.assertEquals(resumptionToken, state.resumptionToken)
+        self.assertEquals(None, state.from_)
         self.assertEquals("ERROR while processing 'oai:identifier:1': Could be anything", state.errorState)
         self.assertEquals("Name", state.name)
 

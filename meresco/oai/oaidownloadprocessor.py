@@ -148,7 +148,7 @@ class OaiDownloadProcessor(Observable):
                 'from': self._from,
                 'resumptionToken': self._resumptionToken,
                 'errorState': self._errorState,
-            },f)
+            }, f)
         rename(tmpFilePath, self._stateFilePath)
 
     def getState(self):
@@ -167,7 +167,7 @@ class OaiDownloadProcessor(Observable):
             self.commit()
 
     def _readState(self):
-        self._resumptionToken = ''
+        self._resumptionToken = None
         self._errorState = None
         if isfile(self._stateFilePath):
             state = open(self._stateFilePath).read()
@@ -209,6 +209,11 @@ class HarvestStateView(object):
     @property
     def resumptionToken(self):
         return self._processor._resumptionToken
+
+    @property
+    def from_(self):
+        return self._processor._from
+
 
 RESUMPTIONTOKEN_STATE = "Resumptiontoken: "
 
