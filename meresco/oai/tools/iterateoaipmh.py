@@ -30,12 +30,8 @@ from urllib import urlencode, urlopen
 from meresco.xml import xpathFirst, xpath
 
 
-def iterateOaiPmh(baseurl, metadataPrefix, verb=None, **kwargs):
-    oaiListRequest = OaiListRequest(
-            baseurl=baseurl,
-            verb=verb,
-            metadataPrefix=metadataPrefix,
-            **kwargs)
+def iterateOaiPmh(*args, **kwargs):
+    oaiListRequest = OaiListRequest(*args, **kwargs)
     while oaiListRequest:
         oaiBatch = oaiListRequest.retrieveBatch()
         for item in oaiBatch.items:
@@ -120,6 +116,7 @@ class OaiItem(object):
         self.identifier = xpathFirst(header, 'oai:identifier/text()')
         self.datestamp = xpathFirst(header, 'oai:datestamp/text()')
         self.deleted = (xpathFirst(header, '@status') == 'deleted')
+        self.setSpecs = xpath(header, 'oai:setSpec/text()')
         self.metadata = None
         if not record is None:
             self.metadata = xpathFirst(record, 'oai:metadata/*')
