@@ -44,7 +44,7 @@ class OaiListRequest(object):
         if metadataPrefix is None and resumptionToken is None:
             raise ValueError('One of metadataPrefix or resumptionToken is required.')
         if verb not in VERB_XPATHS.keys():
-            raise ValueError('Expected verb to be one of: '+repr(list(VERB_XPATHS.keys())))
+            raise ValueError('Expected verb to be one of: ' + repr(list(VERB_XPATHS.keys())))
         self.baseurl = baseurl
         self.metadataPrefix = metadataPrefix
         self.set = set
@@ -65,14 +65,14 @@ class OaiListRequest(object):
                 parameters['from'] = self.from_
             if self.until:
                 parameters['until'] = self.until
-        return self.baseurl + '?' + urlencode([('verb', self.verb)]+sorted(parameters.items()))
-
-    def newWithResumptionToken(self, resumptionToken):
-        return OaiListRequest(baseurl=self.baseurl, verb=self.verb, resumptionToken=resumptionToken)
+        return self.baseurl + '?' + urlencode([('verb', self.verb)] + sorted(parameters.items()))
 
     def retrieveBatch(self):
         url = self.buildUrl()
         return OaiBatch(self, parse(self._urlopen(url)))
+
+    def _nextRequest(self, resumptionToken):
+        return OaiListRequest(baseurl=self.baseurl, verb=self.verb, resumptionToken=resumptionToken)
 
     def _urlopen(self, url):
         return urlopen(url)
@@ -88,7 +88,12 @@ class OaiBatch(object):
         self.items = []
         verbNode = xpathFirst(self.response, "/oai:OAI-PMH/oai:%s" % self.request.verb)
         if verbNode is None:
-            raise ValueError('Not a OAI-PMH %s response from %s. Got:\n%s' % (self.request.verb, self.request.buildUrl(), tostring(response, pretty_print=True)))
+            errorNode = xpathFirst(self.response, "/oai:OAI-PMH/oai:error")
+            if errorNode is None:
+                raise ValueError('Not a OAI-PMH %s response from %s. Got:\n%s' % (self.request.verb, self.request.buildUrl(), tostring(response, pretty_print=True)))
+            errorCode = xpathFirst(errorNode, '@code')
+            msg = xpathFirst(errorNode, 'text()')
+            raise ValueError('Got OAI-PMH response with error (%s): %s' % (errorCode, msg))
         itemXPath, headerXPath = VERB_XPATHS[self.request.verb]
         for item in xpath(verbNode, itemXPath):
             record = item if self.request.verb == 'ListRecords' else None
@@ -99,13 +104,17 @@ class OaiBatch(object):
         return xpathFirst(self.response, "//oai:resumptionToken/text()")
 
     @property
+    def responseDate(self):
+        return xpathFirst(self.response, '/oai:OAI-PMH/oai:responseDate/text()')
+
+    @property
     def completeListSize(self):
         return xpathFirst(self.response, '//oai:resumptionToken/@completeListSize')
 
     def nextRequest(self):
         resumptionToken = self.resumptionToken
         if resumptionToken:
-            return self.request.newWithResumptionToken(self.resumptionToken)
+            return self.request._nextRequest(resumptionToken=resumptionToken)
 
 
 class OaiItem(object):
