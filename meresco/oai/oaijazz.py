@@ -110,17 +110,16 @@ class OaiJazz(object):
     def oaiSelect(self,
             sets=None,
             prefix='oai_dc',
-            continueAfter='0',
+            continueAfter=None,
             oaiFrom=None,
             oaiUntil=None,
             setsMask=None,
             batchSize=DEFAULT_BATCH_SIZE,
             shouldCountHits=False):
         searcher = self._getSearcher()
-        query = self._luceneQuery(prefix, sets, continueAfter, oaiFrom, oaiUntil, setsMask)
+        query = self._luceneQuery(prefix=prefix, sets=sets, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, setsMask=setsMask)
         collector = OaiSortingCollector(batchSize, shouldCountHits)
         searcher.search(query, None, collector)
-
         return self._OaiSelectResult(docs=collector.docs(searcher),
                 collector=collector,
                 parent=self,
@@ -129,7 +128,7 @@ class OaiJazz(object):
     def _luceneQuery(self, prefix, sets=None, continueAfter=None, oaiFrom=None, oaiUntil=None, setsMask=None):
         query = BooleanQuery()
         if oaiFrom or continueAfter or oaiUntil:
-            start = max(int(continueAfter)+1, self._fromTime(oaiFrom))
+            start = max(int(continueAfter or '0') + 1, self._fromTime(oaiFrom))
             stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
             fromRange = NumericRangeQuery.newLongRange(STAMP_FIELD, start, stop, True, True)
             query.add(fromRange, BooleanClause.Occur.MUST)
@@ -240,7 +239,7 @@ class OaiJazz(object):
     def getNrOfRecords(self, prefix='oai_dc', setSpec=None, continueAfter=None, oaiFrom=None, oaiUntil=None):
         searcher = self._getSearcher()
         totalCollector = TotalHitCountCollector()
-        query = self._luceneQuery(prefix, sets=[setSpec] if setSpec else None, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil)
+        query = self._luceneQuery(prefix=prefix, sets=[setSpec] if setSpec else None, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil)
         searcher.search(query, totalCollector)
 
         query.add(TermQuery(Term(TOMBSTONE_FIELD, TOMBSTONE_VALUE)), BooleanClause.Occur.MUST)
@@ -384,12 +383,8 @@ class OaiJazz(object):
                 if setMask and not setMask in sets:
                     continue
                 del self._suspended[clientId]
-                # print "resuming suspend for metadataPrefix=" + suspend.metadataPrefix + (" and set=" + suspend.set if suspend.set else '')
                 suspend.resume()
                 count += 1
-        # if count > 0:
-            # print 'resumed %s suspended generators' % count
-        from sys import stdout; stdout.flush()
 
     def _purge(self, identifier):
         self._writer.deleteDocuments(Term(IDENTIFIER_FIELD, identifier))

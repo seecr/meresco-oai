@@ -32,26 +32,28 @@
 #
 ## end license ##
 
-from seecr.test import SeecrTestCase, CallTrace
-from seecr.test.io import stderr_replaced, stdout_replaced
-
 from os import remove, makedirs, listdir
 from os.path import join, isdir
 from time import time, sleep
 from calendar import timegm
+from StringIO import StringIO
+
+from lxml.etree import parse
+
+from seecr.test import SeecrTestCase, CallTrace
+from seecr.test.io import stderr_replaced, stdout_replaced
+
+
+from weightless.core import be, compose
+from weightless.io import Suspend
+from meresco.core import Observable, Transparent
+
+from org.apache.lucene.document import Document, LongField, Field, NumericDocValuesField, StringField
+from org.apache.lucene.index import Term
 
 from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
 from meresco.oai.oaijazz import _flattenSetHierarchy, SETSPEC_SEPARATOR, ForcedResumeException, lazyImport
 lazyImport()
-from StringIO import StringIO
-from lxml.etree import parse
-from meresco.core import Observable, Transparent
-from weightless.core import be, compose
-from weightless.io import Suspend
-from org.apache.lucene.document import Document, LongField, Field, NumericDocValuesField, StringField
-from org.apache.lucene.index import Term
-
-parseLxml = lambda s: parse(StringIO(s)).getroot()
 
 
 class OaiJazzTest(SeecrTestCase):
@@ -322,6 +324,8 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals({'total': 2, 'deletes': 0}, self.jazz.getNrOfRecords('aPrefix'))
         list(compose(self.jazz.delete('id1')))
         self.assertEquals({'total': 2, 'deletes': 1}, self.jazz.getNrOfRecords('aPrefix'))
+        self.assertEquals({'deletes': 1, 'total': 2}, self.jazz.getNrOfRecords(prefix='aPrefix', continueAfter='0', oaiFrom='2008-07-06T00:00:00Z'))
+        self.assertEquals({'deletes': 1, 'total': 2}, self.jazz.getNrOfRecords(prefix='aPrefix', oaiFrom='2008-07-06T00:00:00Z'))
 
     def testMoreRecordsAvailable(self):
         def reopen():
@@ -932,6 +936,8 @@ class OaiJazzTest(SeecrTestCase):
             self.assertTrue("no segments" in str(e), str(e))
 
 
-
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]
+
+def parseLxml(s):
+    return parse(StringIO(s)).getroot()

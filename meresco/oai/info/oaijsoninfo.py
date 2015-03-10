@@ -25,13 +25,16 @@
 #
 ## end license ##
 
-from meresco.core import Observable
-from simplejson import dumps
 from traceback import print_exc
+
+from simplejson import dumps
+
+from meresco.core import Observable
+
 from meresco.oai import ResumptionToken
 
-class OaiJsonInfo(Observable):
 
+class OaiJsonInfo(Observable):
     def handleRequest(self, path, arguments, **kwargs):
         method = path.rpartition('/')[-1]
         method = 'info' if method in ['json', ''] else method
