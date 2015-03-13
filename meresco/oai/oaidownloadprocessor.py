@@ -85,6 +85,11 @@ class OaiDownloadProcessor(Observable):
     def setSet(self, set):
         self._set = set
 
+    def setFrom(self, from_):
+        self._from = from_
+        if not self._from is None:
+            self._incrementalHarvestTime = self._time()
+
     def buildRequest(self, additionalHeaders=None):
         arguments = [('verb', self._verb)]
         if self._resumptionToken:
