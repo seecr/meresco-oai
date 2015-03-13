@@ -106,6 +106,10 @@ class OaiDownloadProcessor(Observable):
         return request % (self._path, urlencode(arguments), headers)
 
     def handle(self, lxmlNode):
+        __callstack_var_oaiListRequest__ = {
+            'metadataPrefix': self._metadataPrefix,
+            'set': self._set,
+        }
         errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
         if len(errors) > 0:
             for error in errors:

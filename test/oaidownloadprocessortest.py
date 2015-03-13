@@ -37,10 +37,10 @@ from datetime import datetime
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stdout_replaced
-from weightless.core import compose, consume
+from weightless.core import compose, consume, be, local
 from weightless.io import Suspend
 
-from meresco.core import asyncreturn
+from meresco.core import asyncreturn, Observable
 from meresco.oai import OaiDownloadProcessor
 
 
@@ -85,6 +85,33 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertEqualsWS(ONE_RECORD, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
         self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
         self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
+
+    def testOaiListRequestOnCallstack(self):
+        listRequests = []
+        def addMethod(**kwargs):
+            listRequests.append(local('__callstack_var_oaiListRequest__'))
+            return
+            yield
+        observer = CallTrace(methods={'add': addMethod})
+        top = be((Observable(),
+            (OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True),
+                (observer,)
+            )
+        ))
+        consume(top.all.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
+        self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+        self.assertEquals([{'set': None, 'metadataPrefix': 'oai_dc'}], listRequests)
+
+        listRequests = []
+        observer.calledMethods.reset()
+        top = be((Observable(),
+            (OaiDownloadProcessor(path="/oai", metadataPrefix="other", set='aSet', workingDirectory=self.tempdir, xWait=True),
+                (observer,)
+            )
+        ))
+        consume(top.all.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
+        self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+        self.assertEquals([{'set': 'aSet', 'metadataPrefix': 'other'}], listRequests)
 
     def testListIdentifiersHandle(self):
         observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
