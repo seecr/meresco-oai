@@ -376,7 +376,6 @@ class OaiJazz(object):
         return newStamp
 
     def _resume(self, metadataPrefixes, sets):
-        count = 0
         for clientId, suspend in self._suspended.items()[:]:
             if suspend.oaiListResumeMask['metadataPrefix'] in metadataPrefixes:
                 setMask = suspend.oaiListResumeMask['set']
@@ -384,7 +383,6 @@ class OaiJazz(object):
                     continue
                 del self._suspended[clientId]
                 suspend.resume()
-                count += 1
 
     def _purge(self, identifier):
         self._writer.deleteDocuments(Term(IDENTIFIER_FIELD, identifier))
