@@ -43,7 +43,7 @@ class OaiJsonInfo(Observable):
         yield '\r\n'
         try:
             yield dumps(getattr(self, method)(**arguments))
-        except:
+        except Exception:
             print_exc()
             yield dumps({})
 
