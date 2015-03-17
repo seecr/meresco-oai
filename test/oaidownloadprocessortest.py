@@ -40,7 +40,7 @@ from seecr.test.io import stdout_replaced
 from weightless.core import compose, consume, be, local
 from weightless.io import Suspend
 
-from meresco.core import asyncreturn, Observable
+from meresco.core import Observable
 from meresco.oai import OaiDownloadProcessor
 
 
@@ -202,9 +202,9 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
 
     def testHandleYieldsAtLeastOnceAfterEachRecord(self):
-        @asyncreturn
         def add(**kwargs):
-            pass
+            return
+            yield
         observer = CallTrace(methods={'add': add})
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         oaiDownloadProcessor.addObserver(observer)

@@ -41,7 +41,6 @@ from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from random import choice
 
-from meresco.core import asyncreturn
 from weightless.io import Suspend
 
 from json import load, dump
@@ -200,7 +199,6 @@ class OaiJazz(object):
         self._latestModifications.add(str(identifier))
         self._resume(metadataPrefixes=metadataPrefixes, sets=allSets)
 
-    @asyncreturn
     def delete(self, identifier):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
@@ -217,6 +215,8 @@ class OaiJazz(object):
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume(metadataPrefixes=set(doc.getValues(PREFIX_FIELD)), sets=set(doc.getValues(SETS_FIELD)))
+        return
+        yield
 
     def purge(self, identifier):
         if self._persistentDelete:

@@ -29,12 +29,13 @@
 # 
 ## end license ##
 
-from meresco.core import Observable, asyncreturn
+from meresco.core import Observable
+
 
 class Fields2OaiRecord(Observable):
-    @asyncreturn
     def beginTransaction(self):
-        return Fields2OaiRecord.Fields2OaiRecordTx(self)
+        raise StopIteration(Fields2OaiRecord.Fields2OaiRecordTx(self))
+        yield
 
     class Fields2OaiRecordTx(object):
         def __init__(self, resource):
@@ -48,13 +49,14 @@ class Fields2OaiRecord(Observable):
             elif name == 'metadataFormat':
                 self._metadataFormats.add(value)
 
-        @asyncreturn
         def commit(self):
             if self._metadataFormats:
                 identifier = self._resource.ctx.tx.locals['id']
                 self._resource.do.addOaiRecord(identifier=identifier, sets=self._sets, metadataFormats=self._metadataFormats)
+            return
+            yield
 
-        @asyncreturn
         def rollback(self):
-            pass
+            return
+            yield
 
