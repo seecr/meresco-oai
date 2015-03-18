@@ -182,22 +182,29 @@ class OaiJazz(object):
                     doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
                     metadataPrefixes.add(prefix)
         allSets = set(doc.getValues(SETS_FIELD))
-        if sets:
-            for setSpec, setName in sets:
-                setName = setName or ''
-                msg = 'SetSpec "%s" contains illegal characters' % setSpec
-                assert SETSPEC_SEPARATOR not in setSpec, msg
-                subsets = setSpec.split(":")
-                while subsets:
-                    fullSetSpec = ':'.join(subsets)
-                    self._sets[fullSetSpec] = setName  # FIXME: Bug, parent sets have **different names**, don't clobber!
-                    if not fullSetSpec in allSets:
-                        doc.add(StringField(SETS_FIELD, fullSetSpec, Field.Store.YES))
-                        allSets.add(fullSetSpec)
-                    subsets.pop()
+        self._processSets(doc=doc, sets=sets, allSets=allSets)
+
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume(metadataPrefixes=metadataPrefixes, sets=allSets)
+
+    def _processSets(self, doc, sets, allSets):
+        if not sets:
+            return
+
+        for setSpec, setName in sets:
+            setName = setName or ''
+            msg = 'SetSpec "%s" contains illegal characters' % setSpec
+            assert SETSPEC_SEPARATOR not in setSpec, msg
+            self._sets[setSpec] = setName
+
+            for innerSetSpec in _setSpecAndSubsets(setSpec):
+                if innerSetSpec != setSpec:
+                    self._sets.setdefault(innerSetSpec, '')
+
+                if not innerSetSpec in allSets:
+                    doc.add(StringField(SETS_FIELD, innerSetSpec, Field.Store.YES))
+                    allSets.add(innerSetSpec)
 
     def delete(self, identifier):
         if not identifier:
@@ -459,14 +466,11 @@ class Record(object):
     def getDatestamp(self):
         return _stamp2zulutime(stamp=self.stamp, preciseDatestamp=self._preciseDatestamp)
 
-def _flattenSetHierarchy(sets):
-    """"[1:2:3, 1:2:4] => [1, 1:2, 1:2:3, 1:2:4]"""
-    result = set()
-    for setSpec in sets:
-        parts = setSpec.split(':')
-        for i in range(1, len(parts) + 1):
-            result.add(':'.join(parts[:i]))
-    return result
+
+def _setSpecAndSubsets(setSpec):
+    subsets = setSpec.split(SETSPEC_HIERARCHY_SEPARATOR)
+    for i in range(len(subsets), 0, -1):
+        yield SETSPEC_HIERARCHY_SEPARATOR.join(subsets[0:i])
 
 def stamp2zulutime(stamp):
     if stamp is None:
@@ -484,6 +488,7 @@ class ForcedResumeException(Exception):
     pass
 
 SETSPEC_SEPARATOR = ","
+SETSPEC_HIERARCHY_SEPARATOR = ":"
 DATESTAMP_FACTOR = 1000000
 
 PREFIX_FIELD = "prefix"

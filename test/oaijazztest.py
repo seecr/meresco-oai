@@ -52,7 +52,7 @@ from org.apache.lucene.document import Document, LongField, Field, NumericDocVal
 from org.apache.lucene.index import Term
 
 from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
-from meresco.oai.oaijazz import _flattenSetHierarchy, SETSPEC_SEPARATOR, ForcedResumeException, lazyImport
+from meresco.oai.oaijazz import SETSPEC_SEPARATOR, ForcedResumeException, lazyImport, _setSpecAndSubsets
 lazyImport()
 
 
@@ -287,9 +287,10 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz = OaiJazz(self.tmpdir2("a"))
         self.assertEqual(newestStamp + 1, self.jazz._newestStamp)
 
-    def testFlattenSetHierarchy(self):
-        self.assertEquals(['set1', 'set1:set2', 'set1:set2:set3'], sorted(_flattenSetHierarchy(['set1:set2:set3'])))
-        self.assertEquals(['set1', 'set1:set2', 'set1:set2:set3', 'set1:set2:set4'], sorted(_flattenSetHierarchy(['set1:set2:set3', 'set1:set2:set4'])))
+    def testSetSpecAndSubsets(self):
+        self.assertEquals(['aap'], list(_setSpecAndSubsets('aap')))
+        self.assertEquals(['aap:noot', 'aap'], list(_setSpecAndSubsets('aap:noot')))
+        self.assertEquals(['a:b:c', 'a:b', 'a'], list(_setSpecAndSubsets('a:b:c')))
 
     def testGetUnique(self):
         newStamp = self.stampNumber
@@ -572,6 +573,38 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['record123', 'record124'], recordIds(self.jazz.oaiSelect(prefix='oai_dc', sets=['set1'])))
         self.assertEquals(['record123', 'record124'], recordIds(self.jazz.oaiSelect(prefix='oai_dc', sets=['set1:set2'])))
         self.assertEquals(['record123'], recordIds(self.jazz.oaiSelect(prefix='oai_dc', sets=['set1:set2:set3'])))
+        expectedSets = set([
+            'set1',
+            'set1:set2',
+            'set1:set2:set3',
+            'set1:set2:set4',
+        ])
+        self.assertEquals(expectedSets, self.jazz.getAllSets())
+        self.assertEquals(expectedSets, self.jazz.getAllSets(includeSetNames=False))
+        self.assertEquals(set([
+                ('set1', ''),
+                ('set1:set2', ''),
+                ('set1:set2:set3', 'setName123'),
+                ('set1:set2:set4', 'setName124'),
+            ]),
+            self.jazz.getAllSets(includeSetNames=True)
+        )
+
+    def testHierarchicalSetsWithCorrectNames(self):
+        self.jazz.addOaiRecord('r1', metadataFormats=[('oai_dc', 'schema', 'namespace')],
+                                sets=[('set1:set2:set3', 'setName_1_2_3')])
+        self.jazz.addOaiRecord('r2', metadataFormats=[('rdf', '', '')],
+                                sets=[('set1:set2:set4', 'setName1_2_4')])
+        self.jazz.addOaiRecord('r3', metadataFormats=[('rdf', '', '')],
+                                sets=[('set1', 'setName1')])
+        self.assertEquals(set([
+                ('set1', 'setName1'),
+                ('set1:set2', ''),
+                ('set1:set2:set3', 'setName_1_2_3'),
+                ('set1:set2:set4', 'setName1_2_4'),
+            ]),
+            self.jazz.getAllSets(includeSetNames=True)
+        )
 
     def testAddOaiRecordPrefixOnly(self):
         self.jazz.addOaiRecord(identifier='oai://1234?34', sets=[], metadataFormats=[('prefix', 'schema', 'namespace')])
