@@ -241,6 +241,9 @@ class OaiJazz(object):
     def getAllPrefixes(self):
         return set(self._prefixes.keys())
 
+    def updateSet(self, setSpec, setName):
+        self._sets[setSpec] = setName
+
     def getAllSets(self, includeSetNames=False):
         if includeSetNames:
             return set(self._sets.items())

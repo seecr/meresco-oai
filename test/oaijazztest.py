@@ -606,6 +606,21 @@ class OaiJazzTest(SeecrTestCase):
             self.jazz.getAllSets(includeSetNames=True)
         )
 
+    def testUpdateSet(self):
+        self.jazz.addOaiRecord('id:1', metadataFormats=[('oai_dc', 'schema', 'namespace')], sets=[('aSet', '')])
+        self.assertEquals(sorted([('aSet', '')]), sorted(self.jazz.getAllSets(includeSetNames=True)))
+
+        self.jazz.updateSet(setSpec='aSet', setName='a set name')
+        self.assertEquals(sorted([('aSet', 'a set name')]), sorted(self.jazz.getAllSets(includeSetNames=True)))
+
+        self.jazz.updateSet(setSpec='newSet', setName='new set name')
+        self.assertEquals(sorted([
+                ('aSet', 'a set name'),
+                ('newSet', 'new set name'),
+            ]),
+            sorted(self.jazz.getAllSets(includeSetNames=True)),
+        )
+
     def testAddOaiRecordPrefixOnly(self):
         self.jazz.addOaiRecord(identifier='oai://1234?34', sets=[], metadataFormats=[('prefix', 'schema', 'namespace')])
 
