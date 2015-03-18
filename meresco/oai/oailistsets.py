@@ -62,7 +62,7 @@ Error and Exception Conditions
             if 'resumptionToken' in validatedArguments:
                 raise OaiException('badResumptionToken')
 
-            sets = self.call.getAllSets()
+            sets = self.call.getAllSets(includeSetNames=True)
             if len(sets) == 0:
                 raise OaiException('noSetHierarchy')
         except OaiException, e:
@@ -72,10 +72,10 @@ Error and Exception Conditions
         yield oaiHeader(self, responseDate)
         yield oaiRequestArgs(arguments, **httpkwargs)
         yield '<%s>' % verb
-        for setSpec in sets:
+        for setSpec, setName in sets:
             yield '<set>'
             yield '<setSpec>%s</setSpec>' % setSpec
-            yield '<setName>set %s</setName>' % setSpec
+            yield '<setName>%s</setName>' % setName
             yield '</set>'
         yield '</%s>' % verb
         yield oaiFooter()

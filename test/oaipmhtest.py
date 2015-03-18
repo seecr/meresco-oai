@@ -32,22 +32,35 @@
 from seecr.test import SeecrTestCase, CallTrace
 from oaischema import assertValidOai
 
-from meresco.oai import OaiPmh, OaiJazz, OaiBranding
-from meresco.sequentialstore import MultiSequentialStorage
-from meresco.core import Observable
-from meresco.components.http.utils import CRLF
-from os.path import join
-from urllib import urlencode
-from lxml.etree import parse
-from meresco.components import lxmltostring
 from StringIO import StringIO
-from weightless.core import be, compose
+from lxml.etree import parse
+from os.path import join
 from socket import gethostname
 from time import sleep
+from urllib import urlencode
 
+from meresco.core import Observable
+from meresco.components import lxmltostring
+from meresco.components.http.utils import CRLF
+from meresco.sequentialstore import MultiSequentialStorage
+from meresco.xml import namespaces
+
+from meresco.oai import OaiPmh, OaiJazz, OaiBranding
+from weightless.core import be, compose
+
+
+namespaces = namespaces.copyUpdate({
+    'toolkit': 'http://oai.dlib.vt.edu/OAI/metadata/toolkit',
+    'branding': 'http://www.openarchives.org/OAI/2.0/branding/',
+    'identifier': 'http://www.openarchives.org/OAI/2.0/oai-identifier',
+})
+xpath = namespaces.xpath
+xpathFirst = namespaces.xpathFirst
 
 BATCHSIZE = 10
 HOSTNAME = gethostname()
+
+
 class _OaiPmhTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
@@ -67,7 +80,7 @@ class _OaiPmhTest(SeecrTestCase):
                 metadataFormats.append(('prefix2', 'http://example.org/prefix2/?format=xsd&prefix=2','http://example.org/prefix2/'))
             sets = []
             if i >= 5:
-                sets.append(('setSpec%s' % ((i//5)*5), 'setName'))
+                sets.append(('setSpec%s' % ((i//5)*5), ('' if ((i//5)*5) == 10 else 'setName')))  # empty string becomes 'set <setSpec>'.
             if 5 <= i < 10:
                 sets.append(('hierarchical:set', 'hierarchical set'))
             if 10 <= i < 15:
@@ -205,8 +218,18 @@ class _OaiPmhTest(SeecrTestCase):
         header, body = self._request(verb=['ListSets'])
 
         self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
-        sets = xpath(body, '/oai:OAI-PMH/oai:ListSets/oai:set/oai:setSpec/text()')
-        self.assertEquals(set(['setSpec5', 'setSpec10', 'setSpec15', 'hierarchical', 'hierarchical:set']), set(sets), lxmltostring(body, pretty_print=True))
+        setsNodes = xpath(body, '/oai:OAI-PMH/oai:ListSets/oai:set')
+        sets = [(xpathFirst(n, 'oai:setSpec/text()'), xpathFirst(n, 'oai:setName/text()')) for n in setsNodes]
+        self.assertEquals(set([
+                ('setSpec5', 'setName'),
+                ('setSpec10', None),
+                ('setSpec15', 'setName'),
+                ('hierarchical', 'hierarchical toplevel only'),
+                ('hierarchical:set', 'hierarchical set'),
+            ]),
+            set(sets),
+            lxmltostring(body, pretty_print=True)
+        )
 
     def testListSetsWithoutSets(self):
         self.root = be((Observable(),
@@ -399,19 +422,7 @@ class OaiPmhWithIdentifierTest(_OaiPmhTest):
         self.assertRaises(ValueError, lambda: oaipmh('a34.0834'))
 
 
-
 class HttpPostOaiPmhTest(OaiPmhTest):
     def setUp(self):
         OaiPmhTest.setUp(self)
         self.httpMethod = 'POST'
-
-
-def xpath(node, path):
-    return node.xpath(path, namespaces={'oai': 'http://www.openarchives.org/OAI/2.0/',
-        'oai_dc': 'http://www.openarchives.org/OAI/2.0/oai_dc/',
-        'dc': 'http://purl.org/dc/elements/1.1/',
-        'toolkit': 'http://oai.dlib.vt.edu/OAI/metadata/toolkit',
-        'branding': 'http://www.openarchives.org/OAI/2.0/branding/',
-        'identifier': 'http://www.openarchives.org/OAI/2.0/oai-identifier',
-        })
-

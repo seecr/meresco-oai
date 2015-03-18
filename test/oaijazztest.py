@@ -375,6 +375,12 @@ class OaiJazzTest(SeecrTestCase):
         sets = self.jazz.getAllSets(includeSetNames=True)
         self.assertEquals([("spec1", "name1")], list(sets))
 
+        self.jazz.addOaiRecord("id:2", metadataFormats=[('p', 'x', 'b')],
+            sets=[("spec2", "")])
+        sets = self.jazz.getAllSets(includeSetNames=True)
+        self.assertEquals(2, len(list(sets)))
+        self.assertEquals(set([("spec1", "name1"), ('spec2', '')]), set(list(sets)))
+
     def testRefuseInitWithNoVersionFile(self):
         self.oaiJazz = None
         remove(join(self.tmpdir2("a"), 'oai.version'))

@@ -184,13 +184,13 @@ class OaiJazz(object):
         allSets = set(doc.getValues(SETS_FIELD))
         if sets:
             for setSpec, setName in sets:
+                setName = setName or ''
                 msg = 'SetSpec "%s" contains illegal characters' % setSpec
                 assert SETSPEC_SEPARATOR not in setSpec, msg
                 subsets = setSpec.split(":")
                 while subsets:
                     fullSetSpec = ':'.join(subsets)
-                    if setName:
-                        self._sets[fullSetSpec] = setName
+                    self._sets[fullSetSpec] = setName  # FIXME: Bug, parent sets have **different names**, don't clobber!
                     if not fullSetSpec in allSets:
                         doc.add(StringField(SETS_FIELD, fullSetSpec, Field.Store.YES))
                         allSets.add(fullSetSpec)
