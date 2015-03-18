@@ -231,6 +231,9 @@ class OaiJazz(object):
         self._latestModifications.add(str(identifier))
         return self._purge(identifier)
 
+    def updateMetadataFormat(self, prefix, schema, namespace):
+        self._prefixes[prefix] = (schema, namespace)
+
     def getAllMetadataFormats(self):
         for prefix, (schema, namespace) in self._prefixes.iteritems():
             yield (prefix, schema, namespace)

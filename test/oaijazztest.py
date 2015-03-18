@@ -763,6 +763,21 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(set(['prefix1']), set(self.jazz.getRecord('id:1').prefixes))
         self.assertEquals(set(['prefix1', 'prefix2']) , set(self.jazz.getRecord('id:2').prefixes))
 
+    def testUpdateMetadataFormat(self):
+        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', '', '')])
+        self.assertEquals(sorted([('prefix', '', '')]), sorted(self.jazz.getAllMetadataFormats()))
+
+        self.jazz.updateMetadataFormat(prefix='prefix', schema='schema.xsd', namespace='space:name')
+        self.assertEquals(sorted([('prefix', 'schema.xsd', 'space:name')]), sorted(self.jazz.getAllMetadataFormats()))
+
+        self.jazz.updateMetadataFormat(prefix='newfix', schema='s.xsd', namespace='s:n')
+        self.assertEquals(sorted([
+                ('prefix', 'schema.xsd', 'space:name'),
+                ('newfix', 's.xsd', 's:n'),
+            ]),
+            sorted(self.jazz.getAllMetadataFormats()),
+        )
+
     def testPreserveRicherPrefixInfo(self):
         list(compose(self.oaiAddRecord.add(identifier='457', partname='oai_dc', lxmlNode=parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
              xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
