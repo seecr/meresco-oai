@@ -717,6 +717,12 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix2', 'schema2', 'namespace2')])
         self.assertEquals(set([('prefix', 'schema', 'namespace'), ('prefix2', 'schema2', 'namespace2')]), set(self.jazz.getAllMetadataFormats()))
 
+    def testGetAllMetadataFormatsNewSchemaNsForPrefixOverwrites(self):
+        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
+        self.assertEquals([('prefix', 'schema', 'namespace')], list(self.jazz.getAllMetadataFormats()))
+        self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix', 'NewSchema', 'NewNamespace')])
+        self.assertEquals(set([('prefix', 'NewSchema', 'NewNamespace')]), set(self.jazz.getAllMetadataFormats()))
+
     def testGetAndAllPrefixes(self):
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix1', 'schema', 'namespace')])
         self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix1', 'schema', 'namespace'), ('prefix2', 'schema', 'namespace')])
