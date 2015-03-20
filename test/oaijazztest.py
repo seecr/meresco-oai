@@ -812,6 +812,28 @@ class OaiJazzTest(SeecrTestCase):
             sorted(self.jazz.getAllMetadataFormats()),
         )
 
+    def testAddOaiRecordWithSetSpecsAndMetadataPrefixesIdenticalToDeprecatedArguments(self):
+        def prefixesAndSets(record):
+            return {'prefixes': set(record.prefixes), 'sets': set(record.sets)}
+
+        self.jazz.addOaiRecord('id:1', metadataPrefixes=['p1'], setSpecs=['s1'])
+        self.jazz.addOaiRecord('id:2', metadataPrefixes=['p1', 'p2'], setSpecs=['s1', 's2'])
+        self.jazz.addOaiRecord('id:3', metadataPrefixes=['p2'], setSpecs=['s2'])
+
+        self.assertEquals(sorted([('p1', '', ''), ('p2', '', '')]), sorted(self.jazz.getAllMetadataFormats()))
+        self.assertEquals(sorted(['s1', 's2']), sorted(self.jazz.getAllSets()))
+        self.assertEquals(sorted([('s1', ''), ('s2', '')]), sorted(self.jazz.getAllSets(includeSetNames=True)))
+        self.assertEquals({'prefixes': set(['p1']), 'sets': set(['s1'])}, prefixesAndSets(self.jazz.getRecord('id:1')))
+        self.assertEquals({'prefixes': set(['p1', 'p2']), 'sets': set(['s1', 's2'])}, prefixesAndSets(self.jazz.getRecord('id:2')))
+        self.assertEquals({'prefixes': set(['p2']), 'sets': set(['s2'])}, prefixesAndSets(self.jazz.getRecord('id:3')))
+
+        self.jazz.updateMetadataFormat(prefix='p1', schema='schema.xsd', namespace='space:name')
+        self.jazz.updateSet(setSpec='s1', setName='set now named')
+
+        self.assertEquals(sorted([('p1', 'schema.xsd', 'space:name'), ('p2', '', '')]), sorted(self.jazz.getAllMetadataFormats()))
+        self.assertEquals(sorted(['s1', 's2']), sorted(self.jazz.getAllSets()))
+        self.assertEquals(sorted([('s1', 'set now named'), ('s2', '')]), sorted(self.jazz.getAllSets(includeSetNames=True)))
+
     def testAddOaiRecordWithMixedSetsAndSetSpecsNotAllowed(self):
         try:
             self.jazz.addOaiRecord('id:1', metadataFormats=[('whatever', '', '')], sets=[('setSpec1', 'setName1')], setSpecs=['setSpec2'])

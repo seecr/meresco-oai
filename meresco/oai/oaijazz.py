@@ -37,6 +37,7 @@ import sys
 from sys import maxint
 from os.path import isdir, join, isfile
 from os import makedirs, listdir
+from itertools import chain
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from random import choice
@@ -183,19 +184,19 @@ class OaiJazz(object):
         newStamp = self._newStamp()
         doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
         doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
-        metadataPrefixes = set(doc.getValues(PREFIX_FIELD))
-        if metadataFormats:
-            for prefix, schema, namespace in metadataFormats:
-                self._prefixes[prefix] = (schema, namespace)
-                if not prefix in metadataPrefixes:
-                    doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
-                    metadataPrefixes.add(prefix)
+        metadataPrefixesUnion = set(doc.getValues(PREFIX_FIELD))
+        #@@
+        for prefix, schema, namespace in chain((metadataFormats or []), [(p, '', '') for p in (metadataPrefixes or [])]):
+            self._prefixes[prefix] = (schema, namespace)
+            if not prefix in metadataPrefixesUnion:
+                doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
+                metadataPrefixesUnion.add(prefix)
         allSets = set(doc.getValues(SETS_FIELD))
         self._processSets(doc=doc, sets=sets, allSets=allSets)
 
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
-        self._resume(metadataPrefixes=metadataPrefixes, sets=allSets)
+        self._resume(metadataPrefixes=metadataPrefixesUnion, sets=allSets)
 
     def _processSets(self, doc, sets, allSets):
         if not sets:
@@ -216,6 +217,7 @@ class OaiJazz(object):
                     allSets.add(innerSetSpec)
 
     def delete(self, identifier):
+        "Delete's granularity is per unique identifier; not per identifier & partname combination (as optionally allowed be the spec)."
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         oldDoc = self._getDocument(identifier)
@@ -233,6 +235,10 @@ class OaiJazz(object):
         self._resume(metadataPrefixes=set(doc.getValues(PREFIX_FIELD)), sets=set(doc.getValues(SETS_FIELD)))
         return
         yield
+
+    def deleteOaiRecord(self, identifier, setSpecs=None, metadataPrefixes=None):
+        "deleteOaiRecord's granularity is per unique identifier; not per identifier & partname combination (as optionally allowed be the spec)."
+        pass
 
     def purge(self, identifier):
         if self._persistentDelete:
