@@ -40,6 +40,7 @@ from os import makedirs, listdir
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from random import choice
+from warnings import warn
 
 from weightless.io import Suspend
 
@@ -165,11 +166,19 @@ class OaiJazz(object):
                 if record.identifier not in inner.parent._latestModifications:
                     yield record
 
-    def addOaiRecord(self, identifier, sets=None, metadataFormats=None):
+    def addOaiRecord(self, identifier, setSpecs=None, metadataPrefixes=None, sets=None, metadataFormats=None):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        msg = 'No metadataFormat specified for record with identifier "%s"' % identifier
-        assert [prefix for prefix, schema, namespace in metadataFormats], msg
+        if sets:
+            if setSpecs:
+                raise ValueError("Either use setSpecs or sets, not both.")
+            warn("Use setSpecs with the updateSet method to add set metadata.", DeprecationWarning)  # Since 2015-03-20 / version 5.12
+        if metadataFormats:
+            if metadataPrefixes:
+                raise ValueError("Either use metadataPrefixes or metadataFormats, not both.")
+            warn("Use metadataPrefixes with the updateMetadataFormat method to add prefix metadata.", DeprecationWarning)  # Since 2015-03-20 / version 5.12
+        msg = 'No metadataFormat or metadataPrefix specified for record with identifier "%s"' % identifier
+        assert metadataFormats or metadataPrefixes, msg
         doc = self._getNewDocument(identifier, oldDoc=self._getDocument(identifier))
         newStamp = self._newStamp()
         doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))

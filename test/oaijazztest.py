@@ -32,9 +32,12 @@
 #
 ## end license ##
 
+import sys
+import warnings
 from os import remove, makedirs, listdir
 from os.path import join, isdir
 from time import time, sleep
+from traceback import print_exc
 from calendar import timegm
 from StringIO import StringIO
 
@@ -42,7 +45,6 @@ from lxml.etree import parse
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced, stdout_replaced
-
 
 from weightless.core import be, compose
 from weightless.io import Suspend
@@ -52,8 +54,25 @@ from org.apache.lucene.document import Document, LongField, Field, NumericDocVal
 from org.apache.lucene.index import Term
 
 from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
+import meresco.oai.oaijazz as jazzModule
 from meresco.oai.oaijazz import SETSPEC_SEPARATOR, ForcedResumeException, lazyImport, _setSpecAndSubsets
 lazyImport()
+
+# Suppress DeprecationWarning for OaiJazz.addOaiRecord(); since this will be triggered by other Meresco Oai modules for the time being...
+def _suppressByTriggeringWarnings():
+    from tempfile import mkdtemp
+    from shutil import rmtree
+    tmpdir = mkdtemp()
+    try:
+        jazz = OaiJazz(tmpdir)
+        with warnings.catch_warnings(record=True) as warns:
+            jazz.addOaiRecord('id:1', metadataFormats=[('prefix', '', '')])
+            jazz.addOaiRecord('id:1', metadataPrefixes=['f'], sets=[('s', 'set s')])
+            assert warns, 'Expected a warning to be triggered!'
+    finally:
+        jazz.close()
+        rmtree(tmpdir)
+_suppressByTriggeringWarnings()
 
 
 class OaiJazzTest(SeecrTestCase):
@@ -793,6 +812,33 @@ class OaiJazzTest(SeecrTestCase):
             sorted(self.jazz.getAllMetadataFormats()),
         )
 
+    def testAddOaiRecordWithMixedSetsAndSetSpecsNotAllowed(self):
+        try:
+            self.jazz.addOaiRecord('id:1', metadataFormats=[('whatever', '', '')], sets=[('setSpec1', 'setName1')], setSpecs=['setSpec2'])
+            self.fail()
+        except ValueError, e:
+            self.assertEquals('Either use setSpecs or sets, not both.', str(e))
+
+    def testAddOaiRecordWithMixedMetadataFormatsAndMetadataPrefixesNotAllowed(self):
+        try:
+            self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix1', 'schema1', 'ns1')], metadataPrefixes=['prefix2'])
+            self.fail()
+        except ValueError, e:
+            self.assertEquals('Either use metadataPrefixes or metadataFormats, not both.', str(e))
+
+    def testWarnWhenUsingSetsOrMetadataFormatsArgsInOaiAddRecord(self):
+        with ensureModulesWarningsWithoutSideEffects(modules=[jazzModule], simplefilter="default"):
+            with stderr_replaced() as s:
+                self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', '', '')])
+                result = s.getvalue()
+                self.assertTrue('DeprecationWarning: Use metadataPrefixes with the updateMetadataFormat method to add prefix metadata.' in result, result)
+
+        with ensureModulesWarningsWithoutSideEffects(modules=[jazzModule], simplefilter="default", record=True) as warns:
+            self.jazz.addOaiRecord('id:1', metadataPrefixes=['f'], sets=[('s', 'set s')])
+            self.assertEquals(1, len(warns))
+            self.assertEquals(DeprecationWarning, warns[0].category)
+            self.assertEquals('Use setSpecs with the updateSet method to add set metadata.', str(warns[0].message))
+
     def testPreserveRicherPrefixInfo(self):
         list(compose(self.oaiAddRecord.add(identifier='457', partname='oai_dc', lxmlNode=parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
              xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>'))))
@@ -1016,3 +1062,40 @@ def recordIds(oaiSelectResult):
 
 def parseLxml(s):
     return parse(StringIO(s)).getroot()
+
+class ensureModulesWarningsWithoutSideEffects(object):
+    def __init__(self, modules, simplefilter=None, **catchWarningsKwargs):
+        self._modules = modules
+        self._registries = {}
+        self._simplefilter = simplefilter
+        self._catch_warnings = warnings.catch_warnings(**catchWarningsKwargs)
+
+    def __enter__(self):
+        for module in self._modules:
+            registry = getattr(module, '__warningregistry__', None)
+            self._registries[module] = registry
+            if registry is not None:
+                delattr(module, '__warningregistry__')
+
+        result = self._catch_warnings.__enter__()
+
+        if self._simplefilter:
+            try:
+                warnings.resetwarnings()
+                warnings.simplefilter(self._simplefilter)
+            except Exception:
+                sys.stderr.write('Suppressed exception:\n')
+                print_exc()
+
+        return result
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._catch_warnings.__exit__(exc_type, exc_value, traceback)
+
+        for module, registry in self._registries.items():
+            if registry is None:
+                if hasattr(module, '__warningregistry__'):
+                    delattr(module, '__warningregistry__')
+            else:
+                module.__warningregistry__ = registry
+        return False
