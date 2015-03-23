@@ -94,7 +94,7 @@ class OaiJazz(object):
         if not isdir(aDirectory):
             makedirs(aDirectory)
         self._versionFormatCheck()
-        self._deletePrefixes = alwaysDeleteInPrefixes or []
+        self._deletePrefixes = set(alwaysDeleteInPrefixes or [])
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
         self._maximumSuspendedConnections = maximumSuspendedConnections
@@ -167,98 +167,43 @@ class OaiJazz(object):
                 if record.identifier not in inner.parent._latestModifications:
                     yield record
 
-    def addOaiRecord(self, identifier, setSpecs=None, metadataPrefixes=None, sets=None, metadataFormats=None):
+    def addOaiRecord(self, identifier, metadataPrefixes=None, setSpecs=None, metadataFormats=None, sets=None):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        if sets:
-            if setSpecs:
-                raise ValueError("Either use setSpecs or sets, not both.")
-            warn("Use setSpecs with the updateSet method to add set metadata.", DeprecationWarning)  # Since 2015-03-20 / version 5.12
+        if not metadataFormats and not metadataPrefixes:
+            raise ValueError('No metadataFormat or metadataPrefix specified for record with identifier "%s"' % identifier)
         if metadataFormats:
             if metadataPrefixes:
                 raise ValueError("Either use metadataPrefixes or metadataFormats, not both.")
             warn("Use metadataPrefixes with the updateMetadataFormat method to add prefix metadata.", DeprecationWarning)  # Since 2015-03-20 / version 5.12
-        msg = 'No metadataFormat or metadataPrefix specified for record with identifier "%s"' % identifier
-        assert metadataFormats or metadataPrefixes, msg
-
-        doc = self._getNewDocument(identifier, oldDoc=self._getDocument(identifier))
-        newStamp = self._newStamp()
-        doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
-        doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
-
-        metadataPrefixesUnion = set(doc.getValues(PREFIX_FIELD))
-        if metadataPrefixes:
-            for prefix in metadataPrefixes:
-                self._prefixes.setdefault(prefix, ('', ''))
-                if not prefix in metadataPrefixesUnion:
-                    doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
-                    metadataPrefixesUnion.add(prefix)
-        if metadataFormats:
+            metadataPrefixes = [p for (p, _, _) in metadataFormats]
             for prefix, schema, namespace in metadataFormats:
                 self._prefixes[prefix] = (schema, namespace)
-                if not prefix in metadataPrefixesUnion:
-                    doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
-                    metadataPrefixesUnion.add(prefix)
-
-        allSets = set(doc.getValues(SETS_FIELD))
-        self._processSets(doc=doc, setSpecs=setSpecs, sets=sets, allSets=allSets)
-
-        self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
-        self._latestModifications.add(str(identifier))
-        self._resume(metadataPrefixes=metadataPrefixesUnion, sets=allSets)
-
-    def _processSets(self, doc, setSpecs, sets, allSets):
-        if not (sets or setSpecs):
-            return
-
-        oldSets = bool(sets)
-
-        def _body(setSpec, setName=None):
-            setName = setName or ''
-            msg = 'SetSpec "%s" contains illegal characters' % setSpec
-            assert SETSPEC_SEPARATOR not in setSpec, msg
-            if oldSets:
-                self._sets[setSpec] = setName
-
-            for innerSetSpec in _setSpecAndSubsets(setSpec):
-                if (not oldSets) or innerSetSpec != setSpec:
-                    self._sets.setdefault(innerSetSpec, '')
-
-                if not innerSetSpec in allSets:
-                    doc.add(StringField(SETS_FIELD, innerSetSpec, Field.Store.YES))
-                    allSets.add(innerSetSpec)
-
-        if setSpecs:
-            for setSpec in setSpecs:
-                _body(setSpec)
-
         if sets:
+            if setSpecs:
+                raise ValueError("Either use setSpecs or sets, not both.")
+            warn("Use setSpecs with the updateSet method to add set metadata.", DeprecationWarning)  # Since 2015-03-20 / version 5.12
+            setSpecs = [s for (s, _) in sets]
             for setSpec, setName in sets:
-                _body(setSpec, setName)
+                self._sets[setSpec] = setName
+        self._updateOaiRecord(identifier=identifier, metadataPrefixes=metadataPrefixes, setSpecs=setSpecs)
 
     def delete(self, identifier):
-        "Delete's granularity is per unique identifier; not per identifier & partname combination (as optionally allowed be the spec)."
-        if not identifier:
-            raise ValueError("Empty identifier not allowed.")
-        oldDoc = self._getDocument(identifier)
-        if oldDoc is None and not self._deletePrefixes:
-            return
-        doc = self._getNewDocument(identifier, oldDoc=oldDoc)
-        for prefix in self._deletePrefixes:
-            doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
-        doc.add(StringField(TOMBSTONE_FIELD, TOMBSTONE_VALUE, Field.Store.YES))
-        newStamp = self._newStamp()
-        doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
-        doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
-        self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
-        self._latestModifications.add(str(identifier))
-        self._resume(metadataPrefixes=set(doc.getValues(PREFIX_FIELD)), sets=set(doc.getValues(SETS_FIELD)))
+        self.deleteOaiRecord(identifier=identifier)
         return
         yield
 
     def deleteOaiRecord(self, identifier, setSpecs=None, metadataPrefixes=None):
-        "deleteOaiRecord's granularity is per unique identifier; not per identifier & partname combination (as optionally allowed be the spec)."
-        pass
+        "deleteOaiRecord's granularity is per unique identifier; not per identifier & metadataPrefix combination (as optionally allowed by the spec)."
+        if not identifier:
+            raise ValueError("Empty identifier not allowed.")
+        metadataPrefixes = self._deletePrefixes.union(metadataPrefixes or [])
+        oldDoc = self._getDocument(identifier)
+        if oldDoc is None and not metadataPrefixes:
+            if setSpecs:
+                raise ValueError('setSpec not allowed for unknown record if no metadataPrefixes are provided')
+            return
+        self._updateOaiRecord(identifier=identifier, setSpecs=setSpecs, metadataPrefixes=metadataPrefixes, delete=True, oldDoc=oldDoc)
 
     def purge(self, identifier):
         if self._persistentDelete:
@@ -405,6 +350,25 @@ class OaiJazz(object):
             return None
         return results.scoreDocs[0].doc
 
+    def _updateOaiRecord(self, identifier, setSpecs, metadataPrefixes, delete=False, oldDoc=None):
+        oldDoc = oldDoc or self._getDocument(identifier)
+        doc = self._getNewDocument(identifier, oldDoc=oldDoc)
+        if delete:
+            doc.add(StringField(TOMBSTONE_FIELD, TOMBSTONE_VALUE, Field.Store.YES))
+        newStamp = self._newStamp()
+        doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
+        doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
+
+        allMetadataPrefixes = set(doc.getValues(PREFIX_FIELD))
+        self._setMetadataPrefixes(doc=doc, metadataPrefixes=metadataPrefixes, allMetadataPrefixes=allMetadataPrefixes)
+
+        allSets = set(doc.getValues(SETS_FIELD))
+        self._setSets(doc=doc, setSpecs=setSpecs or [], allSets=allSets)
+
+        self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
+        self._latestModifications.add(str(identifier))
+        self._resume(metadataPrefixes=allMetadataPrefixes, sets=allSets)
+
     def _getNewDocument(self, identifier, oldDoc):
         doc = Document()
         doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
@@ -422,6 +386,23 @@ class OaiJazz(object):
             newStamp = self._newestStamp + 1
         self._newestStamp = newStamp
         return newStamp
+
+    def _setMetadataPrefixes(self, doc, metadataPrefixes, allMetadataPrefixes):
+        for prefix in metadataPrefixes:
+            if prefix not in allMetadataPrefixes:
+                doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
+                self._prefixes.setdefault(prefix, ('', ''))
+                allMetadataPrefixes.add(prefix)
+
+    def _setSets(self, doc, setSpecs, allSets):
+        for setSpec in setSpecs:
+            if SETSPEC_SEPARATOR in setSpec:
+                raise ValueError('SetSpec "%s" contains illegal characters' % setSpec)
+            for innerSetSpec in _setSpecAndSubsets(setSpec):
+                self._sets.setdefault(innerSetSpec, '')
+                if not innerSetSpec in allSets:
+                    doc.add(StringField(SETS_FIELD, innerSetSpec, Field.Store.YES))
+                    allSets.add(innerSetSpec)
 
     def _resume(self, metadataPrefixes, sets):
         for clientId, suspend in self._suspended.items()[:]:

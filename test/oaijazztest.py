@@ -128,6 +128,12 @@ class OaiJazzTest(SeecrTestCase):
         self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord("", metadataFormats=[('prefix', 'schema', 'namespace')]))
         self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord(None, metadataFormats=[('prefix', 'schema', 'namespace')]))
 
+    def testAddOaiRecordWithoutMetadataPrefixesOrFormats(self):
+        self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord("id1"))
+        self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord("id1", metadataPrefixes=None))
+        self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord("id1", metadataPrefixes=[]))
+        self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord("id1", metadataFormats=[]))
+
     def testIdentifierWithSpace(self):
         identifier = "a b"
         self.jazz.addOaiRecord(identifier=identifier, sets=[], metadataFormats=[('prefix', 'schema', 'namespace')])
@@ -197,8 +203,58 @@ class OaiJazzTest(SeecrTestCase):
     def testDeleteNonExistingRecords(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         list(compose(self.jazz.delete('notExisting')))
-        jazz2 = OaiJazz(self.tmpdir2("b"))
+        self.assertEquals(None, self.jazz.getRecord('notExisting'))
+        self.jazz.close()
+        jazz2 = OaiJazz(self.tmpdir2("a"))
         self.assertEquals(None, jazz2.getRecord('notExisting'))
+
+    def testDeleteOaiRecordWithEmptyIdentifierRaises(self):
+        try:
+            self.jazz.deleteOaiRecord(identifier='')
+            self.fail()
+        except ValueError, e:
+            self.assertEquals('Empty identifier not allowed.', str(e))
+
+    def testDeleteOaiRecordNonExistingRecords(self):
+        self.jazz.deleteOaiRecord(identifier='notExisting')
+        self.assertEquals(None, self.jazz.getRecord('notExisting'))
+        self.jazz.close()
+        jazz2 = OaiJazz(self.tmpdir2("a"))
+        self.assertEquals(None, jazz2.getRecord('notExisting'))
+
+    def testDeleteOaiRecordNonExistingRecordWithPrefix(self):
+        self.jazz.deleteOaiRecord(identifier='notExisting', metadataPrefixes=['p'])
+        record = self.jazz.getRecord('notExisting')
+        self.assertEquals('notExisting', record.identifier)
+        self.assertEquals(set(['p']), record.prefixes)
+        self.assertEquals(True, record.isDeleted)
+        self.jazz.close()
+        jazz2 = OaiJazz(self.tmpdir2("a"))
+        record = jazz2.getRecord('notExisting')
+        self.assertEquals('notExisting', record.identifier)
+        self.assertEquals(set(['p']), record.prefixes)
+        self.assertEquals(True, record.isDeleted)
+        self.assertEquals([('p', '', '')], list(self.jazz.getAllMetadataFormats()))
+
+    def testDeleteOaiRecordNonExistingRecordWithPrefixAndAlwaysDeleteInPrefixes(self):
+        jazz2 = OaiJazz(self.tmpdir2("b"), alwaysDeleteInPrefixes=['z'])
+        jazz2.deleteOaiRecord(identifier='notExisting', metadataPrefixes=['p'])
+        record = jazz2.getRecord('notExisting')
+        self.assertEquals('notExisting', record.identifier)
+        self.assertEquals(set(['p', 'z']), record.prefixes)
+        self.assertEquals(True, record.isDeleted)
+        self.assertEquals(set([('p', '', ''), ('z', '', '')]), set(jazz2.getAllMetadataFormats()))
+
+    def testDeleteOaiRecordNonExistingRecordWithSets(self):
+        self.jazz.deleteOaiRecord(identifier='notExisting', metadataPrefixes=['p'], setSpecs=['s1', 's2'])
+        record = self.jazz.getRecord('notExisting')
+        self.assertEquals('notExisting', record.identifier)
+        self.assertEquals(set(['s1', 's2']), record.sets)
+        self.assertEquals(True, record.isDeleted)
+        self.assertEquals([('s1', ''), ('s2', '')], list(self.jazz.getAllSets(includeSetNames=True)))
+
+    def testDeleteOaiRecordUnknownRecordWithSetsWithoutPrefixes(self):
+        self.assertRaises(ValueError, lambda: self.jazz.deleteOaiRecord(identifier='notExisting', setSpecs=['s1']))
 
     def testDeleteEmptyIdentifier(self):
         self.assertRaises(ValueError, lambda: list(compose(self.jazz.delete(""))))
@@ -383,7 +439,7 @@ class OaiJazzTest(SeecrTestCase):
         #
         # we will only check that a , (comma) is not used.
         self.assertEquals(',', SETSPEC_SEPARATOR)
-        self.assertRaises(AssertionError, lambda: self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec,', 'setName')]))
+        self.assertRaises(ValueError, lambda: self.jazz.addOaiRecord('42', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec,', 'setName')]))
 
     def testVersionWritten(self):
         version = open(join(self.tmpdir2("a"), "oai.version")).read()
