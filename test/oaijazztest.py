@@ -10,9 +10,10 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -591,7 +592,7 @@ class OaiJazzTest(SeecrTestCase):
             self.jazz.addOaiRecord('identifier', sets=[('setSpec', 'setName')], metadataFormats=[])
             self.fail()
         except Exception, e:
-            self.assertTrue('metadataFormat' in str(e))
+            self.assertTrue('No metadataPrefix specified' in str(e))
 
     def testGetFromMultipleSets(self):
         self.jazz.addOaiRecord('id1', sets=[('set1', 'set1name')], metadataFormats=[('prefix','schema', 'namespace')])
@@ -916,13 +917,13 @@ class OaiJazzTest(SeecrTestCase):
             with stderr_replaced() as s:
                 self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', '', '')])
                 result = s.getvalue()
-                self.assertTrue('DeprecationWarning: Use metadataPrefixes with the updateMetadataFormat method to add prefix metadata.' in result, result)
+                self.assertTrue('DeprecationWarning: Use updateMetadataFormat to register a schema and namespace with a metadataPrefix.' in result, result)
 
         with ensureModulesWarningsWithoutSideEffects(modules=[jazzModule], simplefilter="default", record=True) as warns:
             self.jazz.addOaiRecord('id:1', metadataPrefixes=['f'], sets=[('s', 'set s')])
             self.assertEquals(1, len(warns))
             self.assertEquals(DeprecationWarning, warns[0].category)
-            self.assertEquals('Use setSpecs with the updateSet method to add set metadata.', str(warns[0].message))
+            self.assertEquals('Use updateSet to register a set name with a setSpec.', str(warns[0].message))
 
     def testPreserveRicherPrefixInfo(self):
         list(compose(self.oaiAddRecord.add(identifier='457', partname='oai_dc', lxmlNode=parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \

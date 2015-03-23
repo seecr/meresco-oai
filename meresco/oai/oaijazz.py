@@ -171,18 +171,18 @@ class OaiJazz(object):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
         if not metadataFormats and not metadataPrefixes:
-            raise ValueError('No metadataFormat or metadataPrefix specified for record with identifier "%s"' % identifier)
+            raise ValueError('No metadataPrefix specified for record with identifier "%s"' % identifier)
         if metadataFormats:
             if metadataPrefixes:
                 raise ValueError("Either use metadataPrefixes or metadataFormats, not both.")
-            warn("Use metadataPrefixes with the updateMetadataFormat method to add prefix metadata.", DeprecationWarning)  # Since 2015-03-20 / version 5.12
+            warn("Use updateMetadataFormat to register a schema and namespace with a metadataPrefix.", DeprecationWarning)  # Since version 5.11.5
             metadataPrefixes = [p for (p, _, _) in metadataFormats]
             for prefix, schema, namespace in metadataFormats:
                 self._prefixes[prefix] = (schema, namespace)
         if sets:
             if setSpecs:
                 raise ValueError("Either use setSpecs or sets, not both.")
-            warn("Use setSpecs with the updateSet method to add set metadata.", DeprecationWarning)  # Since 2015-03-20 / version 5.12
+            warn("Use updateSet to register a set name with a setSpec.", DeprecationWarning)  # Since version 5.11.5
             setSpecs = [s for (s, _) in sets]
             for setSpec, setName in sets:
                 self._sets[setSpec] = setName
