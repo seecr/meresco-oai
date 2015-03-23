@@ -834,6 +834,13 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(sorted(['s1', 's2']), sorted(self.jazz.getAllSets()))
         self.assertEquals(sorted([('s1', 'set now named'), ('s2', '')]), sorted(self.jazz.getAllSets(includeSetNames=True)))
 
+    def testAddOaiRecordWithMetadataPrefixesAfterUpdateMetadataFormatDoesNotOverwrite(self):
+        self.jazz.addOaiRecord('id:1', metadataPrefixes=['p1'], setSpecs=['s1'])
+        self.assertEquals(sorted([('p1', '', '')]), sorted(self.jazz.getAllMetadataFormats()))  # Placeholders / emtpy string defaults.
+        self.jazz.updateMetadataFormat(prefix='p1', schema='schema.xsd', namespace='space:name')
+        self.jazz.addOaiRecord('id:1', metadataPrefixes=['p1'], setSpecs=['s2'])
+        self.assertEquals(sorted([('p1', 'schema.xsd', 'space:name')]), sorted(self.jazz.getAllMetadataFormats()))
+
     def testAddOaiRecordWithMixedSetsAndSetSpecsNotAllowed(self):
         try:
             self.jazz.addOaiRecord('id:1', metadataFormats=[('whatever', '', '')], sets=[('setSpec1', 'setName1')], setSpecs=['setSpec2'])

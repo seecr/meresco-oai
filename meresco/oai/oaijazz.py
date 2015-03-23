@@ -187,11 +187,18 @@ class OaiJazz(object):
         doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
 
         metadataPrefixesUnion = set(doc.getValues(PREFIX_FIELD))
-        for prefix, schema, namespace in chain((metadataFormats or []), [(p, '', '') for p in (metadataPrefixes or [])]):  # TODO: nicer!
-            self._prefixes[prefix] = (schema, namespace)
-            if not prefix in metadataPrefixesUnion:
-                doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
-                metadataPrefixesUnion.add(prefix)
+        if metadataPrefixes:
+            for prefix in metadataPrefixes:
+                self._prefixes.setdefault(prefix, ('', ''))
+                if not prefix in metadataPrefixesUnion:
+                    doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
+                    metadataPrefixesUnion.add(prefix)
+        if metadataFormats:
+            for prefix, schema, namespace in metadataFormats:
+                self._prefixes[prefix] = (schema, namespace)
+                if not prefix in metadataPrefixesUnion:
+                    doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
+                    metadataPrefixesUnion.add(prefix)
 
         allSets = set(doc.getValues(SETS_FIELD))
         self._processSets(doc=doc, setSpecs=setSpecs, sets=sets, allSets=allSets)
