@@ -180,41 +180,54 @@ class OaiJazz(object):
             warn("Use metadataPrefixes with the updateMetadataFormat method to add prefix metadata.", DeprecationWarning)  # Since 2015-03-20 / version 5.12
         msg = 'No metadataFormat or metadataPrefix specified for record with identifier "%s"' % identifier
         assert metadataFormats or metadataPrefixes, msg
+
         doc = self._getNewDocument(identifier, oldDoc=self._getDocument(identifier))
         newStamp = self._newStamp()
         doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
         doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
+
         metadataPrefixesUnion = set(doc.getValues(PREFIX_FIELD))
-        #@@
-        for prefix, schema, namespace in chain((metadataFormats or []), [(p, '', '') for p in (metadataPrefixes or [])]):
+        for prefix, schema, namespace in chain((metadataFormats or []), [(p, '', '') for p in (metadataPrefixes or [])]):  # TODO: nicer!
             self._prefixes[prefix] = (schema, namespace)
             if not prefix in metadataPrefixesUnion:
                 doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
                 metadataPrefixesUnion.add(prefix)
+
         allSets = set(doc.getValues(SETS_FIELD))
-        self._processSets(doc=doc, sets=sets, allSets=allSets)
+        self._processSets(doc=doc, setSpecs=setSpecs, sets=sets, allSets=allSets)
 
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
         self._resume(metadataPrefixes=metadataPrefixesUnion, sets=allSets)
 
-    def _processSets(self, doc, sets, allSets):
-        if not sets:
+    def _processSets(self, doc, setSpecs, sets, allSets):
+        if not (sets or setSpecs):
             return
 
-        for setSpec, setName in sets:
+        oldSets = bool(sets)
+
+        def _body(setSpec, setName=None):
             setName = setName or ''
             msg = 'SetSpec "%s" contains illegal characters' % setSpec
             assert SETSPEC_SEPARATOR not in setSpec, msg
-            self._sets[setSpec] = setName
+            if oldSets:
+                self._sets[setSpec] = setName
 
             for innerSetSpec in _setSpecAndSubsets(setSpec):
-                if innerSetSpec != setSpec:
+                if (not oldSets) or innerSetSpec != setSpec:
                     self._sets.setdefault(innerSetSpec, '')
 
                 if not innerSetSpec in allSets:
                     doc.add(StringField(SETS_FIELD, innerSetSpec, Field.Store.YES))
                     allSets.add(innerSetSpec)
+
+        if setSpecs:
+            for setSpec in setSpecs:
+                _body(setSpec)
+
+        if sets:
+            for setSpec, setName in sets:
+                _body(setSpec, setName)
 
     def delete(self, identifier):
         "Delete's granularity is per unique identifier; not per identifier & partname combination (as optionally allowed be the spec)."
