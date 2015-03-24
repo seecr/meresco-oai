@@ -88,8 +88,20 @@ class OaiDownloadProcessor(Observable):
 
     def setFrom(self, from_):
         self._from = from_
-        if not self._from is None:
-            self._incrementalHarvestTime = self._time()
+
+    def setResumptionToken(self, resumptionToken):
+        self._resumptionToken = resumptionToken
+
+    def setIncrementalHarvestSchedule(self, schedule=False, resetTime=False):
+        self._incrementalHarvestSchedule = schedule
+        if resetTime:
+            if schedule:
+                self._incrementalHarvestTime = self._time() + self._incrementalHarvestSchedule.secondsFromNow()
+            else:
+                self._incrementalHarvestTime = None
+
+    def setIncrementalHarvestTime(self, time=None):
+        self._incrementalHarvestTime = self._time() if time is None else time
 
     def buildRequest(self, additionalHeaders=None):
         arguments = [('verb', self._verb)]
@@ -112,10 +124,13 @@ class OaiDownloadProcessor(Observable):
         return request % (self._path, urlencode(arguments), headers)
 
     def handle(self, lxmlNode):
+        self._incrementalHarvestTime = None
         __callstack_var_oaiListRequest__ = {
             'metadataPrefix': self._metadataPrefix,
             'set': self._set,
         }
+        signalIncrementalHarvestingDone = False  # TODO: sketching ...
+
         errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
         if len(errors) > 0:
             for error in errors:
@@ -148,8 +163,12 @@ class OaiDownloadProcessor(Observable):
                     self._from = None
                 elif self._incrementalHarvestSchedule:
                     self._incrementalHarvestTime = self._time() + self._incrementalHarvestSchedule.secondsFromNow()
+                    signalIncrementalHarvestingDone = True
         finally:
             self._maybeCommit()
+
+        if signalIncrementalHarvestingDone:  # TODO: sketching ...
+            self.do.incrementalHarvestingDone(state=self.getState())
 
     def commit(self):
         tmpFilePath = self._stateFilePath + '.tmp'
@@ -209,8 +228,6 @@ class OaiDownloadProcessor(Observable):
 class HarvestStateView(object):
     def __init__(self, oaiDownloadProcessor):
         self._processor = oaiDownloadProcessor
-        self.name = oaiDownloadProcessor.observable_name()
-        self.path = oaiDownloadProcessor._path
 
     @property
     def errorState(self):
@@ -223,6 +240,22 @@ class HarvestStateView(object):
     @property
     def from_(self):
         return self._processor._from
+
+    @property
+    def name(self):
+        return self._processor.observable_name()
+
+    @property
+    def path(self):
+        return self._processor._path
+
+    @property
+    def metadataPrefix(self):
+        return self._processor._metadataPrefix
+
+    @property
+    def set(self):
+        return self._processor._set
 
 
 RESUMPTIONTOKEN_STATE = "Resumptiontoken: "
