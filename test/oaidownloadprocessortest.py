@@ -28,13 +28,13 @@
 #
 ## end license ##
 
-from lxml.etree import parse
-from meresco.components import lxmltostring, Schedule
 from StringIO import StringIO
-from os.path import join, isfile
-from urllib import urlencode
-from simplejson import load
 from datetime import datetime
+from lxml.etree import parse
+from os.path import join, isfile
+from simplejson import load
+from time import time
+from urllib import urlencode
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stdout_replaced
@@ -42,6 +42,8 @@ from weightless.core import compose, consume, be, local
 from weightless.io import Suspend
 
 from meresco.core import Observable
+from meresco.components import lxmltostring, Schedule
+
 from meresco.oai import OaiDownloadProcessor
 
 
@@ -55,28 +57,51 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.setPath('/otherOai')
         oaiDownloadProcessor.setMetadataPrefix('otherPrefix')
         oaiDownloadProcessor.setSet('aSet')
+
+        # TODO: JPM: the following can't be right. This is not incremental harvesting!
         oaiDownloadProcessor.setFrom('2014')  # Dual meaning: having from and no resumptionToken means incremental-harvesting, means incrementalHarvestSchedule and incrementalHarvestTime will be taken into account for when to buildRequest or not to buildRequest (is None).
         self.assertEquals(None, oaiDownloadProcessor.buildRequest())  # Except *exactly* on midnight - ghosts included ;-)
         oaiDownloadProcessor.setIncrementalHarvestTime()  # No explicit time means now.
         self.assertEquals("""GET /otherOai?verb=ListRecords&from=2014&metadataPrefix=otherPrefix&set=aSet&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
-    def testUpdateRequest2(self):   # FIXME: better name ...
+    def testUpdateRequestAfterSetResumptionToken(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="aSet", workingDirectory=self.tempdir, xWait=False)
         oaiDownloadProcessor.setPath('/otherOai')
         oaiDownloadProcessor.setFrom('2014')
         oaiDownloadProcessor.setResumptionToken('ReSumptionToken')
         self.assertEquals("""GET /otherOai?verb=ListRecords&resumptionToken=ReSumptionToken HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
-    def testSetIncrementalHarvestSchedule(self):
-        # White-box and (somewhere else?) test wanted side-effects.
-        self.fail()
+    def testSetIncrementalHarvestTimeOnlyAllowedWhenIncrementalHarvestScheduled(self):
+        oaiDownloadProcessor = OaiDownloadProcessor(path='/p', metadataPrefix='p', workingDirectory=self.tempdir)
+        self.assertRaises(ValueError, lambda: oaiDownloadProcessor.setIncrementalHarvestTime())
 
     def testSetIncrementalHarvestTime(self):
-        # White-box and (somewhere else?) test wanted side-effects.
-        self.fail()
+        oaiDownloadProcessor = OaiDownloadProcessor(path='/p', metadataPrefix='p', workingDirectory=self.tempdir)
+        consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
 
-    def testSignalDoneIncrementalHarvesting(self):
-        self.fail()
+        oaiDownloadProcessor.setIncrementalHarvestTime()
+        self.assertEquals(0, oaiDownloadProcessor._incrementalHarvestTime)
+        self.assertEquals(True, oaiDownloadProcessor._timeForIncrementalHarvest())
+        self.assertNotEqual(None, oaiDownloadProcessor.buildRequest())
+
+        oaiDownloadProcessor.setIncrementalHarvestTime(time=0.0)
+        self.assertEquals(0.0, oaiDownloadProcessor._incrementalHarvestTime)
+        self.assertEquals(True, oaiDownloadProcessor._timeForIncrementalHarvest())
+        self.assertNotEqual(None, oaiDownloadProcessor.buildRequest())
+
+        inTwoMinutes = time() + 120
+        oaiDownloadProcessor.setIncrementalHarvestTime(time=inTwoMinutes)
+        self.assertEquals(inTwoMinutes, oaiDownloadProcessor._incrementalHarvestTime)
+        self.assertEquals(False, oaiDownloadProcessor._timeForIncrementalHarvest())
+        self.assertEquals(None, oaiDownloadProcessor.buildRequest())
+
+    def testSignalHarvestingDone(self):
+        observer = CallTrace(emptyGeneratorMethods=['add'])
+        oaiDownloadProcessor = OaiDownloadProcessor(path='/p', metadataPrefix='p', workingDirectory=self.tempdir, incrementalHarvestSchedule=None)
+        oaiDownloadProcessor.addObserver(observer)
+
+        consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
+        self.assertEquals(['add', 'signalHarvestingDone'], observer.calledMethodNames())
 
     def testRequestWithAdditionalHeaders(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
@@ -99,10 +124,10 @@ class OaiDownloadProcessorTest(SeecrTestCase):
 
     def testHandle(self):
         observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
-        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False)
         oaiDownloadProcessor.addObserver(observer)
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
-        self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+        self.assertEquals(['add', 'signalHarvestingDone'], [m.name for m in observer.calledMethods])
         self.assertEquals(0, len(observer.calledMethods[0].args))
         self.assertEqualsWS(ONE_RECORD, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
         self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
@@ -116,12 +141,12 @@ class OaiDownloadProcessorTest(SeecrTestCase):
             yield
         observer = CallTrace(methods={'add': addMethod})
         top = be((Observable(),
-            (OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True),
+            (OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False),
                 (observer,)
             )
         ))
         consume(top.all.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
-        self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+        self.assertEquals(['add', 'signalHarvestingDone'], [m.name for m in observer.calledMethods])
         self.assertEquals([{'set': None, 'metadataPrefix': 'oai_dc'}], listRequests)
 
         listRequests = []
@@ -131,16 +156,16 @@ class OaiDownloadProcessorTest(SeecrTestCase):
                 (observer,)
             )
         ))
-        consume(top.all.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
+        consume(top.all.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))
         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
         self.assertEquals([{'set': 'aSet', 'metadataPrefix': 'other'}], listRequests)
 
     def testListIdentifiersHandle(self):
         observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
-        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, verb='ListIdentifiers')
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, verb='ListIdentifiers')
         oaiDownloadProcessor.addObserver(observer)
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTIDENTIFIERS_RESPONSE)))))
-        self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+        self.assertEquals(['add', 'signalHarvestingDone'], [m.name for m in observer.calledMethods])
         self.assertEquals(0, len(observer.calledMethods[0].args))
         self.assertEqualsWS(ONE_HEADER, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
         self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
@@ -151,7 +176,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         oaiDownloadProcessor.addObserver(observer)
         secondRecord = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:2</identifier><datestamp>2011-08-22T07:41:00Z</datestamp></header><metadata>ignored</metadata></record>'
-        list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % secondRecord)))))
+        list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % (secondRecord + RESUMPTION_TOKEN))))))
         self.assertEquals(['add', 'add'], [m.name for m in observer.calledMethods])
         self.assertEquals(0, len(observer.calledMethods[0].args))
         self.assertEqualsWS(ONE_RECORD, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
@@ -161,7 +186,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertEquals('2011-08-22T07:41:00Z', observer.calledMethods[1].kwargs['datestamp'])
         self.assertEquals('oai:identifier:2', observer.calledMethods[1].kwargs['identifier'])
 
-    def testRaiseErrorOnBadArguments(self):
+    def testRaiseErrorOnBadResponse(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         badRecord = '<record>No Header</record>'
         try:
@@ -215,11 +240,11 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         oaiDownloadProcessor.addObserver(observer)
         self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
-        self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))))
+        self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))))
         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
         errorOutput = oaiDownloadProcessor._err.getvalue()
         self.assertTrue(errorOutput.startswith('Traceback'), errorOutput)
-        self.assertTrue(errorOutput.endswith('Exception: Could be anything\nWhile processing:\n<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>%s\n  \n'), errorOutput)
+        self.assertTrue('Exception: Could be anything\nWhile processing:\n<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1' in errorOutput, errorOutput)
         self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
 
     def testHandleYieldsAtLeastOnceAfterEachRecord(self):
@@ -227,7 +252,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
             return
             yield
         observer = CallTrace(methods={'add': add})
-        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False)
         oaiDownloadProcessor.addObserver(observer)
         yields = list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
         self.assertEquals(1, len(yields))
@@ -238,7 +263,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
 
     def testYieldSuspendFromAdd(self):
         observer = CallTrace()
-        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False)
         oaiDownloadProcessor.addObserver(observer)
         suspend = Suspend()
         observer.returnValues['add'] = (x for x in [suspend])
@@ -290,7 +315,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         observer.exceptions={'add': Exception("Could be anything")}
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO(), name="Name")
         oaiDownloadProcessor.addObserver(observer)
-        self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))))
+        self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))))
         state = oaiDownloadProcessor.getState()
         self.assertEquals(resumptionToken, state.resumptionToken)
         self.assertEquals(None, state.from_)
@@ -381,34 +406,41 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertEquals(None, oaiDownloadProcessor._resumptionToken)
         self.assertEquals(24 * 60 * 60.0, oaiDownloadProcessor._incrementalHarvestTime)
 
-    def testIncrementalHarvestScheduleFalse(self):
+    def testIncrementalHarvestScheduleNone(self):
         observer = CallTrace(emptyGeneratorMethods=['add'])
-        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO(), incrementalHarvestSchedule=False)
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO(), incrementalHarvestSchedule=None)
         oaiDownloadProcessor.addObserver(observer)
-        consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))
+        consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
         self.assertEquals(None, oaiDownloadProcessor._resumptionToken)
         self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
         self.assertEquals(None, oaiDownloadProcessor._incrementalHarvestTime)
 
     def testSetIncrementalHarvestSchedule(self):
-        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO(), incrementalHarvestSchedule=False)
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO(), incrementalHarvestSchedule=None)
+        oaiDownloadProcessor._time = lambda: 10
+        oaiDownloadProcessor.setIncrementalHarvestSchedule(schedule=Schedule(period=3))
+        self.assertEquals(13, oaiDownloadProcessor._incrementalHarvestTime)
 
-    def testIncrementalHarvestScheduleSetToFalse(self):
+    def testSetIncrementalHarvestScheduleNotAllowedInCaseOfRestartAfterFinish(self):
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO(), restartAfterFinish=True)
+        self.assertRaises(ValueError, lambda: oaiDownloadProcessor.setIncrementalHarvestSchedule(schedule=Schedule(period=3)))
+
+    def testIncrementalHarvestScheduleSetToNone(self):
         observer = CallTrace(emptyGeneratorMethods=['add'])
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", incrementalHarvestSchedule=Schedule(period=0), workingDirectory=self.tempdir, xWait=False, err=StringIO())
         oaiDownloadProcessor.addObserver(observer)
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))
         self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
         self.assertNotEqual(None, oaiDownloadProcessor._incrementalHarvestTime)
-        self.assertEquals(['add'], observer.calledMethodNames())
+        self.assertEquals(['add', 'signalHarvestingDone'], observer.calledMethodNames())
 
         observer.calledMethods.reset()
         oaiDownloadProcessor.setFrom(from_=None)
-        oaiDownloadProcessor.setIncrementalHarvestSchedule()
+        oaiDownloadProcessor.setIncrementalHarvestSchedule(schedule=None)
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))
         self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
         self.assertEquals(None, oaiDownloadProcessor._incrementalHarvestTime)
-        self.assertEquals(['add'], observer.calledMethodNames())
+        self.assertEquals(['add', 'signalHarvestingDone'], observer.calledMethodNames())
 
 
 ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>'

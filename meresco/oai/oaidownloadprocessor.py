@@ -45,9 +45,11 @@ from meresco.components import lxmltostring, Schedule
 
 
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
+_UNSPECIFIED = type('_UNSPECIFIED', (object,), {'__nonzero__': lambda s: False})()
+
 
 class OaiDownloadProcessor(Observable):
-    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, autoCommit=True, incrementalHarvestSchedule=None, restartAfterFinish=False, name=None):
+    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, autoCommit=True, incrementalHarvestSchedule=_UNSPECIFIED, restartAfterFinish=False, name=None):
         Observable.__init__(self, name=name)
         self._path = path
         self._metadataPrefix = metadataPrefix
@@ -58,13 +60,12 @@ class OaiDownloadProcessor(Observable):
         self._err = err or stderr
         self._verb = verb or 'ListRecords'
         self._autoCommit = autoCommit
-        self._incrementalHarvestSchedule = incrementalHarvestSchedule
         if restartAfterFinish and incrementalHarvestSchedule:
             raise ValueError("In case restartAfterFinish==True, incrementalHarvestSchedule must not be set")
         self._restartAfterFinish = restartAfterFinish
-        if not restartAfterFinish and incrementalHarvestSchedule is None:
-            self._incrementalHarvestSchedule = Schedule(timeOfDay='00:00')
-
+        if incrementalHarvestSchedule is _UNSPECIFIED and not restartAfterFinish:
+            incrementalHarvestSchedule = Schedule(timeOfDay='00:00')
+        self._incrementalHarvestSchedule = incrementalHarvestSchedule
         self._resumptionToken = None
         self._from = None
         self._errorState = None
@@ -92,16 +93,16 @@ class OaiDownloadProcessor(Observable):
     def setResumptionToken(self, resumptionToken):
         self._resumptionToken = resumptionToken
 
-    def setIncrementalHarvestSchedule(self, schedule=False, resetTime=False):
+    def setIncrementalHarvestSchedule(self, schedule):
+        if self._restartAfterFinish and not schedule is None:
+            raise ValueError("In case restartAfterFinish==True, incrementalHarvestSchedule must not be set")
         self._incrementalHarvestSchedule = schedule
-        if resetTime:
-            if schedule:
-                self._incrementalHarvestTime = self._time() + self._incrementalHarvestSchedule.secondsFromNow()
-            else:
-                self._incrementalHarvestTime = None
+        self._scheduleIncrementalHarvest()
 
-    def setIncrementalHarvestTime(self, time=None):
-        self._incrementalHarvestTime = self._time() if time is None else time
+    def setIncrementalHarvestTime(self, time=0):
+        if self._incrementalHarvestTime is None:
+            raise ValueError("Setting incrementalHarvestTime is only allowed when an incremental harvest is scheduled")
+        self._incrementalHarvestTime = time
 
     def buildRequest(self, additionalHeaders=None):
         arguments = [('verb', self._verb)]
@@ -124,12 +125,11 @@ class OaiDownloadProcessor(Observable):
         return request % (self._path, urlencode(arguments), headers)
 
     def handle(self, lxmlNode):
-        self._incrementalHarvestTime = None
         __callstack_var_oaiListRequest__ = {
             'metadataPrefix': self._metadataPrefix,
             'set': self._set,
         }
-        signalIncrementalHarvestingDone = False  # TODO: sketching ...
+        harvestingDone = False
 
         errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
         if len(errors) > 0:
@@ -159,16 +159,16 @@ class OaiDownloadProcessor(Observable):
             self._from = xpathFirst(lxmlNode, '/oai:OAI-PMH/oai:responseDate/text()')
             self._resumptionToken = xpathFirst(verbNode, "oai:resumptionToken/text()")
             if self._resumptionToken is None:
+                harvestingDone = True
                 if self._restartAfterFinish:
                     self._from = None
-                elif self._incrementalHarvestSchedule:
-                    self._incrementalHarvestTime = self._time() + self._incrementalHarvestSchedule.secondsFromNow()
-                    signalIncrementalHarvestingDone = True
+                else:
+                    self._scheduleIncrementalHarvest()
         finally:
             self._maybeCommit()
 
-        if signalIncrementalHarvestingDone:  # TODO: sketching ...
-            self.do.incrementalHarvestingDone(state=self.getState())
+        if harvestingDone:
+            self.do.signalHarvestingDone(state=self.getState())
 
     def commit(self):
         tmpFilePath = self._stateFilePath + '.tmp'
@@ -216,8 +216,14 @@ class OaiDownloadProcessor(Observable):
             self._err.write('\n')
         self._err.flush()
 
+    def _scheduleIncrementalHarvest(self):
+        if self._incrementalHarvestSchedule:
+            self._incrementalHarvestTime = self._time() + self._incrementalHarvestSchedule.secondsFromNow()
+        else:
+            self._incrementalHarvestTime = None
+
     def _timeForIncrementalHarvest(self):
-        if not self._incrementalHarvestTime:
+        if self._incrementalHarvestTime is None:
             return False
         return self._time() >= self._incrementalHarvestTime
 
