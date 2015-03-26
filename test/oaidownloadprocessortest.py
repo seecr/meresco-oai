@@ -33,7 +33,6 @@ from datetime import datetime
 from lxml.etree import parse
 from os.path import join, isfile
 from simplejson import load
-from time import time
 from urllib import urlencode
 
 from seecr.test import SeecrTestCase, CallTrace
@@ -57,11 +56,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.setPath('/otherOai')
         oaiDownloadProcessor.setMetadataPrefix('otherPrefix')
         oaiDownloadProcessor.setSet('aSet')
-
-        # TODO: JPM: the following can't be right. This is not incremental harvesting!
-        oaiDownloadProcessor.setFrom('2014')  # Dual meaning: having from and no resumptionToken means incremental-harvesting, means incrementalHarvestSchedule and incrementalHarvestTime will be taken into account for when to buildRequest or not to buildRequest (is None).
-        self.assertEquals(None, oaiDownloadProcessor.buildRequest())  # Except *exactly* on midnight - ghosts included ;-)
-        oaiDownloadProcessor.setIncrementalHarvestTime()  # No explicit time means now.
+        oaiDownloadProcessor.setFrom('2014')
         self.assertEquals("""GET /otherOai?verb=ListRecords&from=2014&metadataPrefix=otherPrefix&set=aSet&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
     def testUpdateRequestAfterSetResumptionToken(self):
@@ -71,28 +66,25 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.setResumptionToken('ReSumptionToken')
         self.assertEquals("""GET /otherOai?verb=ListRecords&resumptionToken=ReSumptionToken HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
-    def testSetIncrementalHarvestTimeOnlyAllowedWhenIncrementalHarvestScheduled(self):
+    def testScheduleNextRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path='/p', metadataPrefix='p', workingDirectory=self.tempdir)
-        self.assertRaises(ValueError, lambda: oaiDownloadProcessor.setIncrementalHarvestTime())
-
-    def testSetIncrementalHarvestTime(self):
-        oaiDownloadProcessor = OaiDownloadProcessor(path='/p', metadataPrefix='p', workingDirectory=self.tempdir)
+        oaiDownloadProcessor._time = lambda: 17
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
+        self.assertTrue(oaiDownloadProcessor._earliestNextRequestTime > 17)
 
-        oaiDownloadProcessor.setIncrementalHarvestTime()
-        self.assertEquals(0, oaiDownloadProcessor._incrementalHarvestTime)
-        self.assertEquals(True, oaiDownloadProcessor._timeForIncrementalHarvest())
+        oaiDownloadProcessor.scheduleNextRequest()
+        self.assertEquals(0, oaiDownloadProcessor._earliestNextRequestTime)
+        self.assertEquals(True, oaiDownloadProcessor._timeForNextRequest())
         self.assertNotEqual(None, oaiDownloadProcessor.buildRequest())
 
-        oaiDownloadProcessor.setIncrementalHarvestTime(time=0.0)
-        self.assertEquals(0.0, oaiDownloadProcessor._incrementalHarvestTime)
-        self.assertEquals(True, oaiDownloadProcessor._timeForIncrementalHarvest())
+        oaiDownloadProcessor.scheduleNextRequest(Schedule(period=0))
+        self.assertEquals(17, oaiDownloadProcessor._earliestNextRequestTime)
+        self.assertEquals(True, oaiDownloadProcessor._timeForNextRequest())
         self.assertNotEqual(None, oaiDownloadProcessor.buildRequest())
 
-        inTwoMinutes = time() + 120
-        oaiDownloadProcessor.setIncrementalHarvestTime(time=inTwoMinutes)
-        self.assertEquals(inTwoMinutes, oaiDownloadProcessor._incrementalHarvestTime)
-        self.assertEquals(False, oaiDownloadProcessor._timeForIncrementalHarvest())
+        oaiDownloadProcessor.scheduleNextRequest(Schedule(period=120))
+        self.assertEquals(137, oaiDownloadProcessor._earliestNextRequestTime)
+        self.assertEquals(False, oaiDownloadProcessor._timeForNextRequest())
         self.assertEquals(None, oaiDownloadProcessor.buildRequest())
 
     def testSignalHarvestingDone(self):
@@ -404,7 +396,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.addObserver(observer)
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))
         self.assertEquals(None, oaiDownloadProcessor._resumptionToken)
-        self.assertEquals(24 * 60 * 60.0, oaiDownloadProcessor._incrementalHarvestTime)
+        self.assertEquals(24 * 60 * 60.0, oaiDownloadProcessor._earliestNextRequestTime)
 
     def testIncrementalHarvestScheduleNone(self):
         observer = CallTrace(emptyGeneratorMethods=['add'])
@@ -413,13 +405,32 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
         self.assertEquals(None, oaiDownloadProcessor._resumptionToken)
         self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
-        self.assertEquals(None, oaiDownloadProcessor._incrementalHarvestTime)
+        self.assertEquals(None, oaiDownloadProcessor._earliestNextRequestTime)
 
     def testSetIncrementalHarvestSchedule(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO(), incrementalHarvestSchedule=None)
         oaiDownloadProcessor._time = lambda: 10
         oaiDownloadProcessor.setIncrementalHarvestSchedule(schedule=Schedule(period=3))
-        self.assertEquals(13, oaiDownloadProcessor._incrementalHarvestTime)
+        self.assertEquals(0, oaiDownloadProcessor._earliestNextRequestTime)
+        consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
+        self.assertEquals(13, oaiDownloadProcessor._earliestNextRequestTime)
+
+    def testIncrementalHarvestScheduleNoneOverruledWithSetIncrementalHarvestSchedule(self):
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO(), incrementalHarvestSchedule=None)
+        oaiDownloadProcessor._time = lambda: 10
+        consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
+        self.assertEquals(None, oaiDownloadProcessor._resumptionToken)
+        self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
+        self.assertEquals(None, oaiDownloadProcessor._earliestNextRequestTime)
+
+        oaiDownloadProcessor.setIncrementalHarvestSchedule(schedule=Schedule(period=3))
+        self.assertEquals(None, oaiDownloadProcessor.buildRequest())
+        self.assertEquals(None, oaiDownloadProcessor._earliestNextRequestTime)
+        oaiDownloadProcessor.scheduleNextRequest()
+        self.assertNotEquals(None, oaiDownloadProcessor.buildRequest())
+        self.assertEquals(0, oaiDownloadProcessor._earliestNextRequestTime)
+        consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
+        self.assertEquals(13, oaiDownloadProcessor._earliestNextRequestTime)
 
     def testSetIncrementalHarvestScheduleNotAllowedInCaseOfRestartAfterFinish(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, err=StringIO(), restartAfterFinish=True)
@@ -431,7 +442,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.addObserver(observer)
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))
         self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
-        self.assertNotEqual(None, oaiDownloadProcessor._incrementalHarvestTime)
+        self.assertNotEqual(None, oaiDownloadProcessor._earliestNextRequestTime)
         self.assertEquals(['add', 'signalHarvestingDone'], observer.calledMethodNames())
 
         observer.calledMethods.reset()
@@ -439,7 +450,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.setIncrementalHarvestSchedule(schedule=None)
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))
         self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
-        self.assertEquals(None, oaiDownloadProcessor._incrementalHarvestTime)
+        self.assertEquals(None, oaiDownloadProcessor._earliestNextRequestTime)
         self.assertEquals(['add', 'signalHarvestingDone'], observer.calledMethodNames())
 
 

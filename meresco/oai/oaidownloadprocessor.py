@@ -69,7 +69,7 @@ class OaiDownloadProcessor(Observable):
         self._resumptionToken = None
         self._from = None
         self._errorState = None
-        self._incrementalHarvestTime = None
+        self._earliestNextRequestTime = 0
         self._readState()
         self._identifierFilePath = join(workingDirectory, "harvester.identifier")
         if isfile(self._identifierFilePath):
@@ -97,21 +97,23 @@ class OaiDownloadProcessor(Observable):
         if self._restartAfterFinish and not schedule is None:
             raise ValueError("In case restartAfterFinish==True, incrementalHarvestSchedule must not be set")
         self._incrementalHarvestSchedule = schedule
-        self._scheduleIncrementalHarvest()
 
-    def setIncrementalHarvestTime(self, time=0):
-        if self._incrementalHarvestTime is None:
-            raise ValueError("Setting incrementalHarvestTime is only allowed when an incremental harvest is scheduled")
-        self._incrementalHarvestTime = time
+    def scheduleNextRequest(self, schedule=_UNSPECIFIED):
+        if schedule is None:
+            self._earliestNextRequestTime = None
+        elif schedule is _UNSPECIFIED:
+            self._earliestNextRequestTime = 0
+        else:
+            self._earliestNextRequestTime = self._time() + schedule.secondsFromNow()
 
     def buildRequest(self, additionalHeaders=None):
+        if not self._timeForNextRequest():
+            return None
         arguments = [('verb', self._verb)]
         if self._resumptionToken:
             arguments.append(('resumptionToken', self._resumptionToken))
         else:
             if self._from:
-                if not self._timeForIncrementalHarvest():
-                    return None
                 arguments.append(('from', self._from))
             arguments.append(('metadataPrefix', self._metadataPrefix))
             if self._set:
@@ -163,7 +165,7 @@ class OaiDownloadProcessor(Observable):
                 if self._restartAfterFinish:
                     self._from = None
                 else:
-                    self._scheduleIncrementalHarvest()
+                    self.scheduleNextRequest(self._incrementalHarvestSchedule)
         finally:
             self._maybeCommit()
 
@@ -216,16 +218,10 @@ class OaiDownloadProcessor(Observable):
             self._err.write('\n')
         self._err.flush()
 
-    def _scheduleIncrementalHarvest(self):
-        if self._incrementalHarvestSchedule:
-            self._incrementalHarvestTime = self._time() + self._incrementalHarvestSchedule.secondsFromNow()
-        else:
-            self._incrementalHarvestTime = None
-
-    def _timeForIncrementalHarvest(self):
-        if self._incrementalHarvestTime is None:
+    def _timeForNextRequest(self):
+        if self._earliestNextRequestTime is None:
             return False
-        return self._time() >= self._incrementalHarvestTime
+        return self._time() >= self._earliestNextRequestTime
 
     def _time(self):
         return time()
