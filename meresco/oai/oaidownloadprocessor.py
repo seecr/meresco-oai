@@ -132,9 +132,12 @@ class OaiDownloadProcessor(Observable):
             'set': self._set,
         }
         harvestingDone = False
+        noRecordsMatch = False
 
         errors = xpath(lxmlNode, "/oai:OAI-PMH/oai:error")
-        if len(errors) > 0:
+        if len(errors) == 1 and errors[0].get("code") == "noRecordsMatch":
+            noRecordsMatch = True
+        if len(errors) > 0 and not noRecordsMatch:
             for error in errors:
                 self._errorState = "%s: %s" % (error.get("code"), error.text)
                 self._logError(self._errorState)
@@ -142,35 +145,39 @@ class OaiDownloadProcessor(Observable):
             self._maybeCommit()
             return
         try:
-            verbNode = xpath(lxmlNode, "/oai:OAI-PMH/oai:%s" % self._verb)[0]
-            itemXPath, headerXPath = VERB_XPATHS[self._verb]
-            for item in xpath(verbNode, itemXPath):
-                header = xpath(item, headerXPath)[0]
-                datestamp = xpath(header, 'oai:datestamp/text()')[0]
-                identifier = xpath(header, 'oai:identifier/text()')[0]
-                try:
-                    yield self._add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
-                except Exception, e:
-                    self._logError(format_exc())
-                    self._logError("While processing:")
-                    self._logError(lxmltostring(item))
-                    self._errorState = "ERROR while processing '%s': %s" % (identifier, str(e))
-                    raise
-                self._errorState = None
-                yield # some room for others
+            if not noRecordsMatch:
+                yield self._processRecords(lxmlNode)
             self._from = xpathFirst(lxmlNode, '/oai:OAI-PMH/oai:responseDate/text()')
-            self._resumptionToken = xpathFirst(verbNode, "oai:resumptionToken/text()")
             if self._resumptionToken is None:
                 harvestingDone = True
                 if self._restartAfterFinish:
                     self._from = None
                 else:
                     self.scheduleNextRequest(self._incrementalHarvestSchedule)
+            self._errorState = None
         finally:
             self._maybeCommit()
 
         if harvestingDone:
             self.do.signalHarvestingDone(state=self.getState())
+
+    def _processRecords(self, lxmlNode):
+        verbNode = xpathFirst(lxmlNode, "/oai:OAI-PMH/oai:%s" % self._verb)
+        itemXPath, headerXPath = VERB_XPATHS[self._verb]
+        for item in xpath(verbNode, itemXPath):
+            header = xpath(item, headerXPath)[0]
+            datestamp = xpath(header, 'oai:datestamp/text()')[0]
+            identifier = xpath(header, 'oai:identifier/text()')[0]
+            try:
+                yield self._add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
+            except Exception, e:
+                self._logError(format_exc())
+                self._logError("While processing:")
+                self._logError(lxmltostring(item))
+                self._errorState = "ERROR while processing '%s': %s" % (identifier, str(e))
+                raise
+            yield # some room for others
+        self._resumptionToken = xpathFirst(verbNode, "oai:resumptionToken/text()")
 
     def commit(self):
         tmpFilePath = self._stateFilePath + '.tmp'
@@ -259,6 +266,9 @@ class HarvestStateView(object):
     def set(self):
         return self._processor._set
 
+    @property
+    def nextRequestTime(self):
+        return self._processor._earliestNextRequestTime
 
 RESUMPTIONTOKEN_STATE = "Resumptiontoken: "
 

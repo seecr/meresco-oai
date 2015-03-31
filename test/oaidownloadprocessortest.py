@@ -274,6 +274,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertEquals("/oai", state.path)
         self.assertEquals("oai_dc", state.metadataPrefix)
         self.assertEquals(None, state.set)
+        self.assertEquals(0, state.nextRequestTime)
         oaiDownloadProcessor.setSet('s')
         oaiDownloadProcessor.setPath('/p')
         oaiDownloadProcessor.setMetadataPrefix('pref')
@@ -287,6 +288,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertEquals("/p", state.path)
         self.assertEquals("pref", state.metadataPrefix)
         self.assertEquals('s', state.set)
+        self.assertEquals(0, state.nextRequestTime)
 
         # Change state of oaiDownloadProcessor -> changes stateView.
         oaiDownloadProcessor.setSet('x')
@@ -299,6 +301,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertEquals("x?y&z", state2.resumptionToken)
         self.assertEquals('2002-06-01T19:20:30Z', state2.from_)
         self.assertEquals(None, state2.errorState)
+        self.assertEquals(0, state.nextRequestTime)
 
     def testHarvesterStateWithError(self):
         resumptionToken = "u|c1286437597991025|mprefix|s|f"
@@ -453,6 +456,15 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         self.assertEquals(None, oaiDownloadProcessor._earliestNextRequestTime)
         self.assertEquals(['add', 'signalHarvestingDone'], observer.calledMethodNames())
 
+    def testIncrementalHarvestReScheduleIfNoRecordsMatch(self):
+        observer = CallTrace(emptyGeneratorMethods=['add'])
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", incrementalHarvestSchedule=Schedule(period=0), workingDirectory=self.tempdir, xWait=False, err=StringIO())
+        oaiDownloadProcessor.addObserver(observer)
+        consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
+        self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
+        consume(oaiDownloadProcessor.handle(parse(StringIO(NO_RECORDS_MATCH_RESPONSE))))
+        self.assertEquals(None, oaiDownloadProcessor._errorState)
+        self.assertEquals('2012-06-01T19:20:30Z', oaiDownloadProcessor._from)
 
 ONE_RECORD = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1</identifier><datestamp>2011-08-22T07:34:00Z</datestamp></header><metadata>ignored</metadata></record>'
 
@@ -476,6 +488,18 @@ ERROR_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
   <request verb="ListRecords" from="1998-01-15"
            metadataPrefix="dc">http://an.oa.org/OAI-script</request>
   <error code="someError">Some error occurred.</error>
+</OAI-PMH>
+"""
+
+NO_RECORDS_MATCH_RESPONSE = """<?xml version="1.0" encoding="UTF-8" ?>
+<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/
+         http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
+  <responseDate>2012-06-01T19:20:30Z</responseDate>
+  <request verb="ListRecords" from="1998-01-15"
+           metadataPrefix="dc">http://an.oa.org/OAI-script</request>
+  <error code="noRecordsMatch">The combination of the values of the from, until, set and metadataPrefix arguments results in an empty list.</error>
 </OAI-PMH>
 """
 
