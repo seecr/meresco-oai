@@ -39,6 +39,7 @@ try:
 except ImportError:
     from lxml.etree import tostring
     lxmltostring = lambda x: tostring(x, encoding="UTF-8")
+from meresco.oai import VERSION
 
 from simplejson import dump, loads
 from uuid import uuid4
@@ -48,8 +49,9 @@ from sys import stderr
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
 
 class OaiDownloadProcessor(Observable):
-    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, autoCommit=True, name=None):
+    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, autoCommit=True, userAgentAddition=None, name=None):
         Observable.__init__(self, name=name)
+        self._userAgent = _USER_AGENT + ('' if userAgentAddition is None else ' (%s)' % userAgentAddition)
         self._metadataPrefix = metadataPrefix
         self._resumptionToken = None
         self._errorState = None
@@ -81,8 +83,11 @@ class OaiDownloadProcessor(Observable):
             arguments.append(('x-wait', 'True'))
         request = "GET %s?%s HTTP/1.0\r\n%s\r\n"
         headers = "X-Meresco-Oai-Client-Identifier: %s\r\n" % self._identifier
+        userAgent = self._userAgent
         if additionalHeaders:
             headers += ''.join("{0}: {1}\r\n".format(k, v) for k, v in additionalHeaders.items())
+            userAgent = additionalHeaders.pop('User-Agent', self._userAgent)
+        headers += "User-Agent: %s\r\n" % userAgent
         return request % (self._path, urlencode(arguments), headers)
 
     def handle(self, lxmlNode):
@@ -201,3 +206,4 @@ VERB_XPATHS = {
     'ListRecords': ('oai:record', 'oai:header'),
     'ListIdentifiers': ('oai:header', '.')
 }
+_USER_AGENT = "Meresco-Oai-DownloadProcessor/%s" % VERSION
