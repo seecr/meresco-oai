@@ -7,5 +7,5 @@ python-weightless-core (<< 0.10)
 python-escaping (>= 0.1)
 python-escaping (<< 0.2)
 python-lxml (>= 2.1)
-python-lxml (<< 3.0)
+python-lxml (<< 3.5)
 python-simplejson
