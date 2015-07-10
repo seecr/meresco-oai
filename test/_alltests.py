@@ -72,6 +72,7 @@ from oaisetselecttest import OaiSetSelectTest
 from oaitooltest import OaiToolTest
 from resumptiontokentest import ResumptionTokenTest
 from streaminglxmltest import StreamingLxmlTest
+from suspendregistertest import SuspendRegisterTest
 from updateadaptertest import UpdateAdapterTest
 
 from info.oaiinfotest import OaiInfoTest

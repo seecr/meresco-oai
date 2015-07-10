@@ -33,20 +33,17 @@
 #
 ## end license ##
 
-import sys
 from sys import maxint
 from os.path import isdir, join, isfile
 from os import makedirs, listdir
-from itertools import chain
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
-from random import choice
 from warnings import warn
 
-from weightless.io import Suspend
 
 from json import load, dump
 from meresco.pylucene import getJVM
+from .suspendregister import SuspendRegister
 
 imported = False
 Long = File = Document = StringField = Field = LongField = IntField = IndexSearcher = TermQuery = \
@@ -97,9 +94,8 @@ class OaiJazz(object):
         self._deletePrefixes = set(alwaysDeleteInPrefixes or [])
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
-        self._maximumSuspendedConnections = maximumSuspendedConnections
+        self._suspendRegister = SuspendRegister(maximumSuspendedConnections=maximumSuspendedConnections)
         self._name = name
-        self._suspended = {}
         self._load()
         self._writer, self._reader, self._searcher = getLucene(aDirectory)
         self._latestModifications = set()
@@ -107,6 +103,9 @@ class OaiJazz(object):
 
     _sets = property(lambda self: self._data["sets"])
     _prefixes = property(lambda self: self._data["prefixes"])
+    @property
+    def suspendRegister(self):
+        return self._suspendRegister
 
     def oaiSelect(self,
             sets=None,
@@ -281,17 +280,8 @@ class OaiJazz(object):
     def observable_name(self):
         return self._name
 
-    def suspend(self, clientIdentifier, metadataPrefix, set=None):
-        suspend = Suspend()
-        suspend.oaiListResumeMask = dict(metadataPrefix=metadataPrefix, set=set)
-        if clientIdentifier in self._suspended:
-            self._suspended.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
-        if len(self._suspended) == self._maximumSuspendedConnections:
-            self._suspended.pop(choice(self._suspended.keys())).throw(ForcedResumeException, ForcedResumeException("OAI x-wait connection has been forcefully resumed."), None)
-            sys.stderr.write("Too many suspended connections in OaiJazz. One random connection has been resumed.\n")
-        self._suspended[clientIdentifier] = suspend
-        yield suspend
-        suspend.getResult()
+    def suspend(self, *args, **kwargs):
+        yield self._suspendRegister.suspend(*args, **kwargs)
 
     def _versionFormatCheck(self):
         versionFile = join(self._directory, "oai.version")
@@ -367,7 +357,7 @@ class OaiJazz(object):
 
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
-        self._resume(metadataPrefixes=allMetadataPrefixes, sets=allSets)
+        self._suspendRegister.resume(metadataPrefixes=allMetadataPrefixes, sets=allSets)
 
     def _getNewDocument(self, identifier, oldDoc):
         doc = Document()
@@ -403,15 +393,6 @@ class OaiJazz(object):
                 if not innerSetSpec in allSets:
                     doc.add(StringField(SETS_FIELD, innerSetSpec, Field.Store.YES))
                     allSets.add(innerSetSpec)
-
-    def _resume(self, metadataPrefixes, sets):
-        for clientId, suspend in self._suspended.items()[:]:
-            if suspend.oaiListResumeMask['metadataPrefix'] in metadataPrefixes:
-                setMask = suspend.oaiListResumeMask['set']
-                if setMask and not setMask in sets:
-                    continue
-                del self._suspended[clientId]
-                suspend.resume()
 
     def _purge(self, identifier):
         self._writer.deleteDocuments(Term(IDENTIFIER_FIELD, identifier))
@@ -505,9 +486,6 @@ def _stamp2zulutime(stamp, preciseDatestamp=False):
 
 def _stampFromDocument(doc):
     return int(doc.getField(STAMP_FIELD).numericValue().longValue())
-
-class ForcedResumeException(Exception):
-    pass
 
 SETSPEC_SEPARATOR = ","
 SETSPEC_HIERARCHY_SEPARATOR = ":"

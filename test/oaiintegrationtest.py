@@ -5,8 +5,9 @@
 #
 # Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2013, 2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -52,6 +53,7 @@ from weightless.core import be, compose
 from meresco.components import lxmltostring
 from StringIO import StringIO
 from lxml.etree import XML
+from traceback import print_exc
 
 
 class OaiIntegrationTest(SeecrTestCase):
@@ -78,19 +80,19 @@ class OaiIntegrationTest(SeecrTestCase):
             ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods]
             self.assertEquals([['id0'],['id1'],['id2']], ids)
 
-            self.assertEquals(1, len(oaiJazz._suspended))
+            self.assertEquals(1, len(oaiJazz.suspendRegister))
 
             requests += 1
             storageComponent.addData(identifier="id3", name="prefix", data="<a>a3</a>")
             oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
             sleepWheel(1)
 
-            self.assertEquals(0, len(oaiJazz._suspended))
+            self.assertEquals(0, len(oaiJazz.suspendRegister))
             self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
             kwarg = lxmltostring(observer.calledMethods[-1].kwargs['lxmlNode'])
             self.assertTrue("id3" in kwarg, kwarg)
             sleepWheel(1.0)
-            self.assertEquals(1, len(oaiJazz._suspended))
+            self.assertEquals(1, len(oaiJazz.suspendRegister))
         finally:
             self.run = False
             oaiPmhThread.join()
@@ -117,16 +119,16 @@ class OaiIntegrationTest(SeecrTestCase):
             oaiPmhThread.start()
             harvestThread1.start()
             try:
-                while not oaiJazz._suspended:
+                while len(oaiJazz.suspendRegister) == 0:
                     sleep(0.01)
-                harvest1Suspend = oaiJazz._suspended[clientId]
-                self.assertTrue(clientId in oaiJazz._suspended)
+                harvest1Suspend = oaiJazz.suspendRegister._suspendObject(clientId)
+                self.assertTrue(harvest1Suspend is not None)
                 harvestThread2.start()
-                while harvest1Suspend == oaiJazz._suspended.get(clientId):
+                while harvest1Suspend == oaiJazz.suspendRegister._suspendObject(clientId):
                     sleep(0.01)
                 sleep(0.01)
-                self.assertTrue(clientId in oaiJazz._suspended)
-                self.assertTrue(harvest1Suspend != oaiJazz._suspended[clientId])
+                self.assertTrue(clientId in oaiJazz.suspendRegister)
+                self.assertTrue(harvest1Suspend != oaiJazz.suspendRegister._suspendObject(clientId))
 
                 storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
                 oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
@@ -173,7 +175,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 harvestThread.start()
 
             try:
-                while not oaiJazz._suspended:
+                while len(oaiJazz.suspendRegister) == 0:
                     sleep(0.01)
             finally:
                 for t in threads:

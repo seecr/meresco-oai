@@ -35,11 +35,13 @@ from meresco.components.http.utils import serverErrorPlainText, successNoContent
 from meresco.core.observable import Observable
 from weightless.core import NoneOfTheObserversRespond
 
-from resumptiontoken import resumptionTokenFromString, ResumptionToken
-from oaitool import ISO8601, ISO8601Exception
-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, checkBooleanArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
-from oaierror import oaiError
-from oaijazz import ForcedResumeException, DEFAULT_BATCH_SIZE
+from .resumptiontoken import resumptionTokenFromString, ResumptionToken
+from .oaitool import ISO8601, ISO8601Exception
+from .oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, checkBooleanArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
+from .oaierror import oaiError
+from .oaijazz import DEFAULT_BATCH_SIZE
+from .suspendregister import ForcedResumeException
+
 from uuid import uuid4
 import sys
 from time import time
