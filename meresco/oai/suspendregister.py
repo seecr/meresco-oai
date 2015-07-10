@@ -33,9 +33,9 @@ class SuspendRegister(object):
         self._register = {}
         self._maximumSuspendedConnections = maximumSuspendedConnections
 
-    def suspendAfterNoResult(self, clientIdentifier, metadataPrefix, set=None):
+    def suspendAfterNoResult(self, clientIdentifier, metadataPrefix, set_=None, **ignored):
         suspend = Suspend()
-        suspend.oaiListResumeMask = dict(metadataPrefix=metadataPrefix, set=set)
+        suspend.oaiListResumeMask = dict(metadataPrefix=metadataPrefix, set_=set_)
         if clientIdentifier in self._register:
             self._register.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
         if len(self._register) == self._maximumSuspendedConnections:
@@ -52,7 +52,7 @@ class SuspendRegister(object):
     def signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
         for clientId, suspend in self._register.items()[:]:
             if suspend.oaiListResumeMask['metadataPrefix'] in metadataPrefixes:
-                setMask = suspend.oaiListResumeMask['set']
+                setMask = suspend.oaiListResumeMask['set_']
                 if setMask and not setMask in sets:
                     continue
                 del self._register[clientId]

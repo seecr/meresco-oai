@@ -116,8 +116,12 @@ Error and Exception Conditions
 
         while True:
             try:
-                if self._supportXWait:
-                    yield self.any.suspendBeforeSelect(**selectArguments)
+                clientIdentifier = None
+                if selectArguments['x-wait']:
+                    clientIdentifier = self._clientId(httpkwargs)
+                    yield self.any.suspendBeforeSelect(
+                        clientIdentifier=clientIdentifier,
+                        **selectArguments)
                 responseDate = zuluTime()
                 result = self._oaiSelect(**selectArguments)
                 break
@@ -125,7 +129,9 @@ Error and Exception Conditions
                 if selectArguments['x-wait'] and \
                         e.statusCode in ["noRecordsMatch", "cannotDisseminateFormat"]:
                     try:
-                        yield self._suspend(selectArguments, httpkwargs)
+                        yield self.any.suspendAfterNoResult(
+                            clientIdentifier=clientIdentifier,
+                            **selectArguments)
                     except ForcedResumeException:
                         yield successNoContentPlainText + "OAI x-wait connection has been forcefully resumed."
                         return
@@ -214,16 +220,13 @@ Error and Exception Conditions
             raise OaiException('noRecordsMatch')
         return result
 
-    def _suspend(self, selectArguments, httpkwargs):
+    def _clientId(self, httpkwargs):
         clientId = httpkwargs['Headers'].get('X-Meresco-Oai-Client-Identifier')
-        if clientId is None:
-            clientId = str(uuid4())
-            sys.stderr.write("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for OAI client from %s\n" % httpkwargs['Client'][0])
-            sys.stderr.flush()
-        yield self.any.suspendAfterNoResult(
-            clientIdentifier=clientId,
-            metadataPrefix=selectArguments['metadataPrefix'],
-            set=selectArguments.get('set_'))
+        if clientId is not None:
+            return clientId
+        sys.stderr.write("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for OAI client from %s\n" % httpkwargs['Client'][0])
+        sys.stderr.flush()
+        return str(uuid4())
 
     def _renderRecords(self, verb, result, selectArguments):
         records = list(result.records)

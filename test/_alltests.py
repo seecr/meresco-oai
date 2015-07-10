@@ -51,6 +51,7 @@ import unittest
 from warnings import simplefilter
 simplefilter('default')
 
+from batchsuspendregistertest import BatchSuspendRegisterTest
 from convertoaiv7tov8test import ConvertOaiV7ToV8Test
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest

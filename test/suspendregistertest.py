@@ -70,16 +70,16 @@ class SuspendRegisterTest(SeecrTestCase):
         register = SuspendRegister()
         resumed = []
 
-        def suspendAfterNoResult(clientIdentifier, metadataPrefix, set=None):
+        def suspendAfterNoResult(clientIdentifier, metadataPrefix, set_=None):
             if not clientIdentifier in register:
-                suspendObject = register.suspendAfterNoResult(clientIdentifier=clientIdentifier, metadataPrefix=metadataPrefix, set=set).next()
+                suspendObject = register.suspendAfterNoResult(clientIdentifier=clientIdentifier, metadataPrefix=metadataPrefix, set_=set_).next()
                 suspendObject(CallTrace('reactor'), lambda: resumed.append(clientIdentifier))
 
         def prepareSuspends():
             resumed[:] = []
             suspendAfterNoResult(clientIdentifier="client 1", metadataPrefix='prefix1')
             suspendAfterNoResult(clientIdentifier="client 2", metadataPrefix='prefix2')
-            suspendAfterNoResult(clientIdentifier="client 3", metadataPrefix='prefix2', set='set_a')
+            suspendAfterNoResult(clientIdentifier="client 3", metadataPrefix='prefix2', set_='set_a')
 
         prepareSuspends()
         register.signalOaiUpdate(metadataPrefixes=['prefix2'], sets=['set_b'])
@@ -88,3 +88,6 @@ class SuspendRegisterTest(SeecrTestCase):
         prepareSuspends()
         register.signalOaiUpdate(metadataPrefixes=['prefix2'], sets=['set_a'])
         self.assertEquals(['client 2', 'client 3'], sorted(resumed))
+
+    def testSuspendBeforeSelect(self):
+        self.assertEquals([], list(SuspendRegister().suspendBeforeSelect(some='argument')))
