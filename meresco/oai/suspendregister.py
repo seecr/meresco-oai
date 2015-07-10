@@ -33,7 +33,7 @@ class SuspendRegister(object):
         self._register = {}
         self._maximumSuspendedConnections = maximumSuspendedConnections
 
-    def suspend(self, clientIdentifier, metadataPrefix, set=None):
+    def suspendAfterNoResult(self, clientIdentifier, metadataPrefix, set=None):
         suspend = Suspend()
         suspend.oaiListResumeMask = dict(metadataPrefix=metadataPrefix, set=set)
         if clientIdentifier in self._register:
@@ -44,6 +44,10 @@ class SuspendRegister(object):
         self._register[clientIdentifier] = suspend
         yield suspend
         suspend.getResult()
+
+    def suspendBeforeSelect(self, **ignored):
+        return
+        yield
 
     def resume(self, metadataPrefixes, sets):
         for clientId, suspend in self._register.items()[:]:

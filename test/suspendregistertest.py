@@ -34,7 +34,7 @@ class SuspendRegisterTest(SeecrTestCase):
     def testResume(self):
         register = SuspendRegister()
         reactor = CallTrace("reactor")
-        suspend = register.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
+        suspend = register.suspendAfterNoResult(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
         self.assertEquals(Suspend, type(suspend))
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
@@ -45,9 +45,9 @@ class SuspendRegisterTest(SeecrTestCase):
 
     def testSuspendSameClientTwiceBeforeResuming(self):
         register = SuspendRegister()
-        s1 = register.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
+        s1 = register.suspendAfterNoResult(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
         s1(CallTrace('reactor'), lambda: None)
-        register.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
+        register.suspendAfterNoResult(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
         try:
             s1.getResult()
             self.fail()
@@ -57,9 +57,9 @@ class SuspendRegisterTest(SeecrTestCase):
     def testShouldResumeAPreviousSuspendAfterTooManySuspends(self):
         with stderr_replaced() as s:
             register = SuspendRegister(maximumSuspendedConnections=1)
-            s1 = register.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
+            s1 = register.suspendAfterNoResult(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
             s1(CallTrace('reactor'), lambda: None)
-            register.suspend(clientIdentifier="another-client-id", metadataPrefix='prefix').next()
+            register.suspendAfterNoResult(clientIdentifier="another-client-id", metadataPrefix='prefix').next()
             try:
                 s1.getResult()
                 self.fail()
@@ -70,16 +70,16 @@ class SuspendRegisterTest(SeecrTestCase):
         register = SuspendRegister()
         resumed = []
 
-        def suspend(clientIdentifier, metadataPrefix, set=None):
+        def suspendAfterNoResult(clientIdentifier, metadataPrefix, set=None):
             if not clientIdentifier in register:
-                suspendObject = register.suspend(clientIdentifier=clientIdentifier, metadataPrefix=metadataPrefix, set=set).next()
+                suspendObject = register.suspendAfterNoResult(clientIdentifier=clientIdentifier, metadataPrefix=metadataPrefix, set=set).next()
                 suspendObject(CallTrace('reactor'), lambda: resumed.append(clientIdentifier))
 
         def prepareSuspends():
             resumed[:] = []
-            suspend(clientIdentifier="client 1", metadataPrefix='prefix1')
-            suspend(clientIdentifier="client 2", metadataPrefix='prefix2')
-            suspend(clientIdentifier="client 3", metadataPrefix='prefix2', set='set_a')
+            suspendAfterNoResult(clientIdentifier="client 1", metadataPrefix='prefix1')
+            suspendAfterNoResult(clientIdentifier="client 2", metadataPrefix='prefix2')
+            suspendAfterNoResult(clientIdentifier="client 3", metadataPrefix='prefix2', set='set_a')
 
         prepareSuspends()
         register.resume(metadataPrefixes=['prefix2'], sets=['set_b'])

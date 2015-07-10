@@ -97,7 +97,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.addObserver(observer)
 
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
-        self.assertEquals(['add', 'signalHarvestingDone'], observer.calledMethodNames())
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch', 'signalHarvestingDone'], observer.calledMethodNames())
 
     def testRequestWithAdditionalHeaders(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
@@ -123,11 +123,12 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False)
         oaiDownloadProcessor.addObserver(observer)
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % '')))))
-        self.assertEquals(['add', 'signalHarvestingDone'], [m.name for m in observer.calledMethods])
-        self.assertEquals(0, len(observer.calledMethods[0].args))
-        self.assertEqualsWS(ONE_RECORD, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
-        self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
-        self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch', 'signalHarvestingDone'], [m.name for m in observer.calledMethods])
+        addMethod = observer.calledMethods[1]
+        self.assertEquals(0, len(addMethod.args))
+        self.assertEqualsWS(ONE_RECORD, lxmltostring(addMethod.kwargs['lxmlNode']))
+        self.assertEquals('2011-08-22T07:34:00Z', addMethod.kwargs['datestamp'])
+        self.assertEquals('oai:identifier:1', addMethod.kwargs['identifier'])
 
     def testOaiListRequestOnCallstack(self):
         listRequests = []
@@ -142,7 +143,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
             )
         ))
         consume(top.all.handle(parse(StringIO(LISTRECORDS_RESPONSE % ''))))
-        self.assertEquals(['add', 'signalHarvestingDone'], [m.name for m in observer.calledMethods])
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch', 'signalHarvestingDone'], [m.name for m in observer.calledMethods])
         self.assertEquals([{'set': None, 'metadataPrefix': 'oai_dc'}], listRequests)
 
         listRequests = []
@@ -153,7 +154,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
             )
         ))
         consume(top.all.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))
-        self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
         self.assertEquals([{'set': 'aSet', 'metadataPrefix': 'other'}], listRequests)
 
     def testListIdentifiersHandle(self):
@@ -161,11 +162,12 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=False, verb='ListIdentifiers')
         oaiDownloadProcessor.addObserver(observer)
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTIDENTIFIERS_RESPONSE)))))
-        self.assertEquals(['add', 'signalHarvestingDone'], [m.name for m in observer.calledMethods])
-        self.assertEquals(0, len(observer.calledMethods[0].args))
-        self.assertEqualsWS(ONE_HEADER, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
-        self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
-        self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch', 'signalHarvestingDone'], [m.name for m in observer.calledMethods])
+        addMethod = observer.calledMethods[1]
+        self.assertEquals(0, len(addMethod.args))
+        self.assertEqualsWS(ONE_HEADER, lxmltostring(addMethod.kwargs['lxmlNode']))
+        self.assertEquals('2011-08-22T07:34:00Z', addMethod.kwargs['datestamp'])
+        self.assertEquals('oai:identifier:1', addMethod.kwargs['identifier'])
 
     def testHandleWithTwoRecords(self):
         observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
@@ -173,14 +175,15 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.addObserver(observer)
         secondRecord = '<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:2</identifier><datestamp>2011-08-22T07:41:00Z</datestamp></header><metadata>ignored</metadata></record>'
         list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % (secondRecord + RESUMPTION_TOKEN))))))
-        self.assertEquals(['add', 'add'], [m.name for m in observer.calledMethods])
-        self.assertEquals(0, len(observer.calledMethods[0].args))
-        self.assertEqualsWS(ONE_RECORD, lxmltostring(observer.calledMethods[0].kwargs['lxmlNode']))
-        self.assertEquals('2011-08-22T07:34:00Z', observer.calledMethods[0].kwargs['datestamp'])
-        self.assertEquals('oai:identifier:1', observer.calledMethods[0].kwargs['identifier'])
-        self.assertEqualsWS(secondRecord, lxmltostring(observer.calledMethods[1].kwargs['lxmlNode']))
-        self.assertEquals('2011-08-22T07:41:00Z', observer.calledMethods[1].kwargs['datestamp'])
-        self.assertEquals('oai:identifier:2', observer.calledMethods[1].kwargs['identifier'])
+        self.assertEquals(['startOaiBatch', 'add', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
+        addMethod0, addMethod1 = observer.calledMethods[1:3]
+        self.assertEquals(0, len(addMethod0.args))
+        self.assertEqualsWS(ONE_RECORD, lxmltostring(addMethod0.kwargs['lxmlNode']))
+        self.assertEquals('2011-08-22T07:34:00Z', addMethod0.kwargs['datestamp'])
+        self.assertEquals('oai:identifier:1', addMethod0.kwargs['identifier'])
+        self.assertEqualsWS(secondRecord, lxmltostring(addMethod1.kwargs['lxmlNode']))
+        self.assertEquals('2011-08-22T07:41:00Z', addMethod1.kwargs['datestamp'])
+        self.assertEquals('oai:identifier:2', addMethod1.kwargs['identifier'])
 
     def testRaiseErrorOnBadResponse(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
@@ -237,7 +240,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.addObserver(observer)
         self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/5.x\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
         self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))))
-        self.assertEquals(['add'], [m.name for m in observer.calledMethods])
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
         errorOutput = oaiDownloadProcessor._err.getvalue()
         self.assertTrue(errorOutput.startswith('Traceback'), errorOutput)
         self.assertTrue('Exception: Could be anything\nWhile processing:\n<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1' in errorOutput, errorOutput)
@@ -450,7 +453,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))
         self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
         self.assertNotEqual(None, oaiDownloadProcessor._earliestNextRequestTime)
-        self.assertEquals(['add', 'signalHarvestingDone'], observer.calledMethodNames())
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch', 'signalHarvestingDone'], observer.calledMethodNames())
 
         observer.calledMethods.reset()
         oaiDownloadProcessor.setFrom(from_=None)
@@ -458,7 +461,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         consume(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE))))
         self.assertEquals('2002-06-01T19:20:30Z', oaiDownloadProcessor._from)
         self.assertEquals(None, oaiDownloadProcessor._earliestNextRequestTime)
-        self.assertEquals(['add', 'signalHarvestingDone'], observer.calledMethodNames())
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch', 'signalHarvestingDone'], observer.calledMethodNames())
 
     def testIncrementalHarvestReScheduleIfNoRecordsMatch(self):
         observer = CallTrace(emptyGeneratorMethods=['add'])

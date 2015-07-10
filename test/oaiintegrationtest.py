@@ -77,11 +77,12 @@ class OaiIntegrationTest(SeecrTestCase):
             requests = 3
             sleepWheel(1.0 + 1.0 * requests)
 
-            self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
-            ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods]
+            self.assertEquals(['startOaiBatch', 'add', 'add', 'stopOaiBatch', 'startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
+            ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods if m.name == 'add']
             self.assertEquals([['id0'],['id1'],['id2']], ids)
 
             self.assertEquals(1, len(suspendRegister))
+            observer.calledMethods.reset()
 
             requests += 1
             storageComponent.addData(identifier="id3", name="prefix", data="<a>a3</a>")
@@ -89,8 +90,8 @@ class OaiIntegrationTest(SeecrTestCase):
             sleepWheel(1)
 
             self.assertEquals(0, len(suspendRegister))
-            self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
-            kwarg = lxmltostring(observer.calledMethods[-1].kwargs['lxmlNode'])
+            self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
+            kwarg = lxmltostring(observer.calledMethods[1].kwargs['lxmlNode'])
             self.assertTrue("id3" in kwarg, kwarg)
             sleepWheel(1.0)
             self.assertEquals(1, len(suspendRegister))
@@ -253,10 +254,11 @@ class OaiIntegrationTest(SeecrTestCase):
         start()
         requests = 1
         sleepWheel(1.0 + 1.0 * requests)
-        self.assertEquals(1, len(observer.calledMethods))
-        kwarg = lxmltostring(observer.calledMethods[0].kwargs['lxmlNode'])
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
+        kwarg = lxmltostring(observer.calledMethods[1].kwargs['lxmlNode'])
         self.assertTrue("id0" in kwarg, kwarg)
         stop()
+        observer.calledMethods.reset()
 
         storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
         oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
@@ -264,7 +266,7 @@ class OaiIntegrationTest(SeecrTestCase):
         start()
         requests = 1
         sleepWheel(1.0 + 1.0 * requests)
-        self.assertEquals(2, len(observer.calledMethods))
+        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
         kwarg = lxmltostring(observer.calledMethods[1].kwargs['lxmlNode'])
         self.assertFalse("id0" in kwarg, kwarg)
         self.assertTrue("id1" in kwarg, kwarg)

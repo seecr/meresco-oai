@@ -55,8 +55,8 @@ class OaiListTest(SeecrTestCase):
         SeecrTestCase.setUp(self)
         self.oaiJazz = OaiJazz(self.tempdir, supportResume=False)
         self.oaiList = OaiList(batchSize=2)
-        self.observer = CallTrace('observer')
-        self.observer.methods['suspend'] = lambda clientIdentifier, metadataPrefix, set=None: (s for s in ['SUSPEND'])
+        self.observer = CallTrace('observer', emptyGeneratorMethods=['suspendBeforeSelect'])
+        self.observer.methods['suspendAfterNoResult'] = lambda clientIdentifier, metadataPrefix, set=None: (s for s in ['SUSPEND'])
         self.observer.methods['oaiWatermark'] = lambda o=None: (x for x in ["Crafted By Seecr"])
         def oaiRecord(record, metadataPrefix, fetchedRecords=None):
             yield '<mock:record xmlns:mock="uri:mock">%s/%s</mock:record>' % (escapeXml(record.identifier), escapeXml(metadataPrefix))
@@ -218,7 +218,7 @@ class OaiListTest(SeecrTestCase):
 
         result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
         result.next()
-        self.assertEquals(['getAllPrefixes', 'suspend'], [m.name for m in self.observer.calledMethods])
+        self.assertEquals(['suspendBeforeSelect', 'getAllPrefixes', 'suspendAfterNoResult'], [m.name for m in self.observer.calledMethods])
         self.assertEquals({"clientIdentifier": self.clientId, "metadataPrefix": 'oai_dc', 'set': None}, self.observer.calledMethods[-1].kwargs)
         self._addRecords(['id:1&1'])
         self.observer.calledMethods.reset()
@@ -228,8 +228,8 @@ class OaiListTest(SeecrTestCase):
 
         self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
-        self.assertEquals(['getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'getMultipleData', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
-        selectMethod = self.observer.calledMethods[1]
+        self.assertEquals(['suspendBeforeSelect', 'getAllPrefixes', 'oaiSelect', 'oaiWatermark', 'getMultipleData', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
+        selectMethod = self.observer.calledMethods[2]
         self.assertEquals(dict(continueAfter='0', oaiUntil=None, prefix='oai_dc', oaiFrom=None, sets=None, batchSize=2, shouldCountHits=False), selectMethod.kwargs)
         recordMethods = self.observer.calledMethods[-1:]
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
@@ -247,7 +247,7 @@ class OaiListTest(SeecrTestCase):
         with stderr_replaced() as s:
             result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
             result.next()
-        self.assertEquals(['getAllPrefixes', 'suspend'], [m.name for m in self.observer.calledMethods])
+        self.assertEquals(['suspendBeforeSelect', 'getAllPrefixes', 'suspendAfterNoResult'], [m.name for m in self.observer.calledMethods])
         self.assertTrue('clientIdentifier' in self.observer.calledMethods[-1].kwargs)
         self.assertEquals(len(str(uuid4())), len(self.observer.calledMethods[-1].kwargs['clientIdentifier']))
         self.assertEquals("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for OAI client from 127.0.0.1\n", s.getvalue())

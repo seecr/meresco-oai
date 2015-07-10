@@ -116,6 +116,8 @@ Error and Exception Conditions
 
         while True:
             try:
+                if self._supportXWait:
+                    yield self.any.suspendBeforeSelect(**selectArguments)
                 responseDate = zuluTime()
                 result = self._oaiSelect(**selectArguments)
                 break
@@ -218,7 +220,7 @@ Error and Exception Conditions
             clientId = str(uuid4())
             sys.stderr.write("X-Meresco-Oai-Client-Identifier not found in HTTP Headers. Generated a uuid for OAI client from %s\n" % httpkwargs['Client'][0])
             sys.stderr.flush()
-        yield self.any.suspend(
+        yield self.any.suspendAfterNoResult(
             clientIdentifier=clientId,
             metadataPrefix=selectArguments['metadataPrefix'],
             set=selectArguments.get('set_'))

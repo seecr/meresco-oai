@@ -151,7 +151,11 @@ class OaiDownloadProcessor(Observable):
             return
         try:
             if not noRecordsMatch:
-                yield self._processRecords(lxmlNode)
+                self.do.startOaiBatch()
+                try:
+                    yield self._processRecords(lxmlNode)
+                finally:
+                    self.do.stopOaiBatch()
             self._from = xpathFirst(lxmlNode, '/oai:OAI-PMH/oai:responseDate/text()')
             if self._resumptionToken is None:
                 harvestingDone = True
