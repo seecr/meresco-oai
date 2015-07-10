@@ -31,7 +31,7 @@ from weightless.io import Suspend
 
 class SuspendRegisterTest(SeecrTestCase):
 
-    def testResume(self):
+    def testSignalOaiUpdate(self):
         register = SuspendRegister()
         reactor = CallTrace("reactor")
         suspend = register.suspendAfterNoResult(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
@@ -39,7 +39,7 @@ class SuspendRegisterTest(SeecrTestCase):
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
         self.assertEquals([], resumed)
-        register.resume(metadataPrefixes=['prefix'], sets=set())
+        register.signalOaiUpdate(metadataPrefixes=['prefix'], sets=set(), otherKey='ignored')
         self.assertEquals([True], resumed)
         self.assertEquals(0, len(register))
 
@@ -82,9 +82,9 @@ class SuspendRegisterTest(SeecrTestCase):
             suspendAfterNoResult(clientIdentifier="client 3", metadataPrefix='prefix2', set='set_a')
 
         prepareSuspends()
-        register.resume(metadataPrefixes=['prefix2'], sets=['set_b'])
+        register.signalOaiUpdate(metadataPrefixes=['prefix2'], sets=['set_b'])
         self.assertEquals(['client 2'], resumed)
 
         prepareSuspends()
-        register.resume(metadataPrefixes=['prefix2'], sets=['set_a'])
+        register.signalOaiUpdate(metadataPrefixes=['prefix2'], sets=['set_a'])
         self.assertEquals(['client 2', 'client 3'], sorted(resumed))

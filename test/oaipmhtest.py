@@ -64,7 +64,7 @@ HOSTNAME = gethostname()
 class _OaiPmhTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
-        self.jazz = jazz = OaiJazz(join(self.tempdir, 'jazz'), supportResume=False)
+        self.jazz = jazz = OaiJazz(join(self.tempdir, 'jazz'))
         self.storage = MultiSequentialStorage(join(self.tempdir, 'sequential-store'))
         self.oaipmh = self.getOaiPmh()
         self.root = be((Observable(),

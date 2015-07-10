@@ -48,7 +48,7 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
 
     def testListMetadataFormats(self):
         listMetadataFormats = OaiListMetadataFormats()
-        oaijazz = OaiJazz(self.tempdir + '/jazz', supportResume=False)
+        oaijazz = OaiJazz(self.tempdir + '/jazz')
         listMetadataFormats.addObserver(oaijazz)
         oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])
         oaijazz.addOaiRecord(identifier="id1", sets=(), metadataFormats=[('rdf', '', '')])
@@ -68,7 +68,7 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
 
     def testListMetadataFormatsWithRepositoryIdentifier(self):
         listMetadataFormats = OaiListMetadataFormats(repository=OaiRepository('example.org'))
-        oaijazz = OaiJazz(self.tempdir + '/jazz', supportResume=False)
+        oaijazz = OaiJazz(self.tempdir + '/jazz')
         listMetadataFormats.addObserver(oaijazz)
         oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])
         oaijazz.addOaiRecord(identifier="id1", sets=(), metadataFormats=[('rdf', '', '')])

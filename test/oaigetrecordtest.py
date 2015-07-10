@@ -53,7 +53,7 @@ class OaiGetRecordTest(SeecrTestCase):
 
     def testGetRecordWithMultiSequentialStorage(self):
         oaigetrecord = OaiGetRecord()
-        oaijazz = OaiJazz(self.tempdir + '/jazz', supportResume=False)
+        oaijazz = OaiJazz(self.tempdir + '/jazz')
         storage = MultiSequentialStorage(self.tempdir + "/seq-store")
         oairecord = OaiRecord()
         oairecord.addObserver(storage)

@@ -195,7 +195,7 @@ class OaiIntegrationTest(SeecrTestCase):
 
     def testUpdateRecordWhileSendingData(self):
         batchSize = 3
-        oaiJazz = OaiJazz(join(self.tempdir, 'oai'), supportResume=False)
+        oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, count=batchSize + 10)
         dna = be((Observable(),

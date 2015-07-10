@@ -49,7 +49,7 @@ class SuspendRegister(object):
         return
         yield
 
-    def resume(self, metadataPrefixes, sets):
+    def signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
         for clientId, suspend in self._register.items()[:]:
             if suspend.oaiListResumeMask['metadataPrefix'] in metadataPrefixes:
                 setMask = suspend.oaiListResumeMask['set']

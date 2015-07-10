@@ -85,7 +85,7 @@ DEFAULT_BATCH_SIZE = 200
 class OaiJazz(Observable):
     version = '8'
 
-    def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, supportResume=True, name=None):
+    def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, name=None):
         Observable.__init__(self, name=name)
         lazyImport()
         self._directory = aDirectory
@@ -99,7 +99,6 @@ class OaiJazz(Observable):
         self._writer, self._reader, self._searcher = getLucene(aDirectory)
         self._latestModifications = set()
         self._newestStamp = self._newestStampFromIndex()
-        self._supportResume = supportResume
 
     _sets = property(lambda self: self._data["sets"])
     _prefixes = property(lambda self: self._data["prefixes"])
@@ -348,8 +347,7 @@ class OaiJazz(Observable):
 
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
-        if self._supportResume:
-            self.call.resume(metadataPrefixes=allMetadataPrefixes, sets=allSets)
+        self.do.signalOaiUpdate(metadataPrefixes=allMetadataPrefixes, sets=allSets, stamp=newStamp)
 
     def _getNewDocument(self, identifier, oldDoc):
         doc = Document()

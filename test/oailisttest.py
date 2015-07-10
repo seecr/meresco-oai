@@ -53,7 +53,7 @@ from meresco.oai.oairecord import OaiRecord
 class OaiListTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
-        self.oaiJazz = OaiJazz(self.tempdir, supportResume=False)
+        self.oaiJazz = OaiJazz(self.tempdir)
         self.oaiList = OaiList(batchSize=2)
         self.observer = CallTrace('observer', emptyGeneratorMethods=['suspendBeforeSelect'])
         self.observer.methods['suspendAfterNoResult'] = lambda clientIdentifier, metadataPrefix, set=None: (s for s in ['SUSPEND'])
@@ -108,7 +108,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals([['id:0&0']], self.getMultipleDataIdentifiers)
 
     def testListRecordsWithMultiSequentialStorage(self):
-        oaijazz = OaiJazz(join(self.tempdir, '1'), supportResume=False)
+        oaijazz = OaiJazz(join(self.tempdir, '1'))
         oailist = OaiList(batchSize=2)
         storage = MultiSequentialStorage(join(self.tempdir, "2"))
         oailist.addObserver(oaijazz)
@@ -124,7 +124,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals("data01", xpath(parse(StringIO(body)), '//oai:metadata')[0].text)
 
     def testListRecordsWithALotOfDeletedRecords(self):
-        oaijazz = OaiJazz(join(self.tempdir, '1'), supportResume=False)
+        oaijazz = OaiJazz(join(self.tempdir, '1'))
         oailist = OaiList(batchSize=2)
         storage = MultiSequentialStorage(join(self.tempdir, "2"))
         oailist.addObserver(oaijazz)

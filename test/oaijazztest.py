@@ -970,15 +970,15 @@ class OaiJazzTest(SeecrTestCase):
 
     def testAddOaiRecordResumes(self):
         self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
-        self.assertEquals(['resume'], self.observer.calledMethodNames())
-        self.assertEquals({'metadataPrefixes': set(['prefix']), 'sets': set()}, self.observer.calledMethods[0].kwargs)
+        self.assertEquals(['signalOaiUpdate'], self.observer.calledMethodNames())
+        self.assertEquals({'metadataPrefixes': set(['prefix']), 'sets': set(), 'stamp':self.originalStampNumber}, self.observer.calledMethods[0].kwargs)
 
     def testDeleteResumes(self):
         self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
         self.observer.calledMethods.reset()
         consume(self.jazz.delete(identifier='identifier'))
-        self.assertEquals(['resume'], self.observer.calledMethodNames())
-        self.assertEquals({'metadataPrefixes': set(['prefix']), 'sets': set()}, self.observer.calledMethods[0].kwargs)
+        self.assertEquals(['signalOaiUpdate'], self.observer.calledMethodNames())
+        self.assertEquals({'metadataPrefixes': set(['prefix']), 'sets': set(), 'stamp':self.originalStampNumber+1}, self.observer.calledMethods[0].kwargs)
 
 
     def testStamp2Zulutime(self):

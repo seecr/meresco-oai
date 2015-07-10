@@ -38,7 +38,7 @@ class OaiInfoTest(SeecrTestCase):
     def setUp(self):
         super(OaiInfoTest, self).setUp()
         self.oaiInfo = OaiInfo(reactor=CallTrace(), oaiPath='/')
-        self.jazz = OaiJazz(self.tempdir, supportResume=False)
+        self.jazz = OaiJazz(self.tempdir)
         self.top = be((Observable(),
             (self.oaiInfo,
                 (self.jazz,)
