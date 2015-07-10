@@ -24,76 +24,56 @@
 #
 ## end license ##
 
-from seecr.test import SeecrTestCase
+from seecr.test import SeecrTestCase, CallTrace
+from seecr.test.io import stderr_replaced
+from meresco.oai.suspendregister import SuspendRegister, ForcedResumeException
+from weightless.io import Suspend
 
 class SuspendRegisterTest(SeecrTestCase):
 
-    def TODOtestAddOaiRecordResumes(self):
+    def testResume(self):
+        register = SuspendRegister()
         reactor = CallTrace("reactor")
-        suspend = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
+        suspend = register.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
+        self.assertEquals(Suspend, type(suspend))
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
         self.assertEquals([], resumed)
-        self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
+        register.resume(metadataPrefixes=['prefix'], sets=set())
         self.assertEquals([True], resumed)
-        self.assertEquals({}, self.jazz._suspended)
-
-    def TODOtestAddSuspendedListRecord(self):
-        suspend = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
-        self.assertTrue({'a-client-id': suspend}, self.jazz._suspended)
-        self.assertEquals(Suspend, type(suspend))
+        self.assertEquals(0, len(register))
 
     def testSuspendSameClientTwiceBeforeResuming(self):
-        reactor = CallTrace("reactor")
-        resumed = []
-
-        suspendGen1 = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix')
-        suspend1 = suspendGen1.next()
-        suspend1(reactor, lambda: resumed.append(True))
-        suspend2 = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
-
+        register = SuspendRegister()
+        s1 = register.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
+        s1(CallTrace('reactor'), lambda: None)
+        register.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
         try:
-            suspendGen1.next()
+            s1.getResult()
             self.fail()
         except ValueError, e:
-            self.assertTrue([True], resumed)
             self.assertEquals("Aborting suspended request because of new request for the same OaiClient with identifier: a-client-id.", str(e))
 
     def testShouldResumeAPreviousSuspendAfterTooManySuspends(self):
-        reactor = CallTrace("reactor")
-        resumed = []
-        jazz = OaiJazz(self.tmpdir2("b"), maximumSuspendedConnections=1)
-        suspendGen1 = jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix')
-        suspend1 = suspendGen1.next()
-        suspend1(reactor, lambda: resumed.append(True))
         with stderr_replaced() as s:
-            suspend2 = jazz.suspend(clientIdentifier="another-client-id", metadataPrefix='prefix').next()
-
-        self.assertRaises(ForcedResumeException, lambda: suspendGen1.next())
-        self.assertTrue([True], resumed)
-        self.assertEquals(1, len(jazz._suspended))
-        self.assertEquals("Too many suspended connections in OaiJazz. One random connection has been resumed.\n", s.getvalue())
-
-    def testDeleteResumes(self):
-        self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
-        reactor = CallTrace("reactor")
-        suspend = self.jazz.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
-        resumed = []
-        suspend(reactor, lambda: resumed.append(True))
-        self.assertEquals([], resumed)
-        list(compose(self.jazz.delete(identifier='identifier')))
-        self.assertEquals([True], resumed)
-        self.assertEquals({}, self.jazz._suspended)
-
+            register = SuspendRegister(maximumSuspendedConnections=1)
+            s1 = register.suspend(clientIdentifier="a-client-id", metadataPrefix='prefix').next()
+            s1(CallTrace('reactor'), lambda: None)
+            register.suspend(clientIdentifier="another-client-id", metadataPrefix='prefix').next()
+            try:
+                s1.getResult()
+                self.fail()
+            except ForcedResumeException:
+                self.assertEquals("Too many suspended connections in SuspendRegister. One random connection has been resumed.\n", s.getvalue())
 
     def testResumeOnlyMatchingSuspends(self):
-        reactor = CallTrace("reactor")
+        register = SuspendRegister()
         resumed = []
 
         def suspend(clientIdentifier, metadataPrefix, set=None):
-            if not clientIdentifier in self.jazz._suspended:
-                suspendObject = self.jazz.suspend(clientIdentifier=clientIdentifier, metadataPrefix=metadataPrefix, set=set).next()
-                suspendObject(reactor, lambda: resumed.append(clientIdentifier))
+            if not clientIdentifier in register:
+                suspendObject = register.suspend(clientIdentifier=clientIdentifier, metadataPrefix=metadataPrefix, set=set).next()
+                suspendObject(CallTrace('reactor'), lambda: resumed.append(clientIdentifier))
 
         def prepareSuspends():
             resumed[:] = []
@@ -102,17 +82,9 @@ class SuspendRegisterTest(SeecrTestCase):
             suspend(clientIdentifier="client 3", metadataPrefix='prefix2', set='set_a')
 
         prepareSuspends()
-        self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix2', 'schema', 'namespace')], sets=[('set_b', 'set B')])
+        register.resume(metadataPrefixes=['prefix2'], sets=['set_b'])
         self.assertEquals(['client 2'], resumed)
 
         prepareSuspends()
-        list(compose(self.jazz.delete(identifier='identifier')))
-        self.assertEquals(['client 2'], resumed)
-
-        prepareSuspends()
-        self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix2', 'schema', 'namespace')], sets=[('set_a', 'set A')])
-        self.assertEquals(['client 2', 'client 3'], sorted(resumed))
-
-        prepareSuspends()
-        list(compose(self.jazz.delete(identifier='identifier')))
+        register.resume(metadataPrefixes=['prefix2'], sets=['set_a'])
         self.assertEquals(['client 2', 'client 3'], sorted(resumed))

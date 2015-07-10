@@ -124,8 +124,8 @@ Error and Exception Conditions
                         e.statusCode in ["noRecordsMatch", "cannotDisseminateFormat"]:
                     try:
                         yield self._suspend(selectArguments, httpkwargs)
-                    except ForcedResumeException, e:
-                        yield successNoContentPlainText + str(e)
+                    except ForcedResumeException:
+                        yield successNoContentPlainText + "OAI x-wait connection has been forcefully resumed."
                         return
                     except Exception, e:
                         print_exc()

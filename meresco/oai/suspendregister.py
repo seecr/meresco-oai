@@ -39,8 +39,8 @@ class SuspendRegister(object):
         if clientIdentifier in self._register:
             self._register.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
         if len(self._register) == self._maximumSuspendedConnections:
-            self._register.pop(choice(self._register.keys())).throw(ForcedResumeException, ForcedResumeException("OAI x-wait connection has been forcefully resumed."), None)
-            sys.stderr.write("Too many suspended connections in OaiJazz. One random connection has been resumed.\n")
+            self._register.pop(choice(self._register.keys())).throw(exc_type=ForcedResumeException, exc_value=ForcedResumeException(), exc_traceback=None)
+            sys.stderr.write("Too many suspended connections in SuspendRegister. One random connection has been resumed.\n")
         self._register[clientIdentifier] = suspend
         yield suspend
         suspend.getResult()
@@ -53,6 +53,10 @@ class SuspendRegister(object):
                     continue
                 del self._register[clientId]
                 suspend.resume()
+
+
+
+    # test helpers
 
     def __len__(self):
         """For testing"""
