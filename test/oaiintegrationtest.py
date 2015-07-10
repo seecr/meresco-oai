@@ -40,7 +40,7 @@ from meresco.core import Observable
 from meresco.components.http import ObservableHttpServer
 from meresco.components.http.utils import CRLF
 from meresco.components import XmlParseLxml, PeriodicDownload
-from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor
+from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor, SuspendRegister
 from meresco.xml import xpathFirst
 from meresco.sequentialstore import MultiSequentialStorage
 
@@ -60,11 +60,12 @@ class OaiIntegrationTest(SeecrTestCase):
     def testNearRealtimeOai(self):
         self.run = True
         portNumber = randint(50000, 60000)
-
+        suspendRegister = SuspendRegister()
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        oaiJazz.addObserver(suspendRegister)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, 3)
-        oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
+        oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent, suspendRegister))
 
         observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
         harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
@@ -80,19 +81,19 @@ class OaiIntegrationTest(SeecrTestCase):
             ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods]
             self.assertEquals([['id0'],['id1'],['id2']], ids)
 
-            self.assertEquals(1, len(oaiJazz.suspendRegister))
+            self.assertEquals(1, len(suspendRegister))
 
             requests += 1
             storageComponent.addData(identifier="id3", name="prefix", data="<a>a3</a>")
             oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
             sleepWheel(1)
 
-            self.assertEquals(0, len(oaiJazz.suspendRegister))
+            self.assertEquals(0, len(suspendRegister))
             self.assertEquals(['add'] * requests, [m.name for m in observer.calledMethods])
             kwarg = lxmltostring(observer.calledMethods[-1].kwargs['lxmlNode'])
             self.assertTrue("id3" in kwarg, kwarg)
             sleepWheel(1.0)
-            self.assertEquals(1, len(oaiJazz.suspendRegister))
+            self.assertEquals(1, len(suspendRegister))
         finally:
             self.run = False
             oaiPmhThread.join()
@@ -103,6 +104,8 @@ class OaiIntegrationTest(SeecrTestCase):
         self.run = True
         portNumber = randint(50000, 60000)
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        suspendRegister = SuspendRegister()
+        oaiJazz.addObserver(suspendRegister)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         clientId = str(uuid4())
 
@@ -111,7 +114,7 @@ class OaiIntegrationTest(SeecrTestCase):
             header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, additionalHeaders={'X-Meresco-Oai-Client-Identifier': clientId}, parse=False)
             requests.append((header, body))
 
-        oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
+        oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent, suspendRegister))
         harvestThread1 = Thread(None, lambda: doOaiListRecord(portNumber))
         harvestThread2 = Thread(None, lambda: doOaiListRecord(portNumber))
 
@@ -119,25 +122,26 @@ class OaiIntegrationTest(SeecrTestCase):
             oaiPmhThread.start()
             harvestThread1.start()
             try:
-                while len(oaiJazz.suspendRegister) == 0:
+                while len(suspendRegister) == 0:
                     sleep(0.01)
-                harvest1Suspend = oaiJazz.suspendRegister._suspendObject(clientId)
+                harvest1Suspend = suspendRegister._suspendObject(clientId)
                 self.assertTrue(harvest1Suspend is not None)
                 harvestThread2.start()
-                while harvest1Suspend == oaiJazz.suspendRegister._suspendObject(clientId):
+                while harvest1Suspend == suspendRegister._suspendObject(clientId):
                     sleep(0.01)
                 sleep(0.01)
-                self.assertTrue(clientId in oaiJazz.suspendRegister)
-                self.assertTrue(harvest1Suspend != oaiJazz.suspendRegister._suspendObject(clientId))
+                self.assertTrue(clientId in suspendRegister)
+                self.assertTrue(harvest1Suspend != suspendRegister._suspendObject(clientId))
+
+                self.assertEquals(1, len(requests))
+                header, body = requests[0]
+                self.assertTrue('500' in header, header)
+                self.assertTrue(body.startswith('Aborting suspended request'), body)
 
                 storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
                 oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
                 sleep(0.1)
 
-                self.assertEquals(2, len(requests))
-                self.assertEquals("HTTP/1.0 500 Internal Server Error\r\nContent-Type: text/plain; charset=utf-8", requests[0][0])
-                self.assertEquals("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientId, requests[0][1])
-                self.assertEquals("HTTP/1.0 200 OK\r\nContent-Type: text/xml; charset=utf-8", requests[1][0])
             finally:
                 self.run = False
                 oaiPmhThread.join()
@@ -148,7 +152,9 @@ class OaiIntegrationTest(SeecrTestCase):
     def testShouldNotStartToLoopLikeAMadMan(self):
         self.run = True
         portNumber = randint(50000, 60000)
-        oaiJazz = OaiJazz(join(self.tempdir, 'oai'), maximumSuspendedConnections=5)
+        oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        suspendRegister = SuspendRegister(maximumSuspendedConnections=5)
+        oaiJazz.addObserver(suspendRegister)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
 
         # def doOaiListRecord(port):
@@ -161,7 +167,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 self.assertTrue('urlopen error timed out>' in str(e), str(e))
             basket.append(response.getcode())
 
-        oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
+        oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent, suspendRegister))
         threads = []
         todo = [doUrlOpenWithTimeout] * 7
 
@@ -175,7 +181,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 harvestThread.start()
 
             try:
-                while len(oaiJazz.suspendRegister) == 0:
+                while len(suspendRegister) == 0:
                     sleep(0.01)
             finally:
                 for t in threads:
@@ -188,7 +194,7 @@ class OaiIntegrationTest(SeecrTestCase):
 
     def testUpdateRecordWhileSendingData(self):
         batchSize = 3
-        oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        oaiJazz = OaiJazz(join(self.tempdir, 'oai'), supportResume=False)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, count=batchSize + 10)
         dna = be((Observable(),
@@ -219,6 +225,8 @@ class OaiIntegrationTest(SeecrTestCase):
     def testNearRealtimeOaiSavesState(self):
         observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        suspendRegister = SuspendRegister()
+        oaiJazz.addObserver(suspendRegister)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, 1)
 
@@ -229,7 +237,7 @@ class OaiIntegrationTest(SeecrTestCase):
             global oaiPmhThread, harvestThread
             self.run = True
             portNumber = randint(50000, 60000)
-            oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent))
+            oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent, suspendRegister))
             harvestThread = Thread(None, lambda: self.startOaiHarvester(portNumber, observer))
             oaiPmhThread.start()
             harvestThread.start()
@@ -278,14 +286,17 @@ class OaiIntegrationTest(SeecrTestCase):
         list(compose(server.once.observer_init()))
         self._loopReactor(reactor)
 
-    def startOaiPmh(self, portNumber, oaiJazz, storageComponent):
+    def startOaiPmh(self, portNumber, oaiJazz, storageComponent, register):
         getVMEnv().attachCurrentThread()
         reactor = Reactor()
         server = be(
             (Observable(),
                 (ObservableHttpServer(reactor, portNumber),
                     (OaiPmh(repositoryName='repositoryName', adminEmail='adminEmail', batchSize=2, supportXWait=True),
-                        (oaiJazz,),
+                        (register,),
+                        (oaiJazz,
+                            (register,),
+                        ),
                         (storageComponent,)
                     )
                 )

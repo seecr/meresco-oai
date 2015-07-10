@@ -45,7 +45,7 @@ from meresco.components.http.utils import CRLF
 from meresco.sequentialstore import MultiSequentialStorage
 from meresco.xml import namespaces
 
-from meresco.oai import OaiPmh, OaiJazz, OaiBranding
+from meresco.oai import OaiPmh, OaiJazz, OaiBranding, SuspendRegister
 from weightless.core import be, compose
 
 
@@ -64,12 +64,12 @@ HOSTNAME = gethostname()
 class _OaiPmhTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
-        self.jazz = jazz = OaiJazz(join(self.tempdir, 'jazz'))
+        self.jazz = jazz = OaiJazz(join(self.tempdir, 'jazz'), supportResume=False)
         self.storage = MultiSequentialStorage(join(self.tempdir, 'sequential-store'))
         self.oaipmh = self.getOaiPmh()
         self.root = be((Observable(),
             (self.oaipmh,
-                (jazz,),
+                (jazz, ),
                 (self.storage,)
             )
         ))

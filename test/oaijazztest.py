@@ -67,6 +67,7 @@ def _suppressByTriggeringWarnings():
     tmpdir = mkdtemp()
     try:
         jazz = OaiJazz(tmpdir)
+        jazz.addObserver(CallTrace())
         with warnings.catch_warnings(record=True) as warns:
             jazz.addOaiRecord('id:1', metadataFormats=[('prefix', '', '')])
             jazz.addOaiRecord('id:1', metadataPrefixes=['f'], sets=[('s', 'set s')])
@@ -81,6 +82,8 @@ class OaiJazzTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
         self.jazz = OaiJazz(join(self.tempdir, "a"))
+        self.observer = CallTrace()
+        self.jazz.addObserver(self.observer)
         self._originalNewStamp = self.jazz._newStamp
         self.stampNumber = self.originalStampNumber = int((timegm((2008, 07, 06, 05, 04, 03, 0, 0, 1))+.123456)*1000000)
         def stamp():
@@ -169,7 +172,7 @@ class OaiJazzTest(SeecrTestCase):
         for identifier in allids:
             list(self.jazz.getSets(identifier))
         t4 = time()
-        jazz = OaiJazz(self.tmpdir2("b"))
+        OaiJazz(self.tmpdir2("b"))
         t5 = time()
         print t1 - t0, t2 - t1, t3 -t2, t3 -t1, t4 - t3, t5 - t4
         # a set of 10 million records costs 3.9 seconds (Without any efficiency things applied
@@ -198,6 +201,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testGetPreciseDatestamp(self):
         jazz = OaiJazz(self.tmpdir2("b"), preciseDatestamp=True)
+        jazz.addObserver(self.observer)
         jazz._newStamp = self.jazz._newStamp
         jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
         self.assertEquals('2008-07-06T05:04:03.123456Z', jazz.getRecord('123').getDatestamp())
@@ -240,6 +244,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testDeleteOaiRecordNonExistingRecordWithPrefixAndAlwaysDeleteInPrefixes(self):
         jazz2 = OaiJazz(self.tmpdir2("b"), alwaysDeleteInPrefixes=['z'])
+        jazz2.addObserver(self.observer)
         jazz2.deleteOaiRecord(identifier='notExisting', metadataPrefixes=['p'])
         record = jazz2.getRecord('notExisting')
         self.assertEquals('notExisting', record.identifier)
@@ -264,6 +269,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testMarkDeleteOfNonExistingRecordInGivenPrefixes(self):
         jazz = OaiJazz(self.tmpdir2("b"), alwaysDeleteInPrefixes=["aprefix"])
+        jazz.addObserver(self.observer)
         jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         list(compose(jazz.delete('notExisting')))
         self.assertEquals(['notExisting'], recordIds(jazz.oaiSelect(prefix='aprefix')))
@@ -273,11 +279,13 @@ class OaiJazzTest(SeecrTestCase):
 
     def testPurgeRecord(self):
         self.jazz = OaiJazz(self.tmpdir2("b"), persistentDelete=False)
+        self.jazz.addObserver(self.observer)
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
         self.assertNotEquals(None, self.jazz.getRecord('existing'))
         self.jazz.purge('existing')
         self.jazz.close()
         jazz2 = OaiJazz(self.tmpdir2("b"))
+        jazz2.addObserver(self.observer)
         self.assertEquals(None, jazz2.getRecord('existing'))
         self.assertEquals([], recordIds(jazz2.oaiSelect(prefix='prefix')))
 
@@ -323,6 +331,7 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord(u'ë', metadataFormats=[('prefix','schema', 'namespace')], sets=[('setSpec', 'setName')])
         self.jazz.close()
         jazz2 = OaiJazz(self.tmpdir2("a"))
+        jazz2.addObserver(self.observer)
         self.assertEquals(['ë'], recordIds(jazz2.oaiSelect(prefix='prefix', sets=['setSpec'])))
         self.assertFalse(jazz2.getRecord(u'ë').isDeleted)
         list(compose(jazz2.delete(u'ë')))
@@ -410,6 +419,7 @@ class OaiJazzTest(SeecrTestCase):
             "Reopen everytime to force merging and causing an edge case to happen."
             self.jazz.close()
             self.jazz = OaiJazz(join(self.tempdir, "a"))
+            self.jazz.addObserver(self.observer)
         for i in range(1,6):
             self.jazz.addOaiRecord('id%s' % i, metadataFormats=[('aPrefix', 'schema', 'namespace')], sets=[('set1', 'setName')])
             reopen()
@@ -422,6 +432,7 @@ class OaiJazzTest(SeecrTestCase):
     def testGetLastStampId(self):
         stampFunction = self.jazz._newStamp
         self.jazz = OaiJazz(self.tmpdir2("b"), persistentDelete=False)
+        self.jazz.addObserver(self.observer)
         self.jazz._newStamp = stampFunction
         self.assertEquals(None, self.jazz.getLastStampId('aPrefix'))
         newStamp = self.stampNumber
@@ -958,19 +969,16 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['123'], recordIds(self.jazz.oaiSelect(prefix='oai_dc')))
 
     def testAddOaiRecordResumes(self):
-        register = CallTrace("suspend register")
-        self.jazz._suspendRegister = register
         self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
-        self.assertEquals(['resume'], register.calledMethodNames())
-        self.assertEquals({'metadataPrefixes': set(['prefix']), 'sets': set()}, register.calledMethods[0].kwargs)
+        self.assertEquals(['resume'], self.observer.calledMethodNames())
+        self.assertEquals({'metadataPrefixes': set(['prefix']), 'sets': set()}, self.observer.calledMethods[0].kwargs)
 
     def testDeleteResumes(self):
         self.jazz.addOaiRecord(identifier="identifier", metadataFormats=[('prefix', 'schema', 'namespace')])
-        register = CallTrace("suspend register")
-        self.jazz._suspendRegister = register
+        self.observer.calledMethods.reset()
         consume(self.jazz.delete(identifier='identifier'))
-        self.assertEquals(['resume'], register.calledMethodNames())
-        self.assertEquals({'metadataPrefixes': set(['prefix']), 'sets': set()}, register.calledMethods[0].kwargs)
+        self.assertEquals(['resume'], self.observer.calledMethodNames())
+        self.assertEquals({'metadataPrefixes': set(['prefix']), 'sets': set()}, self.observer.calledMethods[0].kwargs)
 
 
     def testStamp2Zulutime(self):
@@ -980,6 +988,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testOaiSelectIsAlwaysSortedOnStamp(self):
         self.jazz = OaiJazz(join(self.tempdir, "b"))
+        self.jazz.addObserver(self.observer)
         for i in range(1000):
             self.jazz.addOaiRecord("%s" % i, metadataFormats=[('prefix', 'schema', 'namespace')])
         l = [r.stamp for r in self.jazz.oaiSelect(prefix='prefix', batchSize=2000).records]
@@ -1051,6 +1060,7 @@ class OaiJazzTest(SeecrTestCase):
     @stdout_replaced
     def testJazzWithShutdown(self):
         jazz = OaiJazz(self.tmpdir2("b"))
+        jazz.addObserver(self.observer)
         jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
         list(compose(jazz.delete(identifier='identifier')))
         jazz.handleShutdown()
@@ -1063,6 +1073,7 @@ class OaiJazzTest(SeecrTestCase):
     def testJazzWithoutCommit(self):
         theDir = self.tmpdir2("b")
         jazz = OaiJazz(theDir)
+        jazz.addObserver(self.observer)
         jazz.addOaiRecord(identifier="identifier", sets=[('A', 'set A')], metadataFormats=[('prefix', 'schema', 'namespace')])
         from meresco.oai.oaijazz import getReader
         try:

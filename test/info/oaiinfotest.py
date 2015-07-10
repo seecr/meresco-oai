@@ -4,8 +4,9 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -37,7 +38,7 @@ class OaiInfoTest(SeecrTestCase):
     def setUp(self):
         super(OaiInfoTest, self).setUp()
         self.oaiInfo = OaiInfo(reactor=CallTrace(), oaiPath='/')
-        self.jazz = OaiJazz(self.tempdir)
+        self.jazz = OaiJazz(self.tempdir, supportResume=False)
         self.top = be((Observable(),
             (self.oaiInfo,
                 (self.jazz,)

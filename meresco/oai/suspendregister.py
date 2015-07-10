@@ -29,7 +29,7 @@ from random import choice
 import sys
 
 class SuspendRegister(object):
-    def __init__(self, maximumSuspendedConnections=100, ):
+    def __init__(self, maximumSuspendedConnections=100):
         self._register = {}
         self._maximumSuspendedConnections = maximumSuspendedConnections
 

@@ -4,8 +4,9 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -52,7 +53,7 @@ class OaiGetRecordTest(SeecrTestCase):
 
     def testGetRecordWithMultiSequentialStorage(self):
         oaigetrecord = OaiGetRecord()
-        oaijazz = OaiJazz(self.tempdir + '/jazz')
+        oaijazz = OaiJazz(self.tempdir + '/jazz', supportResume=False)
         storage = MultiSequentialStorage(self.tempdir + "/seq-store")
         oairecord = OaiRecord()
         oairecord.addObserver(storage)

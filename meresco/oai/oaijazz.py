@@ -42,8 +42,8 @@ from warnings import warn
 
 
 from json import load, dump
+from meresco.core import Observable
 from meresco.pylucene import getJVM
-from .suspendregister import SuspendRegister
 
 imported = False
 Long = File = Document = StringField = Field = LongField = IntField = IndexSearcher = TermQuery = \
@@ -82,10 +82,11 @@ def lazyImport():
 
 DEFAULT_BATCH_SIZE = 200
 
-class OaiJazz(object):
+class OaiJazz(Observable):
     version = '8'
 
-    def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, maximumSuspendedConnections=100, name=None):
+    def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, supportResume=True, name=None):
+        Observable.__init__(self, name=name)
         lazyImport()
         self._directory = aDirectory
         if not isdir(aDirectory):
@@ -94,18 +95,14 @@ class OaiJazz(object):
         self._deletePrefixes = set(alwaysDeleteInPrefixes or [])
         self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
-        self._suspendRegister = SuspendRegister(maximumSuspendedConnections=maximumSuspendedConnections)
-        self._name = name
         self._load()
         self._writer, self._reader, self._searcher = getLucene(aDirectory)
         self._latestModifications = set()
         self._newestStamp = self._newestStampFromIndex()
+        self._supportResume = supportResume
 
     _sets = property(lambda self: self._data["sets"])
     _prefixes = property(lambda self: self._data["prefixes"])
-    @property
-    def suspendRegister(self):
-        return self._suspendRegister
 
     def oaiSelect(self,
             sets=None,
@@ -277,12 +274,6 @@ class OaiJazz(object):
         self._save()
         self._writer.close()
 
-    def observable_name(self):
-        return self._name
-
-    def suspend(self, *args, **kwargs):
-        yield self._suspendRegister.suspend(*args, **kwargs)
-
     def _versionFormatCheck(self):
         versionFile = join(self._directory, "oai.version")
         msg = "The OAI index at %s need to be converted to the current version (with 'convert_oai_v5_to_v6' in meresco-oai/bin)" % self._directory
@@ -357,7 +348,8 @@ class OaiJazz(object):
 
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
-        self._suspendRegister.resume(metadataPrefixes=allMetadataPrefixes, sets=allSets)
+        if self._supportResume:
+            self.call.resume(metadataPrefixes=allMetadataPrefixes, sets=allSets)
 
     def _getNewDocument(self, identifier, oldDoc):
         doc = Document()

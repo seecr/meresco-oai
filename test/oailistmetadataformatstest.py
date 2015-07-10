@@ -4,7 +4,8 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -47,7 +48,7 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
 
     def testListMetadataFormats(self):
         listMetadataFormats = OaiListMetadataFormats()
-        oaijazz = OaiJazz(self.tempdir + '/jazz')
+        oaijazz = OaiJazz(self.tempdir + '/jazz', supportResume=False)
         listMetadataFormats.addObserver(oaijazz)
         oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])
         oaijazz.addOaiRecord(identifier="id1", sets=(), metadataFormats=[('rdf', '', '')])
@@ -67,7 +68,7 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
 
     def testListMetadataFormatsWithRepositoryIdentifier(self):
         listMetadataFormats = OaiListMetadataFormats(repository=OaiRepository('example.org'))
-        oaijazz = OaiJazz(self.tempdir + '/jazz')
+        oaijazz = OaiJazz(self.tempdir + '/jazz', supportResume=False)
         listMetadataFormats.addObserver(oaijazz)
         oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])
         oaijazz.addOaiRecord(identifier="id1", sets=(), metadataFormats=[('rdf', '', '')])
