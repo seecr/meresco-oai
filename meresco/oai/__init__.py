@@ -50,7 +50,6 @@ if not isfile(sofile) or stat(sofile).st_mtime < lastMtime:                     
 sysPath.insert(0, libDir)                                                        #DO_NOT_DISTRIBUTE
 
 from __version__ import VERSION
-from .batchsuspendregister import BatchSuspendRegister
 from oaipmh import OaiPmh
 from oaiprovenance import OaiProvenance
 from oaisetmask import OaiSetMask
@@ -62,4 +61,4 @@ from oaidownloadprocessor import OaiDownloadProcessor
 from updateadapter import UpdateAdapterFromOaiDownloadProcessor
 from oaibranding import OaiBranding
 from resumptiontoken import ResumptionToken
-from .suspendregister import SuspendRegister
+from .suspendregister import SuspendRegister, BatchSuspendRegister

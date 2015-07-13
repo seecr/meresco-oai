@@ -157,8 +157,8 @@ Error and Exception Conditions
         arguments = dict(arguments)
         checkNoRepeatedArguments(arguments)
         arguments.pop('verb')
-        selectArguments['x-wait'] = self._supportXWait and checkBooleanArgument(arguments, 'x-wait', selectArguments)
-        checkBooleanArgument(arguments, 'x-count', selectArguments)
+        selectArguments['x-wait'] = self._supportXWait and checkBooleanArgument(arguments, 'x-wait', {})
+        selectArguments['shouldCountHits'] = checkBooleanArgument(arguments, 'x-count', {})
         if checkArgument(arguments, 'resumptionToken', selectArguments):
             if len(arguments) > 0:
                 raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')
@@ -199,23 +199,24 @@ Error and Exception Conditions
                 raise OaiBadArgumentException('From and/or until arguments are faulty.')
 
         selectArguments['continueAfter'] = continueAfter
-        selectArguments['from_'] = from_
-        selectArguments['until'] = until
-        selectArguments['set_'] = set_
-        selectArguments['metadataPrefix'] = metadataPrefix
+        selectArguments['oaiFrom'] = from_
+        selectArguments['oaiUntil'] = until
+        selectArguments['sets'] = [set_] if set_ else []
+        selectArguments['prefix'] = metadataPrefix
         return selectArguments
 
-    def _oaiSelect(self, metadataPrefix, continueAfter, from_, until, set_, **kwargs):
-        if not metadataPrefix in set(self.call.getAllPrefixes()):
+    def _oaiSelect(self, prefix, sets, continueAfter, oaiFrom, oaiUntil, shouldCountHits, **ignored):
+        if not prefix in set(self.call.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
         result = self.call.oaiSelect(
-            sets=[set_] if set_ else None,
-            prefix=metadataPrefix,
-            continueAfter=continueAfter,
-            oaiFrom=from_,
-            oaiUntil=until,
-            batchSize=self._batchSize,
-            shouldCountHits=kwargs['x-count'])
+                prefix=prefix,
+                batchSize=self._batchSize,
+                sets=sets,
+                continueAfter=continueAfter,
+                oaiFrom=oaiFrom,
+                oaiUntil=oaiUntil,
+                shouldCountHits=shouldCountHits,
+            )
         if result.numberOfRecordsInBatch == 0:
             raise OaiException('noRecordsMatch')
         return result
@@ -230,13 +231,13 @@ Error and Exception Conditions
 
     def _renderRecords(self, verb, result, selectArguments):
         records = list(result.records)
-        metadataPrefix = selectArguments['metadataPrefix']
+        prefix = selectArguments['prefix']
         fetchedRecords = None
         try:
             t0 = time()
             fetchedRecords = dict(
                 self.call.getMultipleData(
-                    name=metadataPrefix,
+                    name=prefix,
                     identifiers=(r.identifier for r in records if not r.isDeleted),
                     ignoreMissing=True
                 )
@@ -251,20 +252,21 @@ Error and Exception Conditions
             pass
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
         for record in records:
-            yield self.all.unknown(message, record=record, metadataPrefix=selectArguments['metadataPrefix'], fetchedRecords=fetchedRecords)
+            yield self.all.unknown(message, record=record, metadataPrefix=prefix, fetchedRecords=fetchedRecords)
 
     def _renderResumptionToken(self, result, selectArguments):
         if result.moreRecordsAvailable or selectArguments['x-wait']:
-            if selectArguments['x-count']:
+            if selectArguments['shouldCountHits']:
                 yield '<resumptionToken recordsRemaining="%s">' % result.recordsRemaining
             else:
                 yield '<resumptionToken>'
             yield '%s</resumptionToken>' % ResumptionToken(
-                    metadataPrefix=selectArguments['metadataPrefix'],
+                    metadataPrefix=selectArguments['prefix'],
                     continueAfter=result.continueAfter,
-                    from_=selectArguments['from_'],
-                    until=selectArguments['until'],
-                    set_=selectArguments['set_'])
+                    from_=selectArguments['oaiFrom'],
+                    until=selectArguments['oaiUntil'],
+                    set_=next(iter(selectArguments['sets']), None),
+                )
         elif 'resumptionToken' in selectArguments:
             yield '<resumptionToken/>'
 

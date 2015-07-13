@@ -26,12 +26,15 @@
 
 from seecr.test import SeecrTestCase
 from meresco.oai import BatchSuspendRegister
+from weightless.io import Suspend
 
 class BatchSuspendRegisterTest(SeecrTestCase):
 
     def testExplicitResume(self):
         register = BatchSuspendRegister()
+        register.signalOaiUpdate(metadataPrefixes=['prefix'], sets=['set_a'], stamp=1000)
         register.startOaiBatch()
-        register.suspendBeforeSelect(continueAfter='')
+        result = list(register.suspendBeforeSelect(continueAfter='1000', otherKey='other'))
+        self.assertEquals([Suspend], [type(e) for e in result])
         register.suspendAfterNoResult()
 

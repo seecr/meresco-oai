@@ -29,13 +29,13 @@ from random import choice
 import sys
 
 class SuspendRegister(object):
-    def __init__(self, maximumSuspendedConnections=100):
+    def __init__(self, maximumSuspendedConnections=None):
         self._register = {}
-        self._maximumSuspendedConnections = maximumSuspendedConnections
+        self._maximumSuspendedConnections = maximumSuspendedConnections or 100
 
-    def suspendAfterNoResult(self, clientIdentifier, metadataPrefix, set_=None, **ignored):
+    def suspendAfterNoResult(self, clientIdentifier, prefix, sets, **ignored):
         suspend = Suspend()
-        suspend.oaiListResumeMask = dict(metadataPrefix=metadataPrefix, set_=set_)
+        suspend.oaiListResumeMask = dict(prefix=prefix, set_=next(iter(sets), None))
         if clientIdentifier in self._register:
             self._register.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
         if len(self._register) == self._maximumSuspendedConnections:
@@ -51,7 +51,7 @@ class SuspendRegister(object):
 
     def signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
         for clientId, suspend in self._register.items()[:]:
-            if suspend.oaiListResumeMask['metadataPrefix'] in metadataPrefixes:
+            if suspend.oaiListResumeMask['prefix'] in metadataPrefixes:
                 setMask = suspend.oaiListResumeMask['set_']
                 if setMask and not setMask in sets:
                     continue
@@ -74,5 +74,17 @@ class SuspendRegister(object):
         """For testing"""
         return self._register.get(clientId)
 
+class BatchSuspendRegister(object):
+    def __init__(self, maximumSuspendedConnections=None):
+        self._directRegister = SuspendRegister(maximumSuspendedConnections=maximumSuspendedConnections)
+        self._lastStamp = 0
+        self._currentRegister = self._directRegister
+
+    def signalOaiUpdate(self, stamp, **kwargs):
+        self._lastStamp = stamp
+        self._currentRegister.signalOaiUpdate(stamp=stamp, **kwargs)
+
+
 class ForcedResumeException(Exception):
     pass
+
