@@ -49,7 +49,10 @@ class SuspendRegister(object):
         return
         yield
 
-    def signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
+    def signalOaiUpdate(self, **kwargs):
+        self._signalOaiUpdate(**kwargs)
+
+    def _signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
         for clientId, suspend in self._register.items()[:]:
             if suspend.oaiListResumeMask['prefix'] in metadataPrefixes:
                 setMask = suspend.oaiListResumeMask['set_']
@@ -74,16 +77,46 @@ class SuspendRegister(object):
         """For testing"""
         return self._register.get(clientId)
 
-class BatchSuspendRegister(object):
-    def __init__(self, maximumSuspendedConnections=None):
-        self._directRegister = SuspendRegister(maximumSuspendedConnections=maximumSuspendedConnections)
+class BatchSuspendRegister(SuspendRegister):
+    def __init__(self, **kwargs):
+        SuspendRegister.__init__(self, **kwargs)
         self._lastStamp = 0
-        self._currentRegister = self._directRegister
+        self._immediateState = ImmediateState(self)
+        self._postponedState = PostponedState(self)
+        self._state = self._immediateState
 
     def signalOaiUpdate(self, stamp, **kwargs):
         self._lastStamp = stamp
-        self._currentRegister.signalOaiUpdate(stamp=stamp, **kwargs)
+        self._state.signalOaiUpdate(stamp=stamp, **kwargs)
 
+    def startOaiBatch(self):
+        self._state.switchToPostponed()
+
+    def stopOaiBatch(self):
+        self._state.switchToImmediate()
+
+class ImmediateState(object):
+    def __init__(self, register):
+        self._register = register
+
+    def signalOaiUpdate(self, **kwargs):
+        self._register._signalOaiUpdate(**kwargs)
+
+    def switchToPostponed(self):
+        self._register._state = self._register._postponedState
+
+class PostponedState(object):
+    def __init__(self, register):
+        self._postponed = []
+        self._register = register
+
+    def signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
+        self._postponed.append(dict(metadataPrefixes=metadataPrefixes, sets=sets))
+
+    def switchToImmediate(self):
+        for prefixesAndSets in self._postponed:
+            self._register._signalOaiUpdate(**prefixesAndSets)
+        self._register._state = self._register._immediateState
 
 class ForcedResumeException(Exception):
     pass
