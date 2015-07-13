@@ -113,6 +113,41 @@ class SuspendRegisterTest(SeecrTestCase):
         test(SuspendRegister())
         test(SuspendRegister(batchMode=True)) # immediate resume state
 
+    def testResumeOnlyMatchingSuspendsInBatchMode(self):
+        register = SuspendRegister(batchMode=True)
+        register._setLastStamp(999)
+        register.startOaiBatch()
+        resumed = []
+
+        def suspendBeforeSelect(clientIdentifier, prefix, sets, continueAfter):
+            suspendObject = compose(register.suspendBeforeSelect(clientIdentifier=clientIdentifier, prefix=prefix, sets=sets, continueAfter=continueAfter)).next()
+            suspendObject(CallTrace('reactor'), lambda: resumed.append(clientIdentifier))
+
+        suspendBeforeSelect('id0', prefix='p0', sets=['s0'], continueAfter='1000')
+        suspendBeforeSelect('id1', prefix='p0', sets=['s1'], continueAfter='1000')
+        suspendBeforeSelect('id2', prefix='p0', sets=['s1'], continueAfter='1000')
+        suspendBeforeSelect('id3', prefix='p0', sets=[], continueAfter='1000')
+        suspendBeforeSelect('id4', prefix='p1', sets=['s0'], continueAfter='1000')
+        suspendBeforeSelect('id5', prefix='p1', sets=[], continueAfter='1000')
+
+        register.signalOaiUpdate(metadataPrefixes=['p0'], sets=set(), stamp=1001)
+        self.assertEquals([], resumed)
+        register.stopOaiBatch()
+        # nobody cared about the update
+        self.assertEquals(['id3'], resumed)
+        del resumed[:]
+        register.startOaiBatch()
+        register.signalOaiUpdate(metadataPrefixes=['p0'], sets=set(['s0', 's1']), stamp=1002)
+        self.assertEquals([], resumed)
+        register.stopOaiBatch()
+        self.assertEquals(['id0', 'id1', 'id2'], sorted(resumed))
+        del resumed[:]
+        register.startOaiBatch()
+        register.signalOaiUpdate(metadataPrefixes=['p1'], sets=set('s42'), stamp=1001)
+        register.stopOaiBatch()
+        self.assertEquals(['id5'], sorted(resumed))
+
+
     def testSuspendBeforeSelect(self):
         self.assertEquals([], asList(SuspendRegister().suspendBeforeSelect(continueAfter='9876', some='argument')))
         self.assertEquals([], asList(SuspendRegister(batchMode=True).suspendBeforeSelect(continueAfter='9876', some='argument')))
@@ -212,5 +247,3 @@ class SuspendRegisterTest(SeecrTestCase):
         self.assertEquals([], asList(register.suspendBeforeSelect(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='1000')))
 
 
-
-    # update, update, update -> combinedstate change
