@@ -29,11 +29,35 @@ from random import choice
 import sys
 
 class SuspendRegister(object):
-    def __init__(self, maximumSuspendedConnections=None):
+    def __init__(self, maximumSuspendedConnections=None, batchMode=False):
         self._register = {}
         self._maximumSuspendedConnections = maximumSuspendedConnections or 100
+        self._batchMode = batchMode
+        self._immediateState = ImmediateState(self)
+        self._postponedState = PostponedState(self)
+        self._state = self._immediateState
 
-    def suspendAfterNoResult(self, clientIdentifier, prefix, sets, **ignored):
+    def suspendAfterNoResult(self, **kwargs):
+        yield self._suspend(**kwargs)
+
+    def suspendBeforeSelect(self, **kwargs):
+        if not self._state.shouldSuspendBeforeSelect():
+            return
+        yield self._suspend(**kwargs)
+
+    def signalOaiUpdate(self, stamp, **kwargs):
+        self._lastStamp = stamp
+        self._state.signalOaiUpdate(stamp=stamp, **kwargs)
+
+    def startOaiBatch(self):
+        if self._batchMode:
+            self._state.switchToPostponed()
+
+    def stopOaiBatch(self):
+        if self._batchMode:
+            self._state.switchToImmediate()
+
+    def _suspend(self, clientIdentifier, prefix, sets, **ignored):
         suspend = Suspend()
         suspend.oaiListResumeMask = dict(prefix=prefix, set_=next(iter(sets), None))
         if clientIdentifier in self._register:
@@ -45,13 +69,6 @@ class SuspendRegister(object):
         yield suspend
         suspend.getResult()
 
-    def suspendBeforeSelect(self, **ignored):
-        return
-        yield
-
-    def signalOaiUpdate(self, **kwargs):
-        self._signalOaiUpdate(**kwargs)
-
     def _signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
         for clientId, suspend in self._register.items()[:]:
             if suspend.oaiListResumeMask['prefix'] in metadataPrefixes:
@@ -60,8 +77,6 @@ class SuspendRegister(object):
                     continue
                 del self._register[clientId]
                 suspend.resume()
-
-
 
     # test helpers
 
@@ -77,23 +92,6 @@ class SuspendRegister(object):
         """For testing"""
         return self._register.get(clientId)
 
-class BatchSuspendRegister(SuspendRegister):
-    def __init__(self, **kwargs):
-        SuspendRegister.__init__(self, **kwargs)
-        self._lastStamp = 0
-        self._immediateState = ImmediateState(self)
-        self._postponedState = PostponedState(self)
-        self._state = self._immediateState
-
-    def signalOaiUpdate(self, stamp, **kwargs):
-        self._lastStamp = stamp
-        self._state.signalOaiUpdate(stamp=stamp, **kwargs)
-
-    def startOaiBatch(self):
-        self._state.switchToPostponed()
-
-    def stopOaiBatch(self):
-        self._state.switchToImmediate()
 
 class ImmediateState(object):
     def __init__(self, register):
@@ -104,6 +102,9 @@ class ImmediateState(object):
 
     def switchToPostponed(self):
         self._register._state = self._register._postponedState
+
+    def shouldSuspendBeforeSelect(self):
+        return False
 
 class PostponedState(object):
     def __init__(self, register):
@@ -117,6 +118,9 @@ class PostponedState(object):
         for prefixesAndSets in self._postponed:
             self._register._signalOaiUpdate(**prefixesAndSets)
         self._register._state = self._register._immediateState
+
+    def shouldSuspendBeforeSelect(self):
+        return True
 
 class ForcedResumeException(Exception):
     pass

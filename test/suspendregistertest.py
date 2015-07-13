@@ -26,7 +26,8 @@
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced
-from meresco.oai.suspendregister import SuspendRegister, ForcedResumeException, BatchSuspendRegister
+from meresco.oai.suspendregister import SuspendRegister, ForcedResumeException
+from weightless.core import compose, asList
 from weightless.io import Suspend
 
 class SuspendRegisterTest(SeecrTestCase):
@@ -34,7 +35,7 @@ class SuspendRegisterTest(SeecrTestCase):
     def testSignalOaiUpdate(self):
         def test(register):
             reactor = CallTrace("reactor")
-            suspend = register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[]).next()
+            suspend = compose(register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[])).next()
             self.assertEquals(Suspend, type(suspend))
             resumed = []
             suspend(reactor, lambda: resumed.append(True))
@@ -43,30 +44,30 @@ class SuspendRegisterTest(SeecrTestCase):
             self.assertEquals([True], resumed)
             self.assertEquals(0, len(register))
         test(SuspendRegister())
-        test(BatchSuspendRegister()) # immediate resume state
+        test(SuspendRegister(batchMode=True)) # immediate resume state
 
     def testSuspendSameClientTwiceBeforeResuming(self):
         def test(register):
-            s1 = register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[]).next()
+            s1 = compose(register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[])).next()
             s1(CallTrace('reactor'), lambda: None)
-            register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[]).next()
+            compose(register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[])).next()
             try:
                 s1.getResult()
                 self.fail()
             except ValueError, e:
                 self.assertEquals("Aborting suspended request because of new request for the same OaiClient with identifier: a-client-id.", str(e))
         test(SuspendRegister())
-        test(BatchSuspendRegister())
-        batchRegister = BatchSuspendRegister()
+        test(SuspendRegister(batchMode=True))
+        batchRegister = SuspendRegister(batchMode=True)
         batchRegister.startOaiBatch()
         test(batchRegister)
 
     def testShouldResumeAPreviousSuspendAfterTooManySuspends(self):
         def test(register):
             with stderr_replaced() as s:
-                s1 = register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[]).next()
+                s1 = compose(register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[])).next()
                 s1(CallTrace('reactor'), lambda: None)
-                register.suspendAfterNoResult(clientIdentifier="another-client-id", prefix='prefix', sets=[]).next()
+                compose(register.suspendAfterNoResult(clientIdentifier="another-client-id", prefix='prefix', sets=[])).next()
                 try:
                     s1.getResult()
                     self.fail()
@@ -74,8 +75,8 @@ class SuspendRegisterTest(SeecrTestCase):
                     self.assertEquals("Too many suspended connections in SuspendRegister. One random connection has been resumed.\n", s.getvalue())
 
         test(SuspendRegister(maximumSuspendedConnections=1))
-        test(BatchSuspendRegister(maximumSuspendedConnections=1))
-        batchRegister = BatchSuspendRegister(maximumSuspendedConnections=1)
+        test(SuspendRegister(batchMode=True, maximumSuspendedConnections=1))
+        batchRegister = SuspendRegister(batchMode=True, maximumSuspendedConnections=1)
         batchRegister.startOaiBatch()
         test(batchRegister)
 
@@ -85,7 +86,7 @@ class SuspendRegisterTest(SeecrTestCase):
 
             def suspendAfterNoResult(clientIdentifier, prefix, sets):
                 if not clientIdentifier in register:
-                    suspendObject = register.suspendAfterNoResult(clientIdentifier=clientIdentifier, prefix=prefix, sets=sets).next()
+                    suspendObject = compose(register.suspendAfterNoResult(clientIdentifier=clientIdentifier, prefix=prefix, sets=sets)).next()
                     suspendObject(CallTrace('reactor'), lambda: resumed.append(clientIdentifier))
 
             def prepareSuspends():
@@ -102,17 +103,17 @@ class SuspendRegisterTest(SeecrTestCase):
             register.signalOaiUpdate(metadataPrefixes=['prefix2'], sets=['set_a'], stamp=1001)
             self.assertEquals(['client 2', 'client 3'], sorted(resumed))
         test(SuspendRegister())
-        test(BatchSuspendRegister()) # immediate resume state
+        test(SuspendRegister(batchMode=True)) # immediate resume state
 
     def testSuspendBeforeSelect(self):
-        self.assertEquals([], list(SuspendRegister().suspendBeforeSelect(some='argument')))
-        self.assertEquals([], list(BatchSuspendRegister().suspendBeforeSelect(some='argument')))
+        self.assertEquals([], asList(SuspendRegister().suspendBeforeSelect(some='argument')))
+        self.assertEquals([], asList(SuspendRegister(batchMode=True).suspendBeforeSelect(some='argument')))
 
-    def testInitialBatch(self):
+    def testInitialBatchSuspendAfterNoResult(self):
         reactor = CallTrace("reactor")
-        register = BatchSuspendRegister()
+        register = SuspendRegister(batchMode=True)
         register.startOaiBatch()
-        suspend = register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[]).next()
+        suspend = compose(register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[])).next()
         self.assertEquals(Suspend, type(suspend))
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
@@ -123,3 +124,13 @@ class SuspendRegisterTest(SeecrTestCase):
         register.stopOaiBatch()
         self.assertEquals([True], resumed)
         self.assertEquals(0, len(register))
+
+    def testInitialBatchSuspendBeforeResult(self):
+        reactor = CallTrace("reactor")
+        register = SuspendRegister(batchMode=True)
+        register.startOaiBatch()
+        suspend = compose(register.suspendBeforeSelect(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='0')).next()
+        self.assertEquals(Suspend, type(suspend))
+        resumed = []
+        suspend(reactor, lambda: resumed.append(True))
+        self.assertEquals([], resumed)

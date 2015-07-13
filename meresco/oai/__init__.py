@@ -33,21 +33,21 @@
 #
 ## end license ##
 
-from os.path import dirname, abspath, join, isfile                               #DO_NOT_DISTRIBUTE
-from os import stat, system                                                      #DO_NOT_DISTRIBUTE
-from glob import glob                                                            #DO_NOT_DISTRIBUTE
-from sys import exit, path as sysPath                                            #DO_NOT_DISTRIBUTE
-mydir = dirname(abspath(__file__))                                               #DO_NOT_DISTRIBUTE
-srcDir = join(dirname(dirname(mydir)), 'src')                                    #DO_NOT_DISTRIBUTE
-libDir = join(dirname(dirname(mydir)), 'lib')                                    #DO_NOT_DISTRIBUTE
-sofile = join(libDir, 'meresco_oai', '_meresco_oai.so')                          #DO_NOT_DISTRIBUTE
-merescoOaiFiles = join(srcDir, 'org','meresco','oai', '*.java')                  #DO_NOT_DISTRIBUTE
-lastMtime = max(stat(f).st_mtime for f in glob(merescoOaiFiles))                 #DO_NOT_DISTRIBUTE
-if not isfile(sofile) or stat(sofile).st_mtime < lastMtime:                      #DO_NOT_DISTRIBUTE
-    result = system('cd %s; ./build.sh' % srcDir)                                #DO_NOT_DISTRIBUTE
-    if result:                                                                   #DO_NOT_DISTRIBUTE
-        exit(result)                                                             #DO_NOT_DISTRIBUTE
-sysPath.insert(0, libDir)                                                        #DO_NOT_DISTRIBUTE
+from os.path import dirname, abspath, join, isfile                #DO_NOT_DISTRIBUTE
+from os import stat, system                                       #DO_NOT_DISTRIBUTE
+from glob import glob                                             #DO_NOT_DISTRIBUTE
+from sys import exit, path as sysPath                             #DO_NOT_DISTRIBUTE
+mydir = dirname(abspath(__file__))                                #DO_NOT_DISTRIBUTE
+srcDir = join(dirname(dirname(mydir)), 'src')                     #DO_NOT_DISTRIBUTE
+libDir = join(dirname(dirname(mydir)), 'lib')                     #DO_NOT_DISTRIBUTE
+sofile = join(libDir, 'meresco_oai', '_meresco_oai.so')           #DO_NOT_DISTRIBUTE
+merescoOaiFiles = join(srcDir, 'org','meresco','oai', '*.java')   #DO_NOT_DISTRIBUTE
+lastMtime = max(stat(f).st_mtime for f in glob(merescoOaiFiles))  #DO_NOT_DISTRIBUTE
+if not isfile(sofile) or stat(sofile).st_mtime < lastMtime:       #DO_NOT_DISTRIBUTE
+    result = system('cd %s; ./build.sh' % srcDir)                 #DO_NOT_DISTRIBUTE
+    if result:                                                    #DO_NOT_DISTRIBUTE
+        exit(result)                                              #DO_NOT_DISTRIBUTE
+sysPath.insert(0, libDir)                                         #DO_NOT_DISTRIBUTE
 
 from __version__ import VERSION
 from oaipmh import OaiPmh
@@ -61,4 +61,4 @@ from oaidownloadprocessor import OaiDownloadProcessor
 from updateadapter import UpdateAdapterFromOaiDownloadProcessor
 from oaibranding import OaiBranding
 from resumptiontoken import ResumptionToken
-from .suspendregister import SuspendRegister, BatchSuspendRegister
+from .suspendregister import SuspendRegister
