@@ -207,11 +207,6 @@ class SuspendRegisterTest(SeecrTestCase):
         self.assertEquals([], asList(register.suspendBeforeSelect(clientIdentifier="id0", prefix='prefix', sets=[], continueAfter='1000')))
         self.assertEquals(0, len(register))
 
-    def testStartStartBoom(self):
-        register = SuspendRegister(batchMode=True)
-        register.startOaiBatch()
-        self.assertRaises(AttributeError, lambda: register.startOaiBatch())
-
     def testStopStopBoom(self):
         register = SuspendRegister(batchMode=True)
         register.startOaiBatch()
@@ -265,4 +260,36 @@ class SuspendRegisterTest(SeecrTestCase):
                 'p1': set(['s0']),
                 'p2': set(['s0']),
             }, register.calledMethods[0].kwargs['prefixAndSets'])
+
+    def testTwoBatchesInterleave(self):
+        register = SuspendRegister(batchMode=True)
+        resumed = []
+        def signalUpdate(stamp):
+            register.signalOaiUpdate(metadataPrefixes=['prefix'], sets=set(), otherKey='ignored', stamp=stamp)
+
+        def suspendBeforeSelect(clientIdentifier, continueAfter='1000'):
+            suspend = compose(register.suspendBeforeSelect(clientIdentifier=clientIdentifier, prefix='prefix', sets=[], continueAfter=continueAfter)).next()
+            suspend(CallTrace('reactor'), lambda: resumed.append(clientIdentifier))
+
+        signalUpdate(1000)
+        register.startOaiBatch()
+        suspendBeforeSelect('client0')
+        self.assertEquals([], resumed)
+        signalUpdate(1001)
+        signalUpdate(1002)
+        register.startOaiBatch()
+        self.assertEquals([], resumed)
+        suspendBeforeSelect('client1')
+        signalUpdate(1003)
+        register.stopOaiBatch()
+        self.assertEquals(['client0', 'client1'], sorted(resumed))
+        del resumed[:]
+        suspendBeforeSelect('client2')
+        signalUpdate(1004)
+        register.stopOaiBatch()
+        self.assertEquals(['client2'], sorted(resumed))
+        signalUpdate(1005)
+
+        self.assertRaises(AttributeError, lambda: register.stopOaiBatch())
+
 

@@ -123,9 +123,11 @@ class _PostponedState(object):
     def __init__(self, register):
         self._postponed = {}
         self._register = register
+        self._batches = 0
 
     def start(self):
         self._lastStampBeforeBatch = self._register._lastStamp
+        self._batches += 1
         return self
 
     def signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
@@ -133,15 +135,23 @@ class _PostponedState(object):
             prefixSets = self._postponed.setdefault(prefix, set())
             prefixSets.update(sets)
 
+    def switchToPostponed(self):
+        self._batches += 1
+
     def switchToImmediate(self):
-        self._register._handleOaiUpdateSignal(prefixAndSets=self._postponed)
-        self._postponed = {}
-        self._register._state = self._register._immediateState.start()
+        self._handlePostponed()
+        self._batches -= 1
+        if self._batches == 0:
+            self._register._state = self._register._immediateState.start()
 
     def shouldSuspendBeforeSelect(self, continueAfter, **kwargs):
         if self._lastStampBeforeBatch is None:
             return False
         return int(continueAfter) >= self._lastStampBeforeBatch
+
+    def _handlePostponed(self):
+        self._register._handleOaiUpdateSignal(prefixAndSets=self._postponed)
+        self._postponed = {}
 
 class ForcedResumeException(Exception):
     pass
