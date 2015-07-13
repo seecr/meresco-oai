@@ -34,8 +34,8 @@ class SuspendRegister(object):
         self._maximumSuspendedConnections = maximumSuspendedConnections or 100
         self._batchMode = batchMode
         self._lastStamp = None
-        self._immediateState = ImmediateState(self)
-        self._postponedState = PostponedState(self)
+        self._immediateState = _ImmediateState(self)
+        self._postponedState = _PostponedState(self)
         self._state = self._immediateState
 
     def suspendAfterNoResult(self, **kwargs):
@@ -73,14 +73,16 @@ class SuspendRegister(object):
         yield suspend
         suspend.getResult()
 
-    def _signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
+    def _handleOaiUpdateSignal(self, prefixAndSets):
         for clientId, suspend in self._register.items()[:]:
-            if suspend.oaiListResumeMask['prefix'] in metadataPrefixes:
-                setMasks = suspend.oaiListResumeMask['sets']
-                if len(setMasks) > 0 and not setMasks.intersection(sets):
-                    continue
-                del self._register[clientId]
-                suspend.resume()
+            sets = prefixAndSets.get(suspend.oaiListResumeMask['prefix'])
+            if sets is None:
+                continue
+            setMasks = suspend.oaiListResumeMask['sets']
+            if len(setMasks) > 0 and not setMasks.intersection(sets):
+                continue
+            del self._register[clientId]
+            suspend.resume()
 
     # test helpers
 
@@ -101,15 +103,15 @@ class SuspendRegister(object):
         self._lastStamp = stamp
 
 
-class ImmediateState(object):
+class _ImmediateState(object):
     def __init__(self, register):
         self._register = register
 
     def start(self):
         return self
 
-    def signalOaiUpdate(self, stamp, **kwargs):
-        self._register._signalOaiUpdate(**kwargs)
+    def signalOaiUpdate(self, metadataPrefixes, sets, **kwargs):
+        self._register._handleOaiUpdateSignal(prefixAndSets=dict((k, sets) for k in metadataPrefixes))
 
     def switchToPostponed(self):
         self._register._state = self._register._postponedState.start()
@@ -117,9 +119,9 @@ class ImmediateState(object):
     def shouldSuspendBeforeSelect(self, **kwargs):
         return False
 
-class PostponedState(object):
+class _PostponedState(object):
     def __init__(self, register):
-        self._postponed = []
+        self._postponed = {}
         self._register = register
 
     def start(self):
@@ -127,11 +129,13 @@ class PostponedState(object):
         return self
 
     def signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
-        self._postponed.append(dict(metadataPrefixes=metadataPrefixes, sets=sets))
+        for prefix in metadataPrefixes:
+            prefixSets = self._postponed.setdefault(prefix, set())
+            prefixSets.update(sets)
 
     def switchToImmediate(self):
-        for prefixesAndSets in self._postponed:
-            self._register._signalOaiUpdate(**prefixesAndSets)
+        self._register._handleOaiUpdateSignal(prefixAndSets=self._postponed)
+        self._postponed = {}
         self._register._state = self._register._immediateState.start()
 
     def shouldSuspendBeforeSelect(self, continueAfter, **kwargs):

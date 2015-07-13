@@ -26,7 +26,7 @@
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced
-from meresco.oai.suspendregister import SuspendRegister, ForcedResumeException
+from meresco.oai.suspendregister import SuspendRegister, ForcedResumeException, _PostponedState
 from weightless.core import compose, asList
 from weightless.io import Suspend
 
@@ -246,4 +246,23 @@ class SuspendRegisterTest(SeecrTestCase):
         self.assertEquals([], asList(register.suspendBeforeSelect(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='0')))
         self.assertEquals([], asList(register.suspendBeforeSelect(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='1000')))
 
+    def testPostponedSignals(self):
+        register = CallTrace('register')
+        register._immediateState = CallTrace()
+        state = _PostponedState(register)
+        state.signalOaiUpdate(metadataPrefixes=set(['p0']), sets=set())
+        state.signalOaiUpdate(metadataPrefixes=set(['p0']), sets=set(['s0']))
+        state.signalOaiUpdate(metadataPrefixes=set(['p0']), sets=set(['s0']))
+        state.signalOaiUpdate(metadataPrefixes=set(['p0']), sets=set(['s0']))
+        state.signalOaiUpdate(metadataPrefixes=set(['p0']), sets=set(['s0', 's1']))
+        state.signalOaiUpdate(metadataPrefixes=set(['p1']), sets=set(['s0']))
+        state.signalOaiUpdate(metadataPrefixes=set(['p1']), sets=set(['s0']))
+        state.signalOaiUpdate(metadataPrefixes=set(['p1', 'p2']), sets=set(['s0']))
+        state.switchToImmediate()
+        self.assertEquals(['_handleOaiUpdateSignal'], register.calledMethodNames())
+        self.assertEquals({
+                'p0': set(['s0', 's1']),
+                'p1': set(['s0']),
+                'p2': set(['s0']),
+            }, register.calledMethods[0].kwargs['prefixAndSets'])
 
