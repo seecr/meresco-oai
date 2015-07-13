@@ -33,6 +33,7 @@ class SuspendRegister(object):
         self._register = {}
         self._maximumSuspendedConnections = maximumSuspendedConnections or 100
         self._batchMode = batchMode
+        self._lastStamp = 0
         self._immediateState = ImmediateState(self)
         self._postponedState = PostponedState(self)
         self._state = self._immediateState
@@ -40,10 +41,10 @@ class SuspendRegister(object):
     def suspendAfterNoResult(self, **kwargs):
         yield self._suspend(**kwargs)
 
-    def suspendBeforeSelect(self, **kwargs):
-        if not self._state.shouldSuspendBeforeSelect():
+    def suspendBeforeSelect(self, continueAfter, **kwargs):
+        if not self._state.shouldSuspendBeforeSelect(continueAfter=continueAfter):
             return
-        yield self._suspend(**kwargs)
+        yield self._suspend(continueAfter=continueAfter, **kwargs)
 
     def signalOaiUpdate(self, stamp, **kwargs):
         self._lastStamp = stamp
@@ -97,13 +98,16 @@ class ImmediateState(object):
     def __init__(self, register):
         self._register = register
 
-    def signalOaiUpdate(self, **kwargs):
+    def start(self):
+        return self
+
+    def signalOaiUpdate(self, stamp, **kwargs):
         self._register._signalOaiUpdate(**kwargs)
 
     def switchToPostponed(self):
-        self._register._state = self._register._postponedState
+        self._register._state = self._register._postponedState.start()
 
-    def shouldSuspendBeforeSelect(self):
+    def shouldSuspendBeforeSelect(self, **kwargs):
         return False
 
 class PostponedState(object):
@@ -111,16 +115,20 @@ class PostponedState(object):
         self._postponed = []
         self._register = register
 
+    def start(self):
+        self._lastStampBeforeBatch = self._register._lastStamp
+        return self
+
     def signalOaiUpdate(self, metadataPrefixes, sets, **ignored):
         self._postponed.append(dict(metadataPrefixes=metadataPrefixes, sets=sets))
 
     def switchToImmediate(self):
         for prefixesAndSets in self._postponed:
             self._register._signalOaiUpdate(**prefixesAndSets)
-        self._register._state = self._register._immediateState
+        self._register._state = self._register._immediateState.start()
 
-    def shouldSuspendBeforeSelect(self):
-        return True
+    def shouldSuspendBeforeSelect(self, continueAfter, **kwargs):
+        return int(continueAfter) >= self._lastStampBeforeBatch
 
 class ForcedResumeException(Exception):
     pass
