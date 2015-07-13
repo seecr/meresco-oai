@@ -33,7 +33,7 @@ class SuspendRegister(object):
         self._register = {}
         self._maximumSuspendedConnections = maximumSuspendedConnections or 100
         self._batchMode = batchMode
-        self._lastStamp = 0
+        self._lastStamp = None
         self._immediateState = ImmediateState(self)
         self._postponedState = PostponedState(self)
         self._state = self._immediateState
@@ -93,6 +93,10 @@ class SuspendRegister(object):
         """For testing"""
         return self._register.get(clientId)
 
+    def _setLastStamp(self, stamp):
+        """For testing"""
+        self._lastStamp = stamp
+
 
 class ImmediateState(object):
     def __init__(self, register):
@@ -128,6 +132,8 @@ class PostponedState(object):
         self._register._state = self._register._immediateState.start()
 
     def shouldSuspendBeforeSelect(self, continueAfter, **kwargs):
+        if self._lastStampBeforeBatch is None:
+            return False
         return int(continueAfter) >= self._lastStampBeforeBatch
 
 class ForcedResumeException(Exception):

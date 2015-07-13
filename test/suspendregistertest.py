@@ -48,9 +48,9 @@ class SuspendRegisterTest(SeecrTestCase):
 
     def testSuspendSameClientTwiceBeforeResuming(self):
         def test(suspendMethod):
-            s1 = compose(suspendMethod(clientIdentifier="a-client-id", prefix='prefix', sets=[])).next()
+            s1 = compose(suspendMethod(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='9876')).next()
             s1(CallTrace('reactor'), lambda: None)
-            compose(suspendMethod(clientIdentifier="a-client-id", prefix='prefix', sets=[])).next()
+            compose(suspendMethod(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='9876')).next()
             try:
                 s1.getResult()
                 self.fail()
@@ -62,15 +62,16 @@ class SuspendRegisterTest(SeecrTestCase):
         batchRegister.startOaiBatch()
         test(batchRegister.suspendAfterNoResult)
         batchRegister = SuspendRegister(batchMode=True)
+        batchRegister._setLastStamp(1000)
         batchRegister.startOaiBatch()
         test(batchRegister.suspendBeforeSelect) #only suspend in batch (not outside)
 
     def testShouldResumeAPreviousSuspendAfterTooManySuspends(self):
         def test(suspendMethod):
             with stderr_replaced() as s:
-                s1 = compose(suspendMethod(clientIdentifier="a-client-id", prefix='prefix', sets=[])).next()
+                s1 = compose(suspendMethod(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='9876')).next()
                 s1(CallTrace('reactor'), lambda: None)
-                compose(suspendMethod(clientIdentifier="another-client-id", prefix='prefix', sets=[])).next()
+                compose(suspendMethod(clientIdentifier="another-client-id", prefix='prefix', sets=[], continueAfter='9876')).next()
                 try:
                     s1.getResult()
                     self.fail()
@@ -83,6 +84,7 @@ class SuspendRegisterTest(SeecrTestCase):
         batchRegister.startOaiBatch()
         test(batchRegister.suspendAfterNoResult)
         batchRegister = SuspendRegister(batchMode=True, maximumSuspendedConnections=1)
+        batchRegister._setLastStamp(1000)
         batchRegister.startOaiBatch()
         test(batchRegister.suspendBeforeSelect) #only suspend in batch (not outside)
 
@@ -112,30 +114,14 @@ class SuspendRegisterTest(SeecrTestCase):
         test(SuspendRegister(batchMode=True)) # immediate resume state
 
     def testSuspendBeforeSelect(self):
-        self.assertEquals([], asList(SuspendRegister().suspendBeforeSelect(some='argument')))
-        self.assertEquals([], asList(SuspendRegister(batchMode=True).suspendBeforeSelect(some='argument')))
+        self.assertEquals([], asList(SuspendRegister().suspendBeforeSelect(continueAfter='9876', some='argument')))
+        self.assertEquals([], asList(SuspendRegister(batchMode=True).suspendBeforeSelect(continueAfter='9876', some='argument')))
 
     def testInitialBatchSuspendAfterNoResult(self):
         reactor = CallTrace("reactor")
         register = SuspendRegister(batchMode=True)
         register.startOaiBatch()
         suspend = compose(register.suspendAfterNoResult(clientIdentifier="a-client-id", prefix='prefix', sets=[])).next()
-        self.assertEquals(Suspend, type(suspend))
-        resumed = []
-        suspend(reactor, lambda: resumed.append(True))
-        self.assertEquals([], resumed)
-        register.signalOaiUpdate(metadataPrefixes=['prefix'], sets=set(), otherKey='ignored', stamp=1000)
-        self.assertEquals([], resumed)
-        self.assertEquals(1, len(register))
-        register.stopOaiBatch()
-        self.assertEquals([True], resumed)
-        self.assertEquals(0, len(register))
-
-    def testInitialBatchSuspendBeforeResult(self):
-        reactor = CallTrace("reactor")
-        register = SuspendRegister(batchMode=True)
-        register.startOaiBatch()
-        suspend = compose(register.suspendBeforeSelect(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='0')).next()
         self.assertEquals(Suspend, type(suspend))
         resumed = []
         suspend(reactor, lambda: resumed.append(True))
@@ -186,7 +172,45 @@ class SuspendRegisterTest(SeecrTestCase):
         self.assertEquals([], asList(register.suspendBeforeSelect(clientIdentifier="id0", prefix='prefix', sets=[], continueAfter='1000')))
         self.assertEquals(0, len(register))
 
+    def testStartStartBoom(self):
+        register = SuspendRegister(batchMode=True)
+        register.startOaiBatch()
+        self.assertRaises(AttributeError, lambda: register.startOaiBatch())
+
+    def testStopStopBoom(self):
+        register = SuspendRegister(batchMode=True)
+        register.startOaiBatch()
+        register.stopOaiBatch()
+        self.assertRaises(AttributeError, lambda: register.stopOaiBatch())
+
+    def testSuspendRegisterWithoutBatchIgnoreStartStop(self):
+        register = SuspendRegister()
+        register.startOaiBatch()
+        register.startOaiBatch()
+        register.startOaiBatch()
+
+    def testSuspendBeforeSelectWithoutUpdates(self):
+        reactor = CallTrace("reactor")
+        register = SuspendRegister(batchMode=True)
+        register.signalOaiUpdate(metadataPrefixes=['prefix'], sets=set(), otherKey='ignored', stamp=1000)
+        register.startOaiBatch()
+        resumed = []
+
+        suspend = compose(register.suspendBeforeSelect(clientIdentifier="id0", prefix='prefix', sets=[], continueAfter='1000')).next()
+        suspend(reactor, lambda: resumed.append(True))
+
+        self.assertEquals([], resumed)
+        self.assertEquals(1, len(register))
+        register.stopOaiBatch()
+        self.assertEquals([], resumed)
+        self.assertEquals(1, len(register))
+
+    def testInitialBatchSuspendBeforeResult(self):
+        register = SuspendRegister(batchMode=True)
+        register.startOaiBatch()
+        self.assertEquals([], asList(register.suspendBeforeSelect(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='0')))
+        self.assertEquals([], asList(register.suspendBeforeSelect(clientIdentifier="a-client-id", prefix='prefix', sets=[], continueAfter='1000')))
 
 
-    # start,start of stop stop is fout! vaud
-    # startBatch, suspendBeforeSelect, GEEN update, stopBatch
+
+    # update, update, update -> combinedstate change
