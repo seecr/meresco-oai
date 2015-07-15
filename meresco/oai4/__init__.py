@@ -31,6 +31,7 @@
 # 
 ## end license ##
 
+from __version__ import VERSION
 from oaipmh import OaiPmh
 from oaiprovenance import OaiProvenance
 from oaisetmask import OaiSetMask

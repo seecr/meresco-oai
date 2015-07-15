@@ -39,7 +39,7 @@ try:
 except ImportError:
     from lxml.etree import tostring
     lxmltostring = lambda x: tostring(x, encoding="UTF-8")
-from meresco.oai import VERSION
+from meresco.oai4 import VERSION
 
 from simplejson import dump, loads
 from uuid import uuid4
