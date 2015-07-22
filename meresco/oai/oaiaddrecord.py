@@ -9,8 +9,9 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2012 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -35,18 +36,25 @@ from lxml.etree import iselement
 from meresco.xml import xpath
 from meresco.xml.namespaces import xpathFirst, expandNs
 
+class OaiAddRecordWithPrefixesAndSetSpecs(Transparent):
+    def __init__(self, metadataPrefixes=None, setSpecs=None, name=None):
+        Transparent.__init__(self, name=name)
+        self._setSpecs = _prepare(setSpecs)
+        self._metadataPrefixes = _prepare(metadataPrefixes)
+
+    def add(self, identifier, **kwargs):
+        self.call.addOaiRecord(
+            identifier=identifier,
+            setSpecs=self._setSpecs(identifier=identifier, **kwargs),
+            metadataPrefixes=self._metadataPrefixes(identifier=identifier, **kwargs))
+        return
+        yield
 
 class OaiAddRecordWithDefaults(Transparent):
     def __init__(self, metadataFormats=None, sets=None, name=None):
         Transparent.__init__(self, name=name)
-        self._sets = self._prepare(sets)
-        self._metadataFormats = self._prepare(metadataFormats)
-
-    @staticmethod
-    def _prepare(iterableOrCallable):
-        if iterableOrCallable is None:
-            return lambda **kwargs: []
-        return iterableOrCallable if callable(iterableOrCallable) else lambda **kwargs: iterableOrCallable
+        self._sets = _prepare(sets)
+        self._metadataFormats = _prepare(metadataFormats)
 
     def add(self, identifier, **kwargs):
         self.call.addOaiRecord(
@@ -55,6 +63,11 @@ class OaiAddRecordWithDefaults(Transparent):
             metadataFormats=self._metadataFormats(identifier=identifier, **kwargs))
         return
         yield
+
+def _prepare(iterableOrCallable):
+    if iterableOrCallable is None:
+        return lambda **kwargs: []
+    return iterableOrCallable if callable(iterableOrCallable) else lambda **kwargs: iterableOrCallable
 
 
 class OaiAddRecord(Transparent):

@@ -3,9 +3,10 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -27,7 +28,7 @@
 
 from seecr.test import CallTrace, SeecrTestCase
 from weightless.core import compose
-from meresco.oai import OaiAddRecordWithDefaults
+from meresco.oai import OaiAddRecordWithDefaults, OaiAddRecordWithPrefixesAndSetSpecs
 
 
 class OaiAddRecordWithDefaultsTest(SeecrTestCase):
@@ -60,3 +61,16 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
         self.assertEquals(['sets', 'metadataFormats'], methodObject.calledMethodNames())
         for method in methodObject.calledMethods:
             self.assertEquals({'identifier':'id', 'ignored':'kwarg', 'data':"data"}, method.kwargs)
+
+    def testAddPrefixesSets(self):
+        subject = OaiAddRecordWithPrefixesAndSetSpecs(setSpecs=['setSpec'], metadataPrefixes=['prefix'])
+        observer = CallTrace('oaijazzAndStorage', emptyGeneratorMethods=['add'])
+        subject.addObserver(observer)
+
+        list(compose(subject.add('id', ignored="kwarg", data="na")))
+
+        self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
+        self.assertEquals({'identifier':'id',
+            'setSpecs': ['setSpec'],
+            'metadataPrefixes': ['prefix']},
+            observer.calledMethods[0].kwargs)
