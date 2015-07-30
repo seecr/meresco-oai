@@ -78,6 +78,7 @@ from updateadaptertest import UpdateAdapterTest
 from info.oaiinfotest import OaiInfoTest
 
 from tools.iterateoaipmhtest import IterateOaiPmhTest
+from tools.removesetsfromoaitest import RemoveSetsFromOaiTest
 
 if __name__ == '__main__':
     unittest.main()
