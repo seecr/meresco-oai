@@ -25,7 +25,7 @@
 ## end license ##
 
 
-def removeSetsFromOai(jazzDir, sets, prefix):
+def removeSetsFromOai(jazzDir, sets, prefix, batchSize=None):
     """Will remove sets from OaiJazz.
 Records with this set will be updated.
 
@@ -57,8 +57,14 @@ Usage: removeSetsFromOai(jazzDir, sets=['a:b'], prefix='your_prefix')"""
                         doc.add(StringField(SETS_FIELD, oldSet, Field.Store.YES))
             return doc
     deletingOaiJazz = SetsDeletingOaiJazz(jazzDir)
-    for record in deletingOaiJazz.oaiSelect(prefix=prefix, sets=sets).records:
-        deletingOaiJazz.addOaiRecord(identifier=record.identifier, metadataPrefixes=[prefix])
+    goOn = True
+    while goOn:
+        select = deletingOaiJazz.oaiSelect(prefix=prefix, sets=sets, batchSize=batchSize)
+        print 'Removing set for %s records' % select.numberOfRecordsInBatch
+        for record in select.records:
+            deletingOaiJazz.addOaiRecord(identifier=record.identifier, metadataPrefixes=[prefix])
+        goOn = select.numberOfRecordsInBatch
     for aSet in sets:
-        del deletingOaiJazz._sets[aSet]
+        if aSet in deletingOaiJazz._sets:
+            del deletingOaiJazz._sets[aSet]
     deletingOaiJazz.close()

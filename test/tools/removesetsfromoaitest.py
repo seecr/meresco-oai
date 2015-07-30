@@ -26,7 +26,7 @@
 
 from seecr.test import SeecrTestCase
 from meresco.oai import OaiJazz
-from meresco.oai.tools.removesetfromoai import removeSetsFromOai
+from meresco.oai.tools.removesetsfromoai import removeSetsFromOai
 
 class RemoveSetsFromOaiTest(SeecrTestCase):
 
@@ -48,7 +48,7 @@ class RemoveSetsFromOaiTest(SeecrTestCase):
 
         oaiJazz.close()
 
-        removeSetsFromOai(self.tempdir, sets=['a:b'], prefix='prefix')
+        removeSetsFromOai(self.tempdir, sets=['a:b'], prefix='prefix', batchSize=1)
 
         oaiJazz = OaiJazz(self.tempdir)
         self.assertEquals([

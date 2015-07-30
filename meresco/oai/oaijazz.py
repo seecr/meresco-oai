@@ -110,8 +110,9 @@ class OaiJazz(Observable):
             oaiFrom=None,
             oaiUntil=None,
             setsMask=None,
-            batchSize=DEFAULT_BATCH_SIZE,
+            batchSize=None,
             shouldCountHits=False):
+        batchSize = DEFAULT_BATCH_SIZE if batchSize is None else batchSize
         searcher = self._getSearcher()
         query = self._luceneQuery(prefix=prefix, sets=sets, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, setsMask=setsMask)
         collector = OaiSortingCollector(batchSize, shouldCountHits)
