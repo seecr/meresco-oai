@@ -58,20 +58,6 @@ class OaiAddDeleteRecordWithPrefixesAndSetSpecs(Transparent):
         return
         yield
 
-class OaiAddRecordWithDefaults(Transparent):
-    def __init__(self, metadataFormats=None, sets=None, name=None):
-        Transparent.__init__(self, name=name)
-        self._sets = _prepare(sets)
-        self._metadataFormats = _prepare(metadataFormats)
-
-    def add(self, identifier, **kwargs):
-        self.call.addOaiRecord(
-            identifier=identifier,
-            sets=self._sets(identifier=identifier, **kwargs),
-            metadataFormats=self._metadataFormats(identifier=identifier, **kwargs))
-        return
-        yield
-
 def _prepare(iterableOrCallable):
     if iterableOrCallable is None:
         return lambda **kwargs: []

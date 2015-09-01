@@ -28,39 +28,10 @@
 
 from seecr.test import CallTrace, SeecrTestCase
 from weightless.core import compose
-from meresco.oai import OaiAddRecordWithDefaults, OaiAddDeleteRecordWithPrefixesAndSetSpecs
+from meresco.oai import OaiAddDeleteRecordWithPrefixesAndSetSpecs
 
 
 class OaiAddRecordWithDefaultsTest(SeecrTestCase):
-    def testAdd(self):
-        subject = OaiAddRecordWithDefaults(sets=[('setSpec', 'setName')], metadataFormats=[('prefix','schema','namespace')])
-        observer = CallTrace('oaijazzAndStorage', emptyGeneratorMethods=['add'])
-        subject.addObserver(observer)
-
-        list(compose(subject.add('id', ignored="kwarg", data="na")))
-
-        self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
-        self.assertEquals({'identifier':'id',
-            'sets': [('setSpec', 'setName')],
-            'metadataFormats': [('prefix','schema','namespace')]},
-            observer.calledMethods[0].kwargs)
-
-    def testAddWithMethods(self):
-        methodObject = CallTrace(returnValues={'sets':[('setSpec', 'setName')], 'metadataFormats': [('prefix','schema','namespace')]})
-        subject = OaiAddRecordWithDefaults(sets=methodObject.sets , metadataFormats=methodObject.metadataFormats)
-        observer = CallTrace('oaijazzAndStorage', emptyGeneratorMethods=['add'])
-        subject.addObserver(observer)
-
-        list(compose(subject.add('id', ignored="kwarg", data="data")))
-
-        self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
-        self.assertEquals({'identifier':'id',
-            'sets': [('setSpec', 'setName')],
-            'metadataFormats': [('prefix','schema','namespace')]},
-            observer.calledMethods[0].kwargs)
-        self.assertEquals(['sets', 'metadataFormats'], methodObject.calledMethodNames())
-        for method in methodObject.calledMethods:
-            self.assertEquals({'identifier':'id', 'ignored':'kwarg', 'data':"data"}, method.kwargs)
 
     def testAddPrefixesSets(self):
         subject = OaiAddDeleteRecordWithPrefixesAndSetSpecs(setSpecs=['setSpec'], metadataPrefixes=['prefix'])
