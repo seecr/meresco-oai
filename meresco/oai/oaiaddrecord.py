@@ -36,7 +36,7 @@ from lxml.etree import iselement
 from meresco.xml import xpath
 from meresco.xml.namespaces import xpathFirst, expandNs
 
-class OaiAddRecordWithPrefixesAndSetSpecs(Transparent):
+class OaiAddDeleteRecordWithPrefixesAndSetSpecs(Transparent):
     def __init__(self, metadataPrefixes=None, setSpecs=None, name=None):
         Transparent.__init__(self, name=name)
         self._setSpecs = _prepare(setSpecs)
@@ -44,6 +44,14 @@ class OaiAddRecordWithPrefixesAndSetSpecs(Transparent):
 
     def add(self, identifier, **kwargs):
         self.call.addOaiRecord(
+            identifier=identifier,
+            setSpecs=self._setSpecs(identifier=identifier, **kwargs),
+            metadataPrefixes=self._metadataPrefixes(identifier=identifier, **kwargs))
+        return
+        yield
+
+    def delete(self, identifier, **kwargs):
+        self.call.deleteOaiRecord(
             identifier=identifier,
             setSpecs=self._setSpecs(identifier=identifier, **kwargs),
             metadataPrefixes=self._metadataPrefixes(identifier=identifier, **kwargs))

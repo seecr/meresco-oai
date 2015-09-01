@@ -56,7 +56,7 @@ from oaisetmask import OaiSetMask
 from oaisetselect import OaiSetSelect # deprecated
 from fields2oairecord import Fields2OaiRecord
 from oaijazz import OaiJazz, stamp2zulutime
-from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults, OaiAddRecordWithPrefixesAndSetSpecs
+from oaiaddrecord import OaiAddRecord, OaiAddRecordWithDefaults, OaiAddDeleteRecordWithPrefixesAndSetSpecs
 from oaidownloadprocessor import OaiDownloadProcessor
 from updateadapter import UpdateAdapterFromOaiDownloadProcessor
 from oaibranding import OaiBranding

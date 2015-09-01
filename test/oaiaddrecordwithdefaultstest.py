@@ -28,7 +28,7 @@
 
 from seecr.test import CallTrace, SeecrTestCase
 from weightless.core import compose
-from meresco.oai import OaiAddRecordWithDefaults, OaiAddRecordWithPrefixesAndSetSpecs
+from meresco.oai import OaiAddRecordWithDefaults, OaiAddDeleteRecordWithPrefixesAndSetSpecs
 
 
 class OaiAddRecordWithDefaultsTest(SeecrTestCase):
@@ -63,13 +63,26 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
             self.assertEquals({'identifier':'id', 'ignored':'kwarg', 'data':"data"}, method.kwargs)
 
     def testAddPrefixesSets(self):
-        subject = OaiAddRecordWithPrefixesAndSetSpecs(setSpecs=['setSpec'], metadataPrefixes=['prefix'])
+        subject = OaiAddDeleteRecordWithPrefixesAndSetSpecs(setSpecs=['setSpec'], metadataPrefixes=['prefix'])
         observer = CallTrace('oaijazzAndStorage', emptyGeneratorMethods=['add'])
         subject.addObserver(observer)
 
         list(compose(subject.add('id', ignored="kwarg", data="na")))
 
         self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
+        self.assertEquals({'identifier':'id',
+            'setSpecs': ['setSpec'],
+            'metadataPrefixes': ['prefix']},
+            observer.calledMethods[0].kwargs)
+
+    def testDeletePrefixesSets(self):
+        subject = OaiAddDeleteRecordWithPrefixesAndSetSpecs(setSpecs=['setSpec'], metadataPrefixes=['prefix'])
+        observer = CallTrace('oaijazzAndStorage', emptyGeneratorMethods=['add'])
+        subject.addObserver(observer)
+
+        list(compose(subject.delete('id', ignored="kwarg", data="na")))
+
+        self.assertEquals(['deleteOaiRecord'], [m.name for m in observer.calledMethods])
         self.assertEquals({'identifier':'id',
             'setSpecs': ['setSpec'],
             'metadataPrefixes': ['prefix']},
