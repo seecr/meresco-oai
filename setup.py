@@ -9,9 +9,10 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009-2010 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2015 Stichting Kennisnet http://www.kennisnet.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -32,6 +33,7 @@
 ## end license ##
 
 from distutils.core import setup
+from distutils.extension import Extension
 
 setup(
     name = 'meresco-oai4',
@@ -43,6 +45,15 @@ setup(
         'bin/convert_oai_v1_to_v2',
         'bin/convert_oai_v2_to_v3',
         'bin/convert_oai_v3_to_v4',
+    ],
+    ext_modules = [
+        Extension("meresco.oai4.integerlist._integerlist", [
+                      'meresco/oai4/integerlist/_integerlist.cpp',
+                  ],
+                  extra_compile_args = [
+                      '-g',
+                  ],
+        )
     ],
     version = '%VERSION%',
     url = 'http://www.cq2.nl',

@@ -6,8 +6,8 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
-# Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2013-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2010, 2015 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2013-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
 # This file is part of "Meresco Oai"
@@ -42,7 +42,7 @@ from os import listdir, remove, rename
 from os.path import join, isdir, isfile
 from shutil import rmtree
 from bsddb import btopen
-from meresco.components.integerlist import IntegerList
+from meresco.oai4.integerlist import IntegerList
 from meresco.oai4 import OaiJazz
 
 
@@ -75,7 +75,7 @@ def main():
     directory = sys.argv[1]
     versionFile = join(directory, 'oai.version')
     version = open(versionFile).read()
-    assert version == '3', repr(version) 
+    assert version == '3', repr(version)
     convert(directory)
     open(versionFile, 'w').write('4')
     print "Finished converting %s to OAI data format v4." % directory

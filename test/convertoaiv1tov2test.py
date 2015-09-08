@@ -4,8 +4,8 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
-# Copyright (C) 2010 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2010, 2015 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2012-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
@@ -32,9 +32,8 @@ from os.path import dirname, join, abspath, isdir
 from shutil import copytree
 
 from seecr.test import SeecrTestCase
-from meresco.components import PersistentSortedIntegerList
-from meresco.components.integerlist import IntegerList
-from meresco.oai4 import OaiJazz
+from meresco.oai4 import PersistentSortedIntegerList
+from meresco.oai4.integerlist import IntegerList
 
 mypath = dirname(abspath(__file__))
 binDir = join(dirname(mypath), 'bin')

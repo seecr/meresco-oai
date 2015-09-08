@@ -3,9 +3,10 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2015 Stichting Kennisnet http://www.kennisnet.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -31,9 +32,6 @@ from shutil import copytree
 from bsddb import btopen
 
 from seecr.test import SeecrTestCase
-from meresco.components import PersistentSortedIntegerList
-from meresco.components.integerlist import IntegerList
-from meresco.oai4 import OaiJazz
 
 mypath = dirname(abspath(__file__))
 binDir = join(dirname(mypath), 'bin')
@@ -63,7 +61,7 @@ class ConvertOaiV2ToV3Test(SeecrTestCase):
         self.assertFalse(isdir(join(datadir, 'stamp2identifier')))
 
         self.assertTrue(isfile(join(datadir, 'identifier2setSpecs.bd')))
-        identifier2setSpecs = btopen(join(datadir, 'identifier2setSpecs.bd')) 
+        identifier2setSpecs = btopen(join(datadir, 'identifier2setSpecs.bd'))
         self.assertEquals(2, len(identifier2setSpecs))
         self.assertFalse(isdir(join(datadir, 'identifier2setSpecs')))
 

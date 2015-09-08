@@ -1,1 +1,3 @@
 deps.d
+build/
+meresco/oai4/integerlist/_integerlist.so

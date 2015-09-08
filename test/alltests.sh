@@ -5,7 +5,8 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2013, 2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2015 Stichting Kennisnet http://www.kennisnet.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -27,6 +28,7 @@
 
 export LANG=en_US.UTF-8
 export PYTHONPATH=.:"$PYTHONPATH"
+export WEIGHTLESS_COMPOSE_TEST="PYTHON"
 pyversions=""
 if [ -e /usr/bin/python2.6 ]; then
     pyversions="$pyversions python2.6"

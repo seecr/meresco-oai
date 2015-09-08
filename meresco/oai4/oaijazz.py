@@ -9,8 +9,8 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2010-2011, 2015 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2013, 2015 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
@@ -34,18 +34,17 @@
 import sys
 from sys import maxint
 from os.path import isdir, join, isfile
-from os import makedirs, listdir, rename, remove
+from os import makedirs, listdir, rename
 from bisect import bisect_left
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
-from json import dumps, load as jsonLoad
 from bsddb import btopen
 from traceback import print_exc
 from random import choice
 
 from escaping import escapeFilename, unescapeFilename
 from meresco.components.sorteditertools import OrIterator, AndIterator
-from meresco.components import PersistentSortedIntegerList
+from meresco.oai4 import PersistentSortedIntegerList
 from meresco.core import asyncreturn
 from weightless.io import Suspend
 

@@ -11,8 +11,8 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2013, 2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012, 2015 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
@@ -67,9 +67,12 @@ from oairecordtest import OaiRecordTest
 from oaisetmasktest import OaiSetMaskTest
 from oaisetselecttest import OaiSetSelectTest
 from oaitooltest import OaiToolTest
+from persistentsortedintegerlisttest import PersistentSortedIntegerListTest
 from resumptiontokentest import ResumptionTokenTest
 from streaminglxmltest import StreamingLxmlTest
 from updateadaptertest import UpdateAdapterTest
+
+from integerlist.integerlisttest import IntegerListTest
 
 if __name__ == '__main__':
     unittest.main()
