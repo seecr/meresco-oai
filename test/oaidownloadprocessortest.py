@@ -5,8 +5,8 @@
 #
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
-# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2011, 2014 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011, 2014-2015 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
@@ -41,36 +41,36 @@ from weightless.core import compose, consume
 from weightless.io import Suspend
 
 from meresco.core import asyncreturn
-from meresco.oai4 import OaiDownloadProcessor
+from meresco.oai4 import OaiDownloadProcessor, VERSION
 
 
 class OaiDownloadProcessorTest(SeecrTestCase):
     def testRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n""" % (oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
 
     def testRequestWithAdditionalUserAgent(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, userAgentAddition="From a certain server")
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x (From a certain server)\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s (From a certain server)\r\n\r\n""" % (oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
 
     def testRequestWithAdditionalHeaders(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
         request = oaiDownloadProcessor.buildRequest(additionalHeaders={'Host': 'example.org'})
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nHost: example.org\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n""" % oaiDownloadProcessor._identifier, request)
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nHost: example.org\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n""" % (oaiDownloadProcessor._identifier, VERSION), request)
 
     def testListIdentifiersRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, verb='ListIdentifiers')
-        self.assertEquals("""GET /oai?verb=ListIdentifiers&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListIdentifiers&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n""" % (oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
 
     def testSetInRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="setName", workingDirectory=self.tempdir, xWait=True)
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=setName&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=setName&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n""" % (oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="set-_.!~*'()", workingDirectory=self.tempdir, xWait=True)
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=set-_.%%21%%7E%%2A%%27%%28%%29&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&set=set-_.%%21%%7E%%2A%%27%%28%%29&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n""" % (oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
         resumptionToken = "u|c1286437597991025|mprefix|s|f"
         open(join(self.tempdir, 'harvester.state'), 'w').write("Resumptiontoken: %s\n" % resumptionToken)
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", set="setName", workingDirectory=self.tempdir, xWait=True)
-        self.assertEquals("""GET /oai?verb=ListRecords&resumptionToken=u%%7Cc1286437597991025%%7Cmprefix%%7Cs%%7Cf&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&resumptionToken=u%%7Cc1286437597991025%%7Cmprefix%%7Cs%%7Cf&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n""" % (oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
 
     def testHandle(self):
         observer = CallTrace(methods={'add': lambda **kwargs: (x for x in [])})
@@ -124,11 +124,11 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         observer = CallTrace()
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         oaiDownloadProcessor.addObserver(observer)
-        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
         consume(oaiDownloadProcessor.handle(parse(StringIO(ERROR_RESPONSE))))
         self.assertEquals(0, len(observer.calledMethods))
         self.assertEquals("someError: Some error occurred.\n", oaiDownloadProcessor._err.getvalue())
-        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('metadataPrefix', 'oai_dc'), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('metadataPrefix', 'oai_dc'), ('x-wait', 'True')]), oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
 
     def testUseResumptionToken(self):
         observer = CallTrace()
@@ -136,7 +136,7 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor.addObserver(observer)
         list(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))
         self.assertEquals('x?y&z', oaiDownloadProcessor._resumptionToken)
-        self.assertEquals('GET /oai?verb=ListRecords&resumptionToken=x%%3Fy%%26z&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n' % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?verb=ListRecords&resumptionToken=x%%3Fy%%26z&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n' % (oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         self.assertEquals('x?y&z', oaiDownloadProcessor._resumptionToken)
 
@@ -162,13 +162,13 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         observer.exceptions={'add': Exception("Could be anything")}
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, err=StringIO())
         oaiDownloadProcessor.addObserver(observer)
-        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
         self.assertRaises(Exception, lambda: list(compose(oaiDownloadProcessor.handle(parse(StringIO(LISTRECORDS_RESPONSE % RESUMPTION_TOKEN))))))
         self.assertEquals(['add'], [m.name for m in observer.calledMethods])
         errorOutput = oaiDownloadProcessor._err.getvalue()
         self.assertTrue(errorOutput.startswith('Traceback'), errorOutput)
         self.assertTrue('Exception: Could be anything\nWhile processing:\n<record xmlns="http://www.openarchives.org/OAI/2.0/"><header><identifier>oai:identifier:1' in errorOutput, errorOutput)
-        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier), oaiDownloadProcessor.buildRequest())
+        self.assertEquals('GET /oai?%s HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n' % (urlencode([('verb', 'ListRecords'), ('resumptionToken', resumptionToken), ('x-wait', 'True')]), oaiDownloadProcessor._identifier, VERSION), oaiDownloadProcessor.buildRequest())
 
     def testHandleYieldsAtLeastOnceAfterEachRecord(self):
         @asyncreturn
@@ -232,10 +232,10 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         currentIdentifier = oaiDownloadProcessor._identifier
         self.assertTrue(isfile(identifierFilepath))
         self.assertEquals(currentIdentifier, open(identifierFilepath).read())
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n""" % currentIdentifier, oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n""" % (currentIdentifier, VERSION), oaiDownloadProcessor.buildRequest())
 
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/4.x\r\n\r\n""" % currentIdentifier, oaiDownloadProcessor.buildRequest())
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/%s\r\n\r\n""" % (currentIdentifier, VERSION), oaiDownloadProcessor.buildRequest())
 
     @stdout_replaced
     def testShutdownPersistsStateOnAutocommit(self):

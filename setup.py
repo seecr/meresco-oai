@@ -40,6 +40,7 @@ setup(
     packages = [
         'meresco',                  #DO_NOT_DISTRIBUTE
         'meresco.oai4',
+        'meresco.oai4.integerlist',
     ],
     scripts=[
         'bin/convert_oai_v1_to_v2',
