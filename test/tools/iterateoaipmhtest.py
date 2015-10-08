@@ -81,6 +81,15 @@ class IterateOaiPmhTest(SeecrTestCase):
         urlopenMethod = opener.calledMethods[0]
         self.assertEquals((('http://example.org/oai?verb=ListRecords&metadataPrefix=oai_dc',), {}), (urlopenMethod.args, urlopenMethod.kwargs))
 
+    def testNoRecordsMatch(self):
+        request = OaiListRequest(baseurl='http://example.org/oai', verb='ListRecords', metadataPrefix='oai_dc')
+        opener = CallTrace('urlopen', returnValues={'urlopen': StringIO(NO_RECORDS_MATCH_RESPONSE)})
+        request._urlopen = opener.urlopen
+        batch = request.retrieveBatch()
+        self.assertEquals(0, len(batch.items))
+
+
+NO_RECORDS_MATCH_RESPONSE = """<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd"><responseDate>2015-10-08T10:08:50Z</responseDate><request metadataPrefix="oai_dc" verb="ListRecords">http://example.org/oai</request><error code="noRecordsMatch">The combination of the values of the from, until, set and metadataPrefix arguments results in an empty list.</error></OAI-PMH>"""
 
 RESPONSE = """<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/ http://www.openarchives.org/OAI/2.0/OAI-PMH.xsd">
 <responseDate>2015-03-05T08:54:37Z</responseDate><request metadataPrefix="oai_dc" verb="ListRecords">http://example.org/oai</request><ListRecords>

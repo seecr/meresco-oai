@@ -92,6 +92,8 @@ class OaiBatch(object):
             if errorNode is None:
                 raise ValueError('Not a OAI-PMH %s response from %s. Got:\n%s' % (self.request.verb, self.request.buildUrl(), tostring(response, pretty_print=True)))
             errorCode = xpathFirst(errorNode, '@code')
+            if errorCode in ['noRecordsMatch']:
+                return
             msg = xpathFirst(errorNode, 'text()')
             raise ValueError('Got OAI-PMH response with error (%s): %s' % (errorCode, msg))
         itemXPath, headerXPath = VERB_XPATHS[self.request.verb]
