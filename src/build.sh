@@ -40,6 +40,10 @@ rm -rf $libDir
 mkdir -p $libDir
 
 javac=/usr/lib/jvm/java-1.7.0-openjdk.x86_64/bin/javac
+if [ ! -f "$javac" ]; then
+    javac=/usr/lib/jvm/java-1.7.0/bin/javac
+fi
+
 luceneJarDir=/usr/lib64/python2.6/site-packages/lucene
 if [ -f /etc/debian_version ]; then
     javac=/usr/lib/jvm/java-7-openjdk-amd64/bin/javac
@@ -69,7 +73,6 @@ if [ -f /etc/debian_version ]; then
 fi
 
 mv ${rootLibDir} $libDir/
-
 
 rm -rf $buildDir
 rm -rf $mydir/root
