@@ -34,8 +34,8 @@ if [ -z "$libDir" ]; then
     libDir=$(dirname $mydir)/lib
 fi
 
-rm -rf $buildDir $libdir
-mkdir $buildDir $libDir
+rm -rf $buildDir $libDir
+mkdir --parents $buildDir $libDir
 
 pythonVersion=$(python --version 2>&1 | awk '{print $2}' | cut -d. -f-2)
 
