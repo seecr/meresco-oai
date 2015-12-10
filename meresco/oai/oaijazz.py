@@ -35,7 +35,7 @@
 
 from sys import maxint
 from os.path import isdir, join, isfile
-from os import makedirs, listdir
+from os import makedirs, listdir, rename
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from warnings import warn
@@ -395,7 +395,10 @@ class OaiJazz(Observable):
         return _stampFromDocument(doc)
 
     def _save(self):
-        dump(self._data, open(join(self._directory, "data.json"), "w"))
+        filename = join(self._directory, "data.json")
+        with open(filename + "~", 'w') as f:
+            dump(self._data, f)
+        rename(filename + "~", filename)
 
     def _load(self):
         path = join(self._directory, "data.json")
