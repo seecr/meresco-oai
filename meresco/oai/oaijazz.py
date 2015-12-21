@@ -111,6 +111,7 @@ class OaiJazz(Observable):
             oaiUntil=None,
             setsMask=None,
             batchSize=None,
+            parthash=None,
             shouldCountHits=False):
         batchSize = DEFAULT_BATCH_SIZE if batchSize is None else batchSize
         searcher = self._getSearcher()
