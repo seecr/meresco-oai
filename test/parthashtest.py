@@ -29,8 +29,26 @@ from seecr.test import SeecrTestCase
 from meresco.oai._parthash import PartHash
 
 class PartHashTest(SeecrTestCase):
+    def testDisallowed(self):
+        self.assertRaises(ValueError, lambda: PartHash.fromString('1,2/3'))
 
-    def testOneOfTwo(self):
-        ph = PartHash.fromString('1/2')
-        self.assertEquals([0], ph.parts)
-        self.assertEquals(2, ph.total)
+    def testHash(self):
+        self.assertEquals(485, PartHash.hashId("identifier"))
+        self.assertEquals(1024, PartHash.NR_OF_PARTS)
+
+    def testRanges(self):
+        self.assertEquals([(0,512)], list(PartHash.fromString('1/2').ranges()))
+        self.assertEquals([(512,1024)], list(PartHash.fromString('2/2').ranges()))
+
+    def testStr(self):
+        self.assertEquals("1/2", "%s" % PartHash.fromString('1/2'))
+        self.assertEquals("2/2", str(PartHash.fromString('2/2')))
+
+    def testEquals(self):
+        self.assertEquals(PartHash.fromString('1/2'), PartHash.fromString('1/2'))
+        self.assertEquals(hash(PartHash.fromString('1/2')), hash(PartHash([0],2)))
+
+    def testFromStringNone(self):
+        self.assertEquals(None, PartHash.fromString(None))
+        self.assertEquals(None, PartHash.fromString(''))
+        self.assertEquals(PartHash.fromString('1/2'), PartHash.fromString(PartHash.fromString('1/2')))

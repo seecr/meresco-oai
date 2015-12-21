@@ -39,7 +39,7 @@ from os import makedirs, listdir, rename
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from warnings import warn
-
+from ._parthash import PartHash
 
 from json import load, dump
 from meresco.core import Observable
@@ -83,7 +83,7 @@ def lazyImport():
 DEFAULT_BATCH_SIZE = 200
 
 class OaiJazz(Observable):
-    version = '8'
+    version = '9'
 
     def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, name=None):
         Observable.__init__(self, name=name)
@@ -115,7 +115,7 @@ class OaiJazz(Observable):
             shouldCountHits=False):
         batchSize = DEFAULT_BATCH_SIZE if batchSize is None else batchSize
         searcher = self._getSearcher()
-        query = self._luceneQuery(prefix=prefix, sets=sets, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, setsMask=setsMask)
+        query = self._luceneQuery(prefix=prefix, sets=sets, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, setsMask=setsMask, parthash=parthash)
         collector = OaiSortingCollector(batchSize, shouldCountHits)
         searcher.search(query, None, collector)
         return self._OaiSelectResult(docs=collector.docs(searcher),
@@ -123,7 +123,7 @@ class OaiJazz(Observable):
                 parent=self,
             )
 
-    def _luceneQuery(self, prefix, sets=None, continueAfter=None, oaiFrom=None, oaiUntil=None, setsMask=None):
+    def _luceneQuery(self, prefix, sets=None, continueAfter=None, oaiFrom=None, oaiUntil=None, setsMask=None, parthash=None):
         query = BooleanQuery()
         if oaiFrom or continueAfter or oaiUntil:
             start = max(int(continueAfter or '0') + 1, self._fromTime(oaiFrom))
@@ -139,6 +139,9 @@ class OaiJazz(Observable):
             query.add(setQuery, BooleanClause.Occur.MUST)
         for set_ in setsMask or []:
             query.add(TermQuery(Term(SETS_FIELD, set_)), BooleanClause.Occur.MUST)
+        if parthash:
+            for start, stop in parthash.ranges():
+                query.add(NumericRangeQuery.newIntRange(HASH_FIELD, start, stop, True, False), BooleanClause.Occur.MUST)
         if query.clauses().size() == 0:
             query.add(MatchAllDocsQuery(), BooleanClause.Occur.MUST)
         return query
@@ -354,6 +357,7 @@ class OaiJazz(Observable):
     def _getNewDocument(self, identifier, oldDoc):
         doc = Document()
         doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
+        doc.add(IntField(HASH_FIELD, PartHash.hashId(identifier), Field.Store.NO))
         if oldDoc is not None:
             for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
                 doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))
@@ -490,6 +494,7 @@ PREFIX_FIELD = "prefix"
 SETS_FIELD = "sets"
 IDENTIFIER_FIELD = "identifier"
 STAMP_FIELD = "stamp"
+HASH_FIELD = 'hash'
 NUMERIC_STAMP_FIELD = "numeric_stamp"
 TOMBSTONE_FIELD = "tombstone"
 TOMBSTONE_VALUE = "T"

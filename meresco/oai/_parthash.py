@@ -24,15 +24,48 @@
 #
 ## end license ##
 
+from hashlib import sha1
+
 class PartHash(object):
+    NR_OF_PARTS = 1024
+    ALLOWED = ['1/2', '2/2']
+
     def __init__(self, parts, total):
         self.parts = parts
-        self.total = total
+        self.partSize = self.NR_OF_PARTS / total
 
     @classmethod
     def fromString(cls, aString):
+        if not aString:
+            return None
+        aString = str(aString)
+        if aString not in cls.ALLOWED:
+            raise ValueError("Partition not allowed.")
         parts, total = aString.split('/')
-        return PartHash(
+        return cls(
             parts=[int(p)-1 for p in parts.split(',')],
             total=int(total),
         )
+
+    @classmethod
+    def hashId(cls, identifier):
+        return int(int(sha1(identifier).hexdigest(),16) % cls.NR_OF_PARTS)
+
+    def ranges(self):
+        for part in self.parts:
+            yield part*self.partSize, (part+1)*self.partSize
+
+    def __str__(self):
+        return "{0}/{1}".format(
+                ','.join(str(p+1) for p in self.parts),
+                self.NR_OF_PARTS / self.partSize,
+            )
+
+    def __eq__(self, other):
+        return \
+            PartHash == other.__class__ and \
+            self.parts == other.parts and \
+            self.partSize == other.partSize
+
+    def __hash__(self):
+        return hash(str(self)) + hash(self.__class__)

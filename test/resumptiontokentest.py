@@ -31,7 +31,8 @@
 ## end license ##
 
 from meresco.oai.resumptiontoken import ResumptionToken, resumptionTokenFromString
-from seecr.test import CallTrace, SeecrTestCase
+from meresco.oai.oaijazz import PartHash
+from seecr.test import SeecrTestCase
 
 
 class ResumptionTokenTest(SeecrTestCase):
@@ -49,9 +50,14 @@ class ResumptionTokenTest(SeecrTestCase):
         self.assertEquals('2002-06-01T19:20:30Z', resumptionToken.from_)
         self.assertEquals('2002-06-01T19:20:39Z', resumptionToken.until)
         self.assertEquals('some:set:name', resumptionToken.set_)
+        self.assertEquals(None, resumptionToken.parthash)
         self.assertResumptionToken(ResumptionToken(set_=None))
 
     def testResumptionTokenHacked(self):
         r = ResumptionToken.fromString('caap|f|m|u|s')
         # complete nonsense is accepted (for now ????)
         self.assertEquals('aap', r.continueAfter)
+
+    def testParthash(self):
+        r = ResumptionToken(metadataPrefix='prefix', continueAfter='3', parthash=PartHash.fromString('1/2'))
+        self.assertResumptionToken(r)

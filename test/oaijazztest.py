@@ -58,6 +58,7 @@ from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
 import meresco.oai.oaijazz as jazzModule
 from meresco.oai.suspendregister import ForcedResumeException
 from meresco.oai.oaijazz import SETSPEC_SEPARATOR, lazyImport, _setSpecAndSubsets
+from meresco.oai._parthash import PartHash
 lazyImport()
 
 # Suppress DeprecationWarning for OaiJazz.addOaiRecord(); since this will be triggered by other Meresco Oai modules for the time being...
@@ -1082,6 +1083,17 @@ class OaiJazzTest(SeecrTestCase):
         except Exception, e:
             self.assertTrue("no segments" in str(e), str(e))
 
+    def testOaiSelectWithParts(self):
+        for i in ['id:1', 'id:2', 'id:3']:
+            self.jazz.addOaiRecord(i, metadataPrefixes=['prefix'])
+        self.assertEquals(['id:2', 'id:3'],
+                recordIds(self.jazz.oaiSelect(
+                    prefix='prefix',
+                    parthash=PartHash.fromString('1/2'))))
+        self.assertEquals(['id:1'],
+                recordIds(self.jazz.oaiSelect(
+                    prefix='prefix',
+                    parthash=PartHash.fromString('2/2'))))
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]
