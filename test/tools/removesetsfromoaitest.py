@@ -25,11 +25,13 @@
 ## end license ##
 
 from seecr.test import SeecrTestCase
+from seecr.test.io import stdout_replaced
 from meresco.oai import OaiJazz
 from meresco.oai.tools.removesetsfromoai import removeSetsFromOai
 
 class RemoveSetsFromOaiTest(SeecrTestCase):
 
+    @stdout_replaced
     def testRemoveSet(self):
         oaiJazz = OaiJazz(self.tempdir)
         oaiJazz.updateSet('a:b', 'set A/B')
