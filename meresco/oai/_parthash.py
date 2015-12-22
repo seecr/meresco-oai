@@ -35,7 +35,7 @@ class PartHash(object):
         self.partSize = self.NR_OF_PARTS / total
 
     @classmethod
-    def fromString(cls, aString):
+    def create(cls, aString):
         if not aString:
             return None
         aString = str(aString)

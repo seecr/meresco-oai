@@ -59,5 +59,6 @@ class ResumptionTokenTest(SeecrTestCase):
         self.assertEquals('aap', r.continueAfter)
 
     def testParthash(self):
-        r = ResumptionToken(metadataPrefix='prefix', continueAfter='3', parthash=PartHash.fromString('1/2'))
+        r = ResumptionToken(metadataPrefix='prefix', continueAfter='3', parthash=PartHash.create('1/2'))
+        self.assertEquals('1/2', str(r.parthash))
         self.assertResumptionToken(r)

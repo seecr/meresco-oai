@@ -58,7 +58,7 @@ class ResumptionToken:
         self.from_ = from_ or '' #blank out "None"
         self.until = until or ''
         self.set_ = set_ or ''
-        self.parthash = PartHash.fromString(parthash)
+        self.parthash = PartHash.create(parthash)
 
     def __str__(self):
         return '|'.join("%s%s" % (key, value) for key, value in

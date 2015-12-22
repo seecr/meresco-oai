@@ -1089,11 +1089,11 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['id:2', 'id:3'],
                 recordIds(self.jazz.oaiSelect(
                     prefix='prefix',
-                    parthash=PartHash.fromString('1/2'))))
+                    parthash=PartHash.create('1/2'))))
         self.assertEquals(['id:1'],
                 recordIds(self.jazz.oaiSelect(
                     prefix='prefix',
-                    parthash=PartHash.fromString('2/2'))))
+                    parthash=PartHash.create('2/2'))))
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]
