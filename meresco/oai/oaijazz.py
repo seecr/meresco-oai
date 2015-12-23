@@ -237,10 +237,10 @@ class OaiJazz(Observable):
             return set(self._sets.items())
         return set(self._sets.keys())
 
-    def getNrOfRecords(self, prefix='oai_dc', setSpec=None, continueAfter=None, oaiFrom=None, oaiUntil=None):
+    def getNrOfRecords(self, prefix='oai_dc', setSpec=None, continueAfter=None, oaiFrom=None, oaiUntil=None, parthash=None):
         searcher = self._getSearcher()
         totalCollector = TotalHitCountCollector()
-        query = self._luceneQuery(prefix=prefix, sets=[setSpec] if setSpec else None, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil)
+        query = self._luceneQuery(prefix=prefix, sets=[setSpec] if setSpec else None, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, parthash=parthash)
         searcher.search(query, totalCollector)
 
         query.add(TermQuery(Term(TOMBSTONE_FIELD, TOMBSTONE_VALUE)), BooleanClause.Occur.MUST)

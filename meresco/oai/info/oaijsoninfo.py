@@ -85,7 +85,8 @@ class OaiJsonInfo(Observable):
                 prefix=resumptionToken.metadataPrefix or None,
                 setSpec=resumptionToken.set_ if resumptionToken.set_ else None,
                 oaiFrom=resumptionToken.from_,
-                oaiUntil=resumptionToken.until
+                oaiUntil=resumptionToken.until,
+                parthash=resumptionToken.parthash,
             )
         nrOfRecords = self.call.getNrOfRecords(**kwargs)
         nrOfRemainingRecords = self.call.getNrOfRecords(continueAfter=resumptionToken.continueAfter, **kwargs)

@@ -48,7 +48,6 @@ class ConvertOaiV8ToV9Test(SeecrTestCase):
                 datadir,
                 join(self.tempdir, 'oai_conversion_v8_to_v9.log'),
             ))
-        print open(join(self.tempdir, 'oai_conversion_v8_to_v9.log')).read()
         self.assertEquals('9', open(join(datadir, 'oai.version')).read())
         jazz = OaiJazz(datadir)
         result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True, parthash=PartHash.create("1/2"))

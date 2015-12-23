@@ -412,6 +412,8 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals({'total': 2, 'deletes': 1}, self.jazz.getNrOfRecords('aPrefix'))
         self.assertEquals({'deletes': 1, 'total': 2}, self.jazz.getNrOfRecords(prefix='aPrefix', continueAfter='0', oaiFrom='2008-07-06T00:00:00Z'))
         self.assertEquals({'deletes': 1, 'total': 2}, self.jazz.getNrOfRecords(prefix='aPrefix', oaiFrom='2008-07-06T00:00:00Z'))
+        self.assertEquals({'deletes': 0, 'total': 1}, self.jazz.getNrOfRecords(prefix='aPrefix', parthash=PartHash.create('1/2')))
+        self.assertEquals({'deletes': 1, 'total': 1}, self.jazz.getNrOfRecords(prefix='aPrefix', parthash=PartHash.create('2/2')))
 
     def testMoreRecordsAvailable(self):
         def reopen():
