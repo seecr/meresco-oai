@@ -31,17 +31,17 @@ from seecrdeps import includeParentAndDeps       #DO_NOT_DISTRIBUTE
 includeParentAndDeps(__file__)                   #DO_NOT_DISTRIBUTE
 
 from meresco.oai import OaiJazz
-from meresco.oai.oaijazz import IDENTIFIER_FIELD, PREFIX_FIELD, SETS_FIELD, STAMP_FIELD, NUMERIC_STAMP_FIELD, TOMBSTONE_FIELD, TOMBSTONE_VALUE
+from meresco.oai.oaijazz import IDENTIFIER_FIELD, PREFIX_FIELD, SETS_FIELD, STAMP_FIELD, NUMERIC_STAMP_FIELD, TOMBSTONE_FIELD, TOMBSTONE_VALUE, HASH_FIELD, PartHash
 
 import sys
 from os.path import join
 
 Long = NumericRangeQuery = MatchAllDocsQuery = OaiSortingCollector = _stampFromDocument = getLucene = \
-    Document = StringField = Field =  LongField = NumericDocValuesField = Term = MultiFields = Bits = None
+    Document = StringField = Field =  LongField = NumericDocValuesField = Term = MultiFields = Bits = IntField = None
 def do_import():
     from meresco.oai.oaijazz import getLucene, lazyImport, _stampFromDocument
     lazyImport()
-    from org.apache.lucene.document import Document, StringField, Field, LongField, NumericDocValuesField
+    from org.apache.lucene.document import Document, StringField, Field, LongField, NumericDocValuesField, IntField
     from org.meresco.oai import OaiSortingCollector
     from org.apache.lucene.search import MatchAllDocsQuery, NumericRangeQuery
     from org.apache.lucene.index import Term, MultiFields
@@ -50,9 +50,14 @@ def do_import():
     globals().update(locals())
 
 def convertDoc(oldDoc):
+
     identifier = oldDoc.getField(IDENTIFIER_FIELD).stringValue()
+    # oldDoc.add(IntField(HASH_FIELD, PartHash.hashId(identifier), Field.Store.NO))
+    # return identifier, oldDoc
+
     doc = Document()
     doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
+    doc.add(IntField(HASH_FIELD, PartHash.hashId(identifier), Field.Store.NO))
     for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
         doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))
     for oldSet in oldDoc.getValues(SETS_FIELD):
@@ -74,7 +79,7 @@ def convert(path):
     print 'Nr of documents to be converted:', total
     livebits = MultiFields.getLiveDocs(reader) # may return None
     if livebits is None:
-        livebits = Bits.MatchAllBits
+        livebits = Bits.MatchAllBits(maxDoc)
     for i in xrange(maxDoc):
         if i % batchSize == 0:
             print 'Batch {0}/{1}'.format(i // batchSize + 1, batches)
@@ -98,11 +103,11 @@ def main():
     directory = arguments[0]
     versionFile = join(directory, 'oai.version')
     version = open(versionFile).read()
-    assert version == '7', repr(version)
-    assert OaiJazz.version == '8', repr(OaiJazz.version)
+    assert version == '8', repr(version)
+    assert OaiJazz.version == '9', repr(OaiJazz.version)
     do_import()
     convert(directory)
-    open(versionFile, 'w').write('8')
+    open(versionFile, 'w').write('9')
     print "Finished converting %s to OAI data format v8." % directory
 
 if __name__ == '__main__':

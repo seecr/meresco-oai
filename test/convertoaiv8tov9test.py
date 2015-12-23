@@ -32,25 +32,33 @@ from shutil import copytree
 
 from seecr.test import SeecrTestCase
 from meresco.oai import OaiJazz
+from meresco.oai.oaijazz import PartHash
 
 mypath = dirname(abspath(__file__))
 binDir = join(dirname(mypath), 'bin')
 if not isdir(binDir):
     binDir = '/usr/bin'
 
-class ConvertOaiV7ToV8Test(SeecrTestCase):
+class ConvertOaiV8ToV9Test(SeecrTestCase):
     def testConversion(self):
-        datadir = join(self.tempdir, 'oai_conversion_v7_to_v8')
-        copytree(join(mypath, 'data', 'oai_conversion_v7_to_v8'), datadir)
+        datadir = join(self.tempdir, 'oai_conversion_v8_to_v9')
+        copytree(join(mypath, 'data', 'oai_conversion_v8_to_v9'), datadir)
         system("%s %s --i-know-what-i-am-doing > %s 2>&1" % (
-                join(binDir, 'convert_oai_v7_to_v8'),
+                join(binDir, 'convert_oai_v8_to_v9'),
                 datadir,
-                join(self.tempdir, 'oai_conversion_v7_to_v8.log'),
+                join(self.tempdir, 'oai_conversion_v8_to_v9.log'),
             ))
-        self.assertEquals('8', open(join(datadir, 'oai.version')).read())
+        print open(join(self.tempdir, 'oai_conversion_v8_to_v9.log')).read()
+        self.assertEquals('9', open(join(datadir, 'oai.version')).read())
         jazz = OaiJazz(datadir)
-        result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True)
+        result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True, parthash=PartHash.create("1/2"))
         records = list(result.records)
-        self.assertEquals(['oai:1', 'oai:3', 'oai:5', 'oai:4', 'oai:2'], [r.identifier for r in records])
-        self.assertEquals([False, False, False, False, True], [r.isDeleted for r in records])
+        self.assertEquals(['oai:1', 'oai:5', 'oai:2'], [r.identifier for r in records])
+        self.assertEquals([False, False, True], [r.isDeleted for r in records])
+
+        result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True, parthash=PartHash.create("2/2"))
+        records = list(result.records)
+        self.assertEquals(['oai:3', 'oai:4'], [r.identifier for r in records])
+        self.assertEquals([False, False], [r.isDeleted for r in records])
+
         self.assertEquals({'total':5, 'deletes':1}, jazz.getNrOfRecords())

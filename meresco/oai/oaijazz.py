@@ -288,7 +288,7 @@ class OaiJazz(Observable):
 
     def _versionFormatCheck(self):
         versionFile = join(self._directory, "oai.version")
-        msg = "The OAI index at %s need to be converted to the current version (with 'convert_oai_v5_to_v6' in meresco-oai/bin)" % self._directory
+        msg = "The OAI index at %s need to be converted to the current version (with 'convert_oai_v8_to_v9' in meresco-oai/bin)" % self._directory
         assert listdir(self._directory) == [] or isfile(versionFile) and open(versionFile).read() == self.version, msg
         with open(versionFile, 'w') as f:
             f.write(self.version)
