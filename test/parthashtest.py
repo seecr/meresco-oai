@@ -30,6 +30,7 @@ from meresco.oai._parthash import PartHash
 
 class PartHashTest(SeecrTestCase):
     def testDisallowed(self):
+        # For now, needs implementation
         self.assertRaises(ValueError, lambda: PartHash.create('1,2/3'))
 
     def testHash(self):

@@ -48,7 +48,6 @@ from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced, stdout_replaced
 
 from weightless.core import be, compose, consume
-from weightless.io import Suspend
 from meresco.core import Observable, Transparent
 
 from org.apache.lucene.document import Document, LongField, Field, NumericDocValuesField, StringField
@@ -56,7 +55,6 @@ from org.apache.lucene.index import Term
 
 from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
 import meresco.oai.oaijazz as jazzModule
-from meresco.oai.suspendregister import ForcedResumeException
 from meresco.oai.oaijazz import SETSPEC_SEPARATOR, lazyImport, _setSpecAndSubsets
 from meresco.oai._parthash import PartHash
 lazyImport()
@@ -1094,6 +1092,17 @@ class OaiJazzTest(SeecrTestCase):
                 recordIds(self.jazz.oaiSelect(
                     prefix='prefix',
                     parthash=PartHash.create('2/2'))))
+
+    def testOaiSelectWithHackedParthash(self):
+        for i in ['id:1', 'id:2', 'id:3']:
+            self.jazz.addOaiRecord(i, metadataPrefixes=['prefix'])
+        self.assertEquals([719,266,51], [PartHash.hashId(i) for i in ['id:1', 'id:2', 'id:3']])
+        parthash = CallTrace(returnValues=dict(ranges=[(0,256), (512,1024)]))
+        self.assertEquals(['id:1', 'id:3'],
+                recordIds(self.jazz.oaiSelect(
+                    prefix='prefix',
+                    parthash=parthash)))
+
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]

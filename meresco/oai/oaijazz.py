@@ -140,8 +140,16 @@ class OaiJazz(Observable):
         for set_ in setsMask or []:
             query.add(TermQuery(Term(SETS_FIELD, set_)), BooleanClause.Occur.MUST)
         if parthash:
+            parthashQueries = []
             for start, stop in parthash.ranges():
-                query.add(NumericRangeQuery.newIntRange(HASH_FIELD, start, stop, True, False), BooleanClause.Occur.MUST)
+                parthashQueries.append(NumericRangeQuery.newIntRange(HASH_FIELD, start, stop, True, False))
+            if len(parthashQueries) == 1:
+                pQuery = parthashQueries[0]
+            else:
+                pQuery = BooleanQuery()
+                for q in parthashQueries:
+                    pQuery.add(q, BooleanClause.Occur.SHOULD)
+            query.add(pQuery, BooleanClause.Occur.MUST)
         if query.clauses().size() == 0:
             query.add(MatchAllDocsQuery(), BooleanClause.Occur.MUST)
         return query
