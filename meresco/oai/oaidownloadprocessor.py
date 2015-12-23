@@ -50,7 +50,7 @@ _UNSPECIFIED = type('_UNSPECIFIED', (object,), {'__nonzero__': lambda s: False})
 
 
 class OaiDownloadProcessor(Observable):
-    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, err=None, verb=None, autoCommit=True, incrementalHarvestSchedule=_UNSPECIFIED, restartAfterFinish=False, userAgentAddition=None, name=None):
+    def __init__(self, path, metadataPrefix, workingDirectory, set=None, xWait=True, parthash=None, err=None, verb=None, autoCommit=True, incrementalHarvestSchedule=_UNSPECIFIED, restartAfterFinish=False, userAgentAddition=None, name=None):
         Observable.__init__(self, name=name)
         self._userAgent = _USER_AGENT + ('' if userAgentAddition is None else ' (%s)' % userAgentAddition)
         self._path = path
@@ -59,6 +59,7 @@ class OaiDownloadProcessor(Observable):
         self._stateFilePath = join(workingDirectory, "harvester.state")
         self._set = set
         self._xWait = xWait
+        self._parthash = parthash
         self._err = err or stderr
         self._verb = verb or 'ListRecords'
         self._autoCommit = autoCommit
@@ -120,6 +121,8 @@ class OaiDownloadProcessor(Observable):
             arguments.append(('metadataPrefix', self._metadataPrefix))
             if self._set:
                 arguments.append(('set', self._set))
+            if self._parthash:
+                arguments.append(('x-parthash', self._parthash))
         if self._xWait:
             arguments.append(('x-wait', 'True'))
         request = "GET %s?%s HTTP/1.0\r\n%s\r\n"
