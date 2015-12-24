@@ -55,9 +55,9 @@ class OaiDownloadProcessorTest(SeecrTestCase):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, userAgentAddition="From a certain server")
         self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/5.x (From a certain server)\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
-    def testParthashRequest(self):
-        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, parthash="1/2")
-        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-parthash=1%%2F2&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/5.x\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
+    def testPartitionRequest(self):
+        oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True, partition="1/2")
+        self.assertEquals("""GET /oai?verb=ListRecords&metadataPrefix=oai_dc&x-partition=1%%2F2&x-wait=True HTTP/1.0\r\nX-Meresco-Oai-Client-Identifier: %s\r\nUser-Agent: Meresco-Oai-DownloadProcessor/5.x\r\n\r\n""" % oaiDownloadProcessor._identifier, oaiDownloadProcessor.buildRequest())
 
     def testUpdateRequest(self):
         oaiDownloadProcessor = OaiDownloadProcessor(path="/oai", metadataPrefix="oai_dc", workingDirectory=self.tempdir, xWait=True)

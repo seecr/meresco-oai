@@ -30,7 +30,7 @@
 #
 ## end license ##
 
-from ._parthash import PartHash
+from ._partition import Partition
 
 def resumptionTokenFromString(s):
     try:
@@ -50,15 +50,15 @@ class ResumptionToken:
         'u': 'until',
         's': 'set_',
     }
-    ALL_SHORT = dict(p='parthash', **SHORT)
+    ALL_SHORT = dict(p='partition', **SHORT)
 
-    def __init__(self, metadataPrefix='', continueAfter='0', from_='', until='', set_='', parthash=None):
+    def __init__(self, metadataPrefix='', continueAfter='0', from_='', until='', set_='', partition=None):
         self.metadataPrefix = metadataPrefix
         self.continueAfter = continueAfter
         self.from_ = from_ or '' #blank out "None"
         self.until = until or ''
         self.set_ = set_ or ''
-        self.parthash = PartHash.create(parthash)
+        self.partition = Partition.create(partition)
 
     def __str__(self):
         return '|'.join("%s%s" % (key, value) for key, value in
@@ -77,7 +77,7 @@ class ResumptionToken:
             self.from_ == other.from_ and \
             self.until == other.until and \
             self.set_ == other.set_ and \
-            self.parthash == other.parthash
+            self.partition == other.partition
 
     @classmethod
     def fromString(cls, s):

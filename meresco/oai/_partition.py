@@ -26,7 +26,7 @@
 
 from hashlib import sha1
 
-class PartHash(object):
+class Partition(object):
     NR_OF_PARTS = 1024
     ALLOWED = ['1/2', '2/2']
 
@@ -63,7 +63,7 @@ class PartHash(object):
 
     def __eq__(self, other):
         return \
-            PartHash == other.__class__ and \
+            self.__class__ == other.__class__ and \
             self.parts == other.parts and \
             self.partSize == other.partSize
 

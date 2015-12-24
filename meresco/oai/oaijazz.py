@@ -39,7 +39,7 @@ from os import makedirs, listdir, rename
 from time import time, strftime, gmtime, strptime
 from calendar import timegm
 from warnings import warn
-from ._parthash import PartHash
+from ._partition import Partition
 
 from json import load, dump
 from meresco.core import Observable
@@ -111,11 +111,11 @@ class OaiJazz(Observable):
             oaiUntil=None,
             setsMask=None,
             batchSize=None,
-            parthash=None,
+            partition=None,
             shouldCountHits=False):
         batchSize = DEFAULT_BATCH_SIZE if batchSize is None else batchSize
         searcher = self._getSearcher()
-        query = self._luceneQuery(prefix=prefix, sets=sets, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, setsMask=setsMask, parthash=parthash)
+        query = self._luceneQuery(prefix=prefix, sets=sets, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, setsMask=setsMask, partition=partition)
         collector = OaiSortingCollector(batchSize, shouldCountHits)
         searcher.search(query, None, collector)
         return self._OaiSelectResult(docs=collector.docs(searcher),
@@ -123,7 +123,7 @@ class OaiJazz(Observable):
                 parent=self,
             )
 
-    def _luceneQuery(self, prefix, sets=None, continueAfter=None, oaiFrom=None, oaiUntil=None, setsMask=None, parthash=None):
+    def _luceneQuery(self, prefix, sets=None, continueAfter=None, oaiFrom=None, oaiUntil=None, setsMask=None, partition=None):
         query = BooleanQuery()
         if oaiFrom or continueAfter or oaiUntil:
             start = max(int(continueAfter or '0') + 1, self._fromTime(oaiFrom))
@@ -139,15 +139,15 @@ class OaiJazz(Observable):
             query.add(setQuery, BooleanClause.Occur.MUST)
         for set_ in setsMask or []:
             query.add(TermQuery(Term(SETS_FIELD, set_)), BooleanClause.Occur.MUST)
-        if parthash:
-            parthashQueries = []
-            for start, stop in parthash.ranges():
-                parthashQueries.append(NumericRangeQuery.newIntRange(HASH_FIELD, start, stop, True, False))
-            if len(parthashQueries) == 1:
-                pQuery = parthashQueries[0]
+        if partition:
+            partitionQueries = []
+            for start, stop in partition.ranges():
+                partitionQueries.append(NumericRangeQuery.newIntRange(HASH_FIELD, start, stop, True, False))
+            if len(partitionQueries) == 1:
+                pQuery = partitionQueries[0]
             else:
                 pQuery = BooleanQuery()
-                for q in parthashQueries:
+                for q in partitionQueries:
                     pQuery.add(q, BooleanClause.Occur.SHOULD)
             query.add(pQuery, BooleanClause.Occur.MUST)
         if query.clauses().size() == 0:
@@ -237,10 +237,10 @@ class OaiJazz(Observable):
             return set(self._sets.items())
         return set(self._sets.keys())
 
-    def getNrOfRecords(self, prefix='oai_dc', setSpec=None, continueAfter=None, oaiFrom=None, oaiUntil=None, parthash=None):
+    def getNrOfRecords(self, prefix='oai_dc', setSpec=None, continueAfter=None, oaiFrom=None, oaiUntil=None, partition=None):
         searcher = self._getSearcher()
         totalCollector = TotalHitCountCollector()
-        query = self._luceneQuery(prefix=prefix, sets=[setSpec] if setSpec else None, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, parthash=parthash)
+        query = self._luceneQuery(prefix=prefix, sets=[setSpec] if setSpec else None, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, partition=partition)
         searcher.search(query, totalCollector)
 
         query.add(TermQuery(Term(TOMBSTONE_FIELD, TOMBSTONE_VALUE)), BooleanClause.Occur.MUST)
@@ -365,7 +365,7 @@ class OaiJazz(Observable):
     def _getNewDocument(self, identifier, oldDoc):
         doc = Document()
         doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
-        doc.add(IntField(HASH_FIELD, PartHash.hashId(identifier), Field.Store.NO))
+        doc.add(IntField(HASH_FIELD, Partition.hashId(identifier), Field.Store.NO))
         if oldDoc is not None:
             for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
                 doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))

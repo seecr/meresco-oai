@@ -26,30 +26,30 @@
 
 from seecr.test import SeecrTestCase
 
-from meresco.oai._parthash import PartHash
+from meresco.oai._partition import Partition
 
-class PartHashTest(SeecrTestCase):
+class PartitionTest(SeecrTestCase):
     def testDisallowed(self):
         # For now, needs implementation
-        self.assertRaises(ValueError, lambda: PartHash.create('1,2/3'))
+        self.assertRaises(ValueError, lambda: Partition.create('1,2/3'))
 
     def testHash(self):
-        self.assertEquals(485, PartHash.hashId("identifier"))
-        self.assertEquals(1024, PartHash.NR_OF_PARTS)
+        self.assertEquals(485, Partition.hashId("identifier"))
+        self.assertEquals(1024, Partition.NR_OF_PARTS)
 
     def testRanges(self):
-        self.assertEquals([(0,512)], list(PartHash.create('1/2').ranges()))
-        self.assertEquals([(512,1024)], list(PartHash.create('2/2').ranges()))
+        self.assertEquals([(0,512)], list(Partition.create('1/2').ranges()))
+        self.assertEquals([(512,1024)], list(Partition.create('2/2').ranges()))
 
     def testStr(self):
-        self.assertEquals("1/2", "%s" % PartHash.create('1/2'))
-        self.assertEquals("2/2", str(PartHash.create('2/2')))
+        self.assertEquals("1/2", "%s" % Partition.create('1/2'))
+        self.assertEquals("2/2", str(Partition.create('2/2')))
 
     def testEquals(self):
-        self.assertEquals(PartHash.create('1/2'), PartHash.create('1/2'))
-        self.assertEquals(hash(PartHash.create('1/2')), hash(PartHash([0],2)))
+        self.assertEquals(Partition.create('1/2'), Partition.create('1/2'))
+        self.assertEquals(hash(Partition.create('1/2')), hash(Partition([0],2)))
 
     def testFromStringNone(self):
-        self.assertEquals(None, PartHash.create(None))
-        self.assertEquals(None, PartHash.create(''))
-        self.assertEquals(PartHash.create('1/2'), PartHash.create(PartHash.create('1/2')))
+        self.assertEquals(None, Partition.create(None))
+        self.assertEquals(None, Partition.create(''))
+        self.assertEquals(Partition.create('1/2'), Partition.create(Partition.create('1/2')))

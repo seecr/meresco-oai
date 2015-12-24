@@ -32,7 +32,7 @@ from shutil import copytree
 
 from seecr.test import SeecrTestCase
 from meresco.oai import OaiJazz
-from meresco.oai.oaijazz import PartHash
+from meresco.oai.oaijazz import Partition
 
 mypath = dirname(abspath(__file__))
 binDir = join(dirname(mypath), 'bin')
@@ -50,12 +50,12 @@ class ConvertOaiV8ToV9Test(SeecrTestCase):
             ))
         self.assertEquals('9', open(join(datadir, 'oai.version')).read())
         jazz = OaiJazz(datadir)
-        result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True, parthash=PartHash.create("1/2"))
+        result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True, partition=Partition.create("1/2"))
         records = list(result.records)
         self.assertEquals(['oai:1', 'oai:5', 'oai:2'], [r.identifier for r in records])
         self.assertEquals([False, False, True], [r.isDeleted for r in records])
 
-        result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True, parthash=PartHash.create("2/2"))
+        result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True, partition=Partition.create("2/2"))
         records = list(result.records)
         self.assertEquals(['oai:3', 'oai:4'], [r.identifier for r in records])
         self.assertEquals([False, False], [r.isDeleted for r in records])

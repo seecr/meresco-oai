@@ -31,7 +31,7 @@
 ## end license ##
 
 from meresco.oai.resumptiontoken import ResumptionToken, resumptionTokenFromString
-from meresco.oai.oaijazz import PartHash
+from meresco.oai.oaijazz import Partition
 from seecr.test import SeecrTestCase
 
 
@@ -50,7 +50,7 @@ class ResumptionTokenTest(SeecrTestCase):
         self.assertEquals('2002-06-01T19:20:30Z', resumptionToken.from_)
         self.assertEquals('2002-06-01T19:20:39Z', resumptionToken.until)
         self.assertEquals('some:set:name', resumptionToken.set_)
-        self.assertEquals(None, resumptionToken.parthash)
+        self.assertEquals(None, resumptionToken.partition)
         self.assertResumptionToken(ResumptionToken(set_=None))
 
     def testResumptionTokenHacked(self):
@@ -58,7 +58,7 @@ class ResumptionTokenTest(SeecrTestCase):
         # complete nonsense is accepted (for now ????)
         self.assertEquals('aap', r.continueAfter)
 
-    def testParthash(self):
-        r = ResumptionToken(metadataPrefix='prefix', continueAfter='3', parthash=PartHash.create('1/2'))
-        self.assertEquals('1/2', str(r.parthash))
+    def testPartition(self):
+        r = ResumptionToken(metadataPrefix='prefix', continueAfter='3', partition=Partition.create('1/2'))
+        self.assertEquals('1/2', str(r.partition))
         self.assertResumptionToken(r)

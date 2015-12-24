@@ -56,7 +56,7 @@ from org.apache.lucene.index import Term
 from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
 import meresco.oai.oaijazz as jazzModule
 from meresco.oai.oaijazz import SETSPEC_SEPARATOR, lazyImport, _setSpecAndSubsets
-from meresco.oai._parthash import PartHash
+from meresco.oai._partition import Partition
 lazyImport()
 
 # Suppress DeprecationWarning for OaiJazz.addOaiRecord(); since this will be triggered by other Meresco Oai modules for the time being...
@@ -412,8 +412,8 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals({'total': 2, 'deletes': 1}, self.jazz.getNrOfRecords('aPrefix'))
         self.assertEquals({'deletes': 1, 'total': 2}, self.jazz.getNrOfRecords(prefix='aPrefix', continueAfter='0', oaiFrom='2008-07-06T00:00:00Z'))
         self.assertEquals({'deletes': 1, 'total': 2}, self.jazz.getNrOfRecords(prefix='aPrefix', oaiFrom='2008-07-06T00:00:00Z'))
-        self.assertEquals({'deletes': 0, 'total': 1}, self.jazz.getNrOfRecords(prefix='aPrefix', parthash=PartHash.create('1/2')))
-        self.assertEquals({'deletes': 1, 'total': 1}, self.jazz.getNrOfRecords(prefix='aPrefix', parthash=PartHash.create('2/2')))
+        self.assertEquals({'deletes': 0, 'total': 1}, self.jazz.getNrOfRecords(prefix='aPrefix', partition=Partition.create('1/2')))
+        self.assertEquals({'deletes': 1, 'total': 1}, self.jazz.getNrOfRecords(prefix='aPrefix', partition=Partition.create('2/2')))
 
     def testMoreRecordsAvailable(self):
         def reopen():
@@ -1089,21 +1089,21 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['id:2', 'id:3'],
                 recordIds(self.jazz.oaiSelect(
                     prefix='prefix',
-                    parthash=PartHash.create('1/2'))))
+                    partition=Partition.create('1/2'))))
         self.assertEquals(['id:1'],
                 recordIds(self.jazz.oaiSelect(
                     prefix='prefix',
-                    parthash=PartHash.create('2/2'))))
+                    partition=Partition.create('2/2'))))
 
-    def testOaiSelectWithHackedParthash(self):
+    def testOaiSelectWithHackedPartition(self):
         for i in ['id:1', 'id:2', 'id:3']:
             self.jazz.addOaiRecord(i, metadataPrefixes=['prefix'])
-        self.assertEquals([719,266,51], [PartHash.hashId(i) for i in ['id:1', 'id:2', 'id:3']])
-        parthash = CallTrace(returnValues=dict(ranges=[(0,256), (512,1024)]))
+        self.assertEquals([719,266,51], [Partition.hashId(i) for i in ['id:1', 'id:2', 'id:3']])
+        partition = CallTrace(returnValues=dict(ranges=[(0,256), (512,1024)]))
         self.assertEquals(['id:1', 'id:3'],
                 recordIds(self.jazz.oaiSelect(
                     prefix='prefix',
-                    parthash=parthash)))
+                    partition=partition)))
 
 
 def recordIds(oaiSelectResult):

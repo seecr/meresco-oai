@@ -35,7 +35,7 @@ from meresco.components.http.utils import serverErrorPlainText, successNoContent
 from meresco.core.observable import Observable
 from weightless.core import NoneOfTheObserversRespond
 
-from ._parthash import PartHash
+from ._partition import Partition
 from .resumptiontoken import resumptionTokenFromString, ResumptionToken
 from .oaitool import ISO8601, ISO8601Exception
 from .oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, checkBooleanArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
@@ -166,7 +166,7 @@ Error and Exception Conditions
         else:
             if not checkArgument(arguments, 'metadataPrefix', selectArguments):
                 raise OaiBadArgumentException('Missing argument(s) "resumptionToken" or "metadataPrefix".')
-            for name in ['from', 'until', 'set', 'x-parthash']:
+            for name in ['from', 'until', 'set', 'x-partition']:
                 checkArgument(arguments, name, selectArguments)
             checkNoMoreArguments(arguments)
 
@@ -180,14 +180,14 @@ Error and Exception Conditions
             from_ = token.from_
             until = token.until
             set_ = token.set_
-            parthash = token.parthash
+            partition = token.partition
         else:
             continueAfter = '0'
             metadataPrefix = selectArguments.pop('metadataPrefix')
             from_ = selectArguments.pop('from', None)
             until = selectArguments.pop('until', None)
             set_ = selectArguments.pop('set', None)
-            parthash = PartHash.create(selectArguments.pop('x-parthash', None))
+            partition = Partition.create(selectArguments.pop('x-partition', None))
             try:
                 from_ = from_ and ISO8601(from_)
                 until = until and ISO8601(until)
@@ -206,10 +206,10 @@ Error and Exception Conditions
         selectArguments['oaiUntil'] = until
         selectArguments['sets'] = [set_] if set_ else []
         selectArguments['prefix'] = metadataPrefix
-        selectArguments['parthash'] = parthash
+        selectArguments['partition'] = partition
         return selectArguments
 
-    def _oaiSelect(self, prefix, sets, continueAfter, oaiFrom, oaiUntil, shouldCountHits, parthash, **ignored):
+    def _oaiSelect(self, prefix, sets, continueAfter, oaiFrom, oaiUntil, shouldCountHits, partition, **ignored):
         if not prefix in set(self.call.getAllPrefixes()):
             raise OaiException('cannotDisseminateFormat')
         result = self.call.oaiSelect(
@@ -220,7 +220,7 @@ Error and Exception Conditions
                 oaiFrom=oaiFrom,
                 oaiUntil=oaiUntil,
                 shouldCountHits=shouldCountHits,
-                parthash=parthash,
+                partition=partition,
             )
         if result.numberOfRecordsInBatch == 0:
             raise OaiException('noRecordsMatch')
@@ -271,7 +271,7 @@ Error and Exception Conditions
                     from_=selectArguments['oaiFrom'],
                     until=selectArguments['oaiUntil'],
                     set_=next(iter(selectArguments['sets']), None),
-                    parthash=selectArguments['parthash'],
+                    partition=selectArguments['partition'],
                 )
         elif 'resumptionToken' in selectArguments:
             yield '<resumptionToken/>'

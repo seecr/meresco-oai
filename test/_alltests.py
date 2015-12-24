@@ -70,7 +70,7 @@ from oairepositorytest import OaiRepositoryTest
 from oaisetmasktest import OaiSetMaskTest
 from oaisetselecttest import OaiSetSelectTest
 from oaitooltest import OaiToolTest
-from parthashtest import PartHashTest
+from partitiontest import PartitionTest
 from resumptiontokentest import ResumptionTokenTest
 from streaminglxmltest import StreamingLxmlTest
 from suspendregistertest import SuspendRegisterTest
