@@ -156,6 +156,10 @@ Error and Exception Conditions
     def _validateAndParseArguments(self, arguments):
         selectArguments = {}
         arguments = dict(arguments)
+        if 'x-parthash' in arguments:
+            sys.stderr.write("x-parthash used instead of new style x-partition.\n")
+            sys.stderr.flush()
+            arguments['x-partition'] = arguments.pop('x-parthash')
         checkNoRepeatedArguments(arguments)
         arguments.pop('verb')
         selectArguments['x-wait'] = self._supportXWait and checkBooleanArgument(arguments, 'x-wait', {})

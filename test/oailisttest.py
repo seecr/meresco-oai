@@ -279,6 +279,13 @@ class OaiListTest(SeecrTestCase):
         oai = parse(StringIO(body))
         self.assertEquals(['id:2/oai_dc'], xpath(oai, '//mock:record/text()'))
 
+    @stderr_replaced
+    def testListRecordsWithOldPartitionParameter(self):
+        self._addRecords(['id:1', 'id:2'])
+        header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-parthash': ['2/2']}, **self.httpkwargs))).split(CRLF*2)
+        oai = parse(StringIO(body))
+        self.assertEquals(['id:1/oai_dc'], xpath(oai, '//mock:record/text()'))
+
     def testListRecordsProducesResumptionTokenWithPartition(self):
         self._addRecords(['id:%s' % i for i in xrange(10)])
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-partition':['1/2']}, **self.httpkwargs))).split(CRLF*2)
