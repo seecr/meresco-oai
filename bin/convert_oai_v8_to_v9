@@ -31,7 +31,7 @@ from seecrdeps import includeParentAndDeps       #DO_NOT_DISTRIBUTE
 includeParentAndDeps(__file__)                   #DO_NOT_DISTRIBUTE
 
 from meresco.oai import OaiJazz
-from meresco.oai.oaijazz import IDENTIFIER_FIELD, PREFIX_FIELD, SETS_FIELD, STAMP_FIELD, NUMERIC_STAMP_FIELD, TOMBSTONE_FIELD, TOMBSTONE_VALUE, HASH_FIELD, PartHash
+from meresco.oai.oaijazz import IDENTIFIER_FIELD, PREFIX_FIELD, SETS_FIELD, STAMP_FIELD, NUMERIC_STAMP_FIELD, TOMBSTONE_FIELD, TOMBSTONE_VALUE, HASH_FIELD, Partition
 
 import sys
 from os.path import join
@@ -52,12 +52,12 @@ def do_import():
 def convertDoc(oldDoc):
 
     identifier = oldDoc.getField(IDENTIFIER_FIELD).stringValue()
-    # oldDoc.add(IntField(HASH_FIELD, PartHash.hashId(identifier), Field.Store.NO))
+    # oldDoc.add(IntField(HASH_FIELD, Partition.hashId(identifier), Field.Store.NO))
     # return identifier, oldDoc
 
     doc = Document()
     doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
-    doc.add(IntField(HASH_FIELD, PartHash.hashId(identifier), Field.Store.NO))
+    doc.add(IntField(HASH_FIELD, Partition.hashId(identifier), Field.Store.NO))
     for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
         doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))
     for oldSet in oldDoc.getValues(SETS_FIELD):
