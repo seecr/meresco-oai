@@ -49,6 +49,9 @@ class PartitionTest(SeecrTestCase):
     def testStr(self):
         self.assertEquals("1/2", "%s" % Partition.create('1/2'))
         self.assertEquals("2/2", str(Partition.create('2/2')))
+        self.assertEquals("2/10", str(Partition.create('2/10')))
+        self.assertEquals("1/10", str(Partition.create('1/10')))
+        self.assertEquals("1,3,4,5/7", str(Partition.create('1,3,4,5/7')))
 
     def testEquals(self):
         self.assertEquals(Partition.create('1/2'), Partition.create('1/2'))

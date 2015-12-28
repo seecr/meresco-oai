@@ -38,7 +38,7 @@ class Partition(object):
         if not parts or not set(parts).issubset(set(xrange(1, total+1))):
             raise ValueError('Expected parts >= 1 and <= {0}.'.format(total))
         self._parts = parts
-        self._partSize = int(ceil(self.NR_OF_PARTS / float(total)))
+        self._total = total
 
     @classmethod
     def create(cls, aString):
@@ -56,7 +56,8 @@ class Partition(object):
         return int(int(sha1(identifier).hexdigest(),16) % cls.NR_OF_PARTS)
 
     def ranges(self):
-        return ((start*self._partSize, end*self._partSize) for start, end in self._ranges())
+        partSize = int(ceil(self.NR_OF_PARTS / float(self._total)))
+        return ((start*partSize, end*partSize) for start, end in self._ranges())
 
     def _ranges(self):
         lastEnd = self._parts[0]
@@ -74,14 +75,14 @@ class Partition(object):
     def __str__(self):
         return "{0}/{1}".format(
                 ','.join(str(p) for p in self._parts),
-                self.NR_OF_PARTS / self._partSize,
+                self._total,
             )
 
     def __eq__(self, other):
         return \
             self.__class__ == other.__class__ and \
             self._parts == other._parts and \
-            self._partSize == other._partSize
+            self._total == other._total
 
     def __hash__(self):
         return hash(str(self)) + hash(self.__class__)
