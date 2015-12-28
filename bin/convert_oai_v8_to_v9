@@ -92,7 +92,8 @@ def convert(path):
 
 def main():
     from optparse import OptionParser
-    parser = OptionParser(usage="%prog [options] <OAI Directory>", description="Converts oai from version 7 to 8")
+    vprev = str(int(OaiJazz.version) -1)
+    parser = OptionParser(usage="%prog [options] <OAI Directory>", description="Converts oai from version {0} to {1}".format(vprev, OaiJazz.version))
     parser.add_option('', '--inplace', dest='backupCreated', default=False, action='store_true', help='Convert the oai-director in place.')
     parser.add_option('', '--i-know-what-i-am-doing', dest='backupCreated', default=False, action='store_true', help='Sure!')
     parser.add_option('', '--backup-created', dest='backupCreated', default=False, action='store_true', help='You have created a backup and will now convert the oai in place.')
@@ -103,12 +104,12 @@ def main():
     directory = arguments[0]
     versionFile = join(directory, 'oai.version')
     version = open(versionFile).read()
-    assert version == '8', repr(version)
+    assert version == vprev, repr(version)
     assert OaiJazz.version == '9', repr(OaiJazz.version)
     do_import()
     convert(directory)
-    open(versionFile, 'w').write('9')
-    print "Finished converting %s to OAI data format v8." % directory
+    open(versionFile, 'w').write(OaiJazz.version)
+    print "Finished converting {0} to OAI data format v{1} to v{2}.".format(directory, vprev, OaiJazz.version)
 
 if __name__ == '__main__':
     main()
