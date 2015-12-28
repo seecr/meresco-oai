@@ -30,8 +30,8 @@ from meresco.oai._partition import Partition
 
 class PartitionTest(SeecrTestCase):
     def testDisallowed(self):
-        # For now, needs implementation
-        self.assertRaises(ValueError, lambda: Partition.create('1,2/3'))
+        self.assertRaises(ValueError, lambda: Partition.create('1,4/3'))
+        self.assertRaises(ValueError, lambda: Partition.create('1/30'))
 
     def testHash(self):
         self.assertEquals(485, Partition.hashId("identifier"))
@@ -40,6 +40,11 @@ class PartitionTest(SeecrTestCase):
     def testRanges(self):
         self.assertEquals([(0,512)], list(Partition.create('1/2').ranges()))
         self.assertEquals([(512,1024)], list(Partition.create('2/2').ranges()))
+        self.assertEquals([(0,205)], list(Partition.create('1/5').ranges()))
+        self.assertEquals([(820,1025)], list(Partition.create('5/5').ranges()))
+        self.assertEquals([(927,1030)], list(Partition.create('10/10').ranges()))
+        self.assertEquals([(0,205), (820,1025)], list(Partition.create('1,5/5').ranges()))
+        self.assertEquals([(0, 410), (820,1025)], list(Partition.create('1,2,5/5').ranges()))
 
     def testStr(self):
         self.assertEquals("1/2", "%s" % Partition.create('1/2'))
@@ -47,7 +52,7 @@ class PartitionTest(SeecrTestCase):
 
     def testEquals(self):
         self.assertEquals(Partition.create('1/2'), Partition.create('1/2'))
-        self.assertEquals(hash(Partition.create('1/2')), hash(Partition([0],2)))
+        self.assertEquals(hash(Partition.create('1/2')), hash(Partition([1],2)))
 
     def testFromStringNone(self):
         self.assertEquals(None, Partition.create(None))

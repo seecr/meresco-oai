@@ -25,25 +25,29 @@
 ## end license ##
 
 from hashlib import sha1
+from math import ceil
 
 class Partition(object):
     NR_OF_PARTS = 1024
-    ALLOWED = ['1/2', '2/2']
 
     def __init__(self, parts, total):
-        self.parts = parts
-        self.partSize = self.NR_OF_PARTS / total
+        if total < 2:
+            raise ValueError('Expected at least 2 partitions.')
+        if total > 10:
+            raise ValueError('Expected max 10 partitions.')
+        if not parts or not set(parts).issubset(set(xrange(1, total+1))):
+            raise ValueError('Expected parts >= 1 and <= {0}.'.format(total))
+        self._parts = parts
+        self._partSize = int(ceil(self.NR_OF_PARTS / float(total)))
 
     @classmethod
     def create(cls, aString):
         if not aString:
             return None
         aString = str(aString)
-        if aString not in cls.ALLOWED:
-            raise ValueError("Partition not allowed.")
         parts, total = aString.split('/')
         return cls(
-            parts=[int(p)-1 for p in parts.split(',')],
+            parts=[int(p) for p in parts.split(',')],
             total=int(total),
         )
 
@@ -52,20 +56,32 @@ class Partition(object):
         return int(int(sha1(identifier).hexdigest(),16) % cls.NR_OF_PARTS)
 
     def ranges(self):
-        for part in self.parts:
-            yield part*self.partSize, (part+1)*self.partSize
+        return ((start*self._partSize, end*self._partSize) for start, end in self._ranges())
+
+    def _ranges(self):
+        lastEnd = self._parts[0]
+        lastStart = lastEnd -1
+        for end in self._parts[1:]:
+            start = end -1
+            if start == lastEnd:
+                lastEnd = end
+            else:
+                yield (lastStart, lastEnd)
+                lastStart, lastEnd = start, end
+        yield (lastStart, lastEnd)
+
 
     def __str__(self):
         return "{0}/{1}".format(
-                ','.join(str(p+1) for p in self.parts),
-                self.NR_OF_PARTS / self.partSize,
+                ','.join(str(p) for p in self._parts),
+                self.NR_OF_PARTS / self._partSize,
             )
 
     def __eq__(self, other):
         return \
             self.__class__ == other.__class__ and \
-            self.parts == other.parts and \
-            self.partSize == other.partSize
+            self._parts == other._parts and \
+            self._partSize == other._partSize
 
     def __hash__(self):
         return hash(str(self)) + hash(self.__class__)
