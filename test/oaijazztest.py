@@ -10,10 +10,10 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -295,6 +295,35 @@ class OaiJazzTest(SeecrTestCase):
             self.fail("Should fail on purging because deletes are persistent")
         except KeyError, e:
             self.assertEquals("'Purging of records is not allowed with persistent deletes.'", str(e))
+
+    def testPurgeOverrideIfNotAllowed(self):
+        self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])
+        self.jazz.purge('existing', ignorePeristentDelete=True)
+        self.jazz.close()
+        jazz2 = OaiJazz(self.tmpdir2("a"))
+        jazz2.addObserver(self.observer)
+        self.assertEquals(None, jazz2.getRecord('existing'))
+        self.assertEquals([], recordIds(jazz2.oaiSelect(prefix='prefix')))
+
+    def testPurgeSet(self):
+        self.jazz.updateMetadataFormat('prefix', 'schema', 'namespace')
+        self.jazz.updateSet('a', 'set a')
+        self.jazz.updateSet('b', 'set b')
+        self.assertEquals(set(['a', 'b']), self.jazz.getAllSets())
+        def add(identifier, setSpecs):
+            self.jazz.addOaiRecord('id:%s' % identifier, metadataPrefixes=['prefix'], setSpecs=setSpecs)
+        add('-', None)
+        add('a', ['a'])
+        add('b', ['b'])
+        add('ab', ['a', 'b'])
+        self.assertEquals(['id:-', 'id:a', 'id:b', 'id:ab'], recordIds(self.jazz.oaiSelect(prefix='prefix')))
+        self.jazz.purgeFromSet('a', ignorePeristentDelete=True)
+        self.assertEquals(['id:-', 'id:b'], recordIds(self.jazz.oaiSelect(prefix='prefix')))
+        self.assertEquals(set(['b']), self.jazz.getAllSets())
+        self.jazz.close()
+        jazz2 = OaiJazz(self.tmpdir2("a"))
+        self.assertEquals(['id:-', 'id:b'], recordIds(jazz2.oaiSelect(prefix='prefix')))
+        self.assertEquals(set(['b']), jazz2.getAllSets())
 
     # What happens if you do addOaiRecord('id1', prefix='aap') and afterwards
     #   addOaiRecord('id1', prefix='noot')

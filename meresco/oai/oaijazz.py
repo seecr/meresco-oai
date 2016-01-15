@@ -10,10 +10,10 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -213,11 +213,18 @@ class OaiJazz(Observable):
             return
         self._updateOaiRecord(identifier=identifier, setSpecs=setSpecs, metadataPrefixes=metadataPrefixes, delete=True, oldDoc=oldDoc)
 
-    def purge(self, identifier):
-        if self._persistentDelete:
+    def purge(self, identifier, ignorePeristentDelete=False):
+        if self._persistentDelete and not ignorePeristentDelete:
             raise KeyError("Purging of records is not allowed with persistent deletes.")
         self._latestModifications.add(str(identifier))
         return self._purge(identifier)
+
+    def purgeFromSet(self, setSpec, ignorePeristentDelete=False):
+        if self._persistentDelete and not ignorePeristentDelete:
+            raise KeyError("Purging of a set is not allowed with persistent deletes.")
+        self._latestModifications.update([setSpec] * (_MAX_MODIFICATIONS + 1))
+        self._sets.pop(setSpec, None)
+        return self._purgeFromSet(setSpec)
 
     def updateMetadataFormat(self, prefix, schema, namespace):
         self._prefixes[prefix] = (schema, namespace)
@@ -304,7 +311,7 @@ class OaiJazz(Observable):
         modifications = len(self._latestModifications)
         if modifications == 0:
             return self._searcher
-        if identifier and str(identifier) not in self._latestModifications and modifications < 10000:
+        if identifier and str(identifier) not in self._latestModifications and modifications < _MAX_MODIFICATIONS:
             return self._searcher
         newreader = DirectoryReader.openIfChanged(self._reader, self._writer, True)
         if newreader:
@@ -400,6 +407,9 @@ class OaiJazz(Observable):
 
     def _purge(self, identifier):
         self._writer.deleteDocuments(Term(IDENTIFIER_FIELD, identifier))
+
+    def _purgeFromSet(self, setSpec):
+        self._writer.deleteDocuments(Term(SETS_FIELD, setSpec))
 
     def _getStamp(self, identifier):
         doc = self._getDocument(identifier)
@@ -497,6 +507,8 @@ def _stampFromDocument(doc):
 SETSPEC_SEPARATOR = ","
 SETSPEC_HIERARCHY_SEPARATOR = ":"
 DATESTAMP_FACTOR = 1000000
+
+_MAX_MODIFICATIONS = 10000
 
 PREFIX_FIELD = "prefix"
 SETS_FIELD = "sets"
