@@ -1,5 +1,5 @@
 python-meresco-components (>= 4.10.11)
-python-meresco-components (<< 4.14)
+python-meresco-components (<< 4.15)
 python-meresco-core (>= 4.0.5.1)
 python-meresco-core (<< 4.1)
 python-meresco-xml (>= 4.2)
