@@ -180,15 +180,15 @@ class OaiDownloadProcessor(Observable):
         for item in xpath(verbNode, itemXPath):
             header = None
             for h in [item] + item.getchildren():
-                if h.tag == curieToTag('oai:header'):
+                if h.tag == HEADER_TAG:
                     header = h
                     break
             if header is None:
                 raise IndexError("Invalid oai header")
             for child in header.getchildren():
-                if child.tag == curieToTag('oai:identifier'):
+                if child.tag == IDENTIFIER_TAG:
                     identifier = child.text
-                elif child.tag == curieToTag('oai:datestamp'):
+                elif child.tag == DATESTAMP_TAG:
                     datestamp = child.text
             try:
                 yield self._add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
@@ -299,3 +299,7 @@ VERB_XPATHS = {
     'ListIdentifiers': ('oai:header', '.')
 }
 _USER_AGENT = "Meresco-Oai-DownloadProcessor/%s" % VERSION
+
+HEADER_TAG = curieToTag('oai:header')
+IDENTIFIER_TAG = curieToTag('oai:identifier')
+DATESTAMP_TAG = curieToTag('oai:datestamp')
