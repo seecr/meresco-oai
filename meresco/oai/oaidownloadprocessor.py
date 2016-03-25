@@ -5,10 +5,10 @@
 #
 # Copyright (C) 2010 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
-# Copyright (C) 2011-2012, 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2012, 2014-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012, 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
-# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -43,6 +43,7 @@ from meresco.core import Observable
 from meresco.xml import xpath, xpathFirst
 from meresco.components import lxmltostring, Schedule
 from meresco.oai import VERSION
+from meresco.xml.namespaces import curieToTag
 
 
 namespaces = {'oai': "http://www.openarchives.org/OAI/2.0/"}
@@ -177,9 +178,18 @@ class OaiDownloadProcessor(Observable):
         verbNode = xpathFirst(lxmlNode, "/oai:OAI-PMH/oai:%s" % self._verb)
         itemXPath, headerXPath = VERB_XPATHS[self._verb]
         for item in xpath(verbNode, itemXPath):
-            header = xpath(item, headerXPath)[0]
-            datestamp = xpath(header, 'oai:datestamp/text()')[0]
-            identifier = xpath(header, 'oai:identifier/text()')[0]
+            header = None
+            for h in [item] + item.getchildren():
+                if h.tag == curieToTag('oai:header'):
+                    header = h
+                    break
+            if header is None:
+                raise IndexError("Invalid oai header")
+            for child in header.getchildren():
+                if child.tag == curieToTag('oai:identifier'):
+                    identifier = child.text
+                elif child.tag == curieToTag('oai:datestamp'):
+                    datestamp = child.text
             try:
                 yield self._add(identifier=identifier, lxmlNode=ElementTree(item), datestamp=datestamp)
             except Exception, e:
