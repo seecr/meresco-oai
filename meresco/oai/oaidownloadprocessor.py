@@ -176,16 +176,17 @@ class OaiDownloadProcessor(Observable):
 
     def _processRecords(self, lxmlNode):
         verbNode = xpathFirst(lxmlNode, "/oai:OAI-PMH/oai:%s" % self._verb)
-        itemXPath, headerXPath = VERB_XPATHS[self._verb]
-        for item in xpath(verbNode, itemXPath):
+        for item in verbNode.iterchildren(tag=VERB_TAGNAME[self._verb]):
             header = None
-            for h in [item] + item.getchildren():
+            for h in item.iterchildren():
                 if h.tag == HEADER_TAG:
                     header = h
                     break
-            if header is None:
-                raise IndexError("Invalid oai header")
-            for child in header.getchildren():
+            else:
+                if item.tag != HEADER_TAG:
+                    raise IndexError("Invalid oai header")
+                header = item
+            for child in header.iterchildren():
                 if child.tag == IDENTIFIER_TAG:
                     identifier = child.text
                 elif child.tag == DATESTAMP_TAG:
@@ -294,9 +295,9 @@ class HarvestStateView(object):
 
 RESUMPTIONTOKEN_STATE = "Resumptiontoken: "
 
-VERB_XPATHS = {
-    'ListRecords': ('oai:record', 'oai:header'),
-    'ListIdentifiers': ('oai:header', '.')
+VERB_TAGNAME = {
+    'ListRecords': curieToTag('oai:record'),
+    'ListIdentifiers': curieToTag('oai:header')
 }
 _USER_AGENT = "Meresco-Oai-DownloadProcessor/%s" % VERSION
 
