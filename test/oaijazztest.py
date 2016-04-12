@@ -333,9 +333,11 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.updateSet('b', 'set b')
         self.jazz.addOaiRecord('id:ab', metadataPrefixes=['prefix'], setSpecs=['a', 'b'])
         self.assertEquals(set(['a', 'b']), self.jazz.getRecord('id:ab').sets)
+        t0 = self.jazz.getRecord('id:ab').stamp
         self.jazz.overrideRecord(identifier='id:ab', metadataPrefixes=['prefix2'], setSpecs=['a'], ignoreOaiSpec=True)
         self.assertEquals(set(['a']), self.jazz.getRecord('id:ab').sets)
         self.assertEquals(set(['prefix2']), self.jazz.getRecord('id:ab').prefixes)
+        self.assertTrue(t0 < self.jazz.getRecord('id:ab').stamp)
         self.jazz.close()
 
         jazz2 = OaiJazz(self.tmpdir2("a"))
