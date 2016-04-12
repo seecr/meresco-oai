@@ -229,8 +229,9 @@ class OaiJazz(Observable):
     def overrideRecord(self, identifier, metadataPrefixes, setSpecs, ignoreOaiSpec=False):
         if not ignoreOaiSpec:
             raise KeyError("Ignoring OAI Specification, so please use 'ignoreOaiSpec=True'.")
+        deleted = self.getRecord(identifier).isDeleted
         self.purge(identifier, ignorePeristentDelete=True)
-        self._updateOaiRecord(identifier=identifier, metadataPrefixes=metadataPrefixes, setSpecs=setSpecs)
+        self._updateOaiRecord(identifier=identifier, metadataPrefixes=metadataPrefixes, setSpecs=setSpecs, delete=deleted)
 
     def updateMetadataFormat(self, prefix, schema, namespace):
         self._prefixes[prefix] = (schema, namespace)

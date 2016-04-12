@@ -344,6 +344,25 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(set(['a']), jazz2.getRecord('id:ab').sets)
         self.assertEquals(set(['prefix2']), jazz2.getRecord('id:ab').prefixes)
 
+    def testOverrideDeletedRecord(self):
+        self.jazz.updateMetadataFormat('prefix', 'schema', 'namespace')
+        self.jazz.updateMetadataFormat('prefix2', 'schema', 'namespace')
+        self.jazz.updateSet('a', 'set a')
+        self.jazz.updateSet('b', 'set b')
+        self.jazz.addOaiRecord('id:ab', metadataPrefixes=['prefix'], setSpecs=['a', 'b'])
+        self.jazz.deleteOaiRecord(identifier='id:ab')
+        self.assertEquals(set(['a', 'b']), self.jazz.getRecord('id:ab').sets)
+        self.assertTrue(self.jazz.getRecord('id:ab').isDeleted)
+        t0 = self.jazz.getRecord('id:ab').stamp
+        self.jazz.overrideRecord(identifier='id:ab', metadataPrefixes=['prefix2'], setSpecs=['a'], ignoreOaiSpec=True)
+        self.assertEquals(set(['a']), self.jazz.getRecord('id:ab').sets)
+        self.assertEquals(set(['prefix2']), self.jazz.getRecord('id:ab').prefixes)
+        self.assertTrue(t0 < self.jazz.getRecord('id:ab').stamp)
+        self.assertTrue(self.jazz.getRecord('id:ab').isDeleted)
+        self.jazz.close()
+
+
+
     def testOverrideRecordIgnoreOaiSpec(self):
         self.jazz.updateMetadataFormat('prefix', 'schema', 'namespace')
         self.jazz.updateSet('a', 'set a')
