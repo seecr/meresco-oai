@@ -226,6 +226,12 @@ class OaiJazz(Observable):
         self._sets.pop(setSpec, None)
         return self._purgeFromSet(setSpec)
 
+    def overrideRecord(self, identifier, metadataPrefixes, setSpecs, ignoreOaiSpec=False):
+        if not ignoreOaiSpec:
+            raise KeyError("Ignoring OAI Specification, so please use 'ignoreOaiSpec=True'.")
+        self.purge(identifier, ignorePeristentDelete=True)
+        self._updateOaiRecord(identifier=identifier, metadataPrefixes=metadataPrefixes, setSpecs=setSpecs)
+
     def updateMetadataFormat(self, prefix, schema, namespace):
         self._prefixes[prefix] = (schema, namespace)
 

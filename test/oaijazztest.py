@@ -320,10 +320,34 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.purgeFromSet('a', ignorePeristentDelete=True)
         self.assertEquals(['id:-', 'id:b'], recordIds(self.jazz.oaiSelect(prefix='prefix')))
         self.assertEquals(set(['b']), self.jazz.getAllSets())
+        self.assertEquals(set(['b']), self.jazz.getRecord('id:b').sets)
         self.jazz.close()
         jazz2 = OaiJazz(self.tmpdir2("a"))
         self.assertEquals(['id:-', 'id:b'], recordIds(jazz2.oaiSelect(prefix='prefix')))
         self.assertEquals(set(['b']), jazz2.getAllSets())
+
+    def testOverrideRecord(self):
+        self.jazz.updateMetadataFormat('prefix', 'schema', 'namespace')
+        self.jazz.updateMetadataFormat('prefix2', 'schema', 'namespace')
+        self.jazz.updateSet('a', 'set a')
+        self.jazz.updateSet('b', 'set b')
+        self.jazz.addOaiRecord('id:ab', metadataPrefixes=['prefix'], setSpecs=['a', 'b'])
+        self.assertEquals(set(['a', 'b']), self.jazz.getRecord('id:ab').sets)
+        self.jazz.overrideRecord(identifier='id:ab', metadataPrefixes=['prefix2'], setSpecs=['a'], ignoreOaiSpec=True)
+        self.assertEquals(set(['a']), self.jazz.getRecord('id:ab').sets)
+        self.assertEquals(set(['prefix2']), self.jazz.getRecord('id:ab').prefixes)
+        self.jazz.close()
+
+        jazz2 = OaiJazz(self.tmpdir2("a"))
+        self.assertEquals(set(['a']), jazz2.getRecord('id:ab').sets)
+        self.assertEquals(set(['prefix2']), jazz2.getRecord('id:ab').prefixes)
+
+    def testOverrideRecordIgnoreOaiSpec(self):
+        self.jazz.updateMetadataFormat('prefix', 'schema', 'namespace')
+        self.jazz.updateSet('a', 'set a')
+        self.jazz.updateSet('b', 'set b')
+        self.jazz.addOaiRecord('id:ab', metadataPrefixes=['prefix'], setSpecs=['a', 'b'])
+        self.assertRaises(KeyError, lambda: self.jazz.overrideRecord(identifier='id:ab', metadataPrefixes=['prefix2'], setSpecs=['a']))
 
     # What happens if you do addOaiRecord('id1', prefix='aap') and afterwards
     #   addOaiRecord('id1', prefix='noot')
