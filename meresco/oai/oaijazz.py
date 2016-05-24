@@ -116,7 +116,11 @@ class OaiJazz(Observable):
         batchSize = DEFAULT_BATCH_SIZE if batchSize is None else batchSize
         searcher = self._getSearcher()
         query = self._luceneQuery(prefix=prefix, sets=sets, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, setsMask=setsMask, partition=partition)
-        collector = OaiSortingCollector(batchSize, shouldCountHits)
+
+        start = max(int(continueAfter or '0') + 1, self._fromTime(oaiFrom))
+        stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
+
+        collector = OaiSortingCollector(batchSize, shouldCountHits, long(start), long(stop))
         searcher.search(query, None, collector)
         return self._OaiSelectResult(docs=collector.docs(searcher),
                 collector=collector,
@@ -128,8 +132,8 @@ class OaiJazz(Observable):
         if oaiFrom or continueAfter or oaiUntil:
             start = max(int(continueAfter or '0') + 1, self._fromTime(oaiFrom))
             stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
-            fromRange = NumericRangeQuery.newLongRange(STAMP_FIELD, start, stop, True, True)
-            query.add(fromRange, BooleanClause.Occur.MUST)
+            # fromRange = NumericRangeQuery.newLongRange(STAMP_FIELD, start, stop, True, True)
+            # query.add(fromRange, BooleanClause.Occur.MUST)
         if prefix:
             query.add(TermQuery(Term(PREFIX_FIELD, prefix)), BooleanClause.Occur.MUST)
         if sets:

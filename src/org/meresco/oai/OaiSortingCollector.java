@@ -55,13 +55,18 @@ public class OaiSortingCollector extends Collector {
     private TopFieldCollector topDocsCollector;
     public boolean moreRecordsAvailable = false;
     public int maxDocsToCollect;
+    private NumericDocValues stamps;
+    private long start;
+    private long stop;
 
 
-    public OaiSortingCollector(int maxDocsToCollect, boolean shouldCountHits) throws IOException {
+    public OaiSortingCollector(int maxDocsToCollect, boolean shouldCountHits, long start, long stop) throws IOException {
         this.topDocsCollector = TopFieldCollector.create(new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)), maxDocsToCollect, false, false, false, false);
         this.earlyCollector = new EarlyTerminatingSortingCollector(this.topDocsCollector, new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)), maxDocsToCollect + 1);
         this.maxDocsToCollect = maxDocsToCollect;
         this.shouldCountHits = shouldCountHits;
+        this.start = start;
+        this.stop = stop;
     }
 
     public Document[] docs(IndexSearcher searcher) throws IOException {
@@ -91,6 +96,9 @@ public class OaiSortingCollector extends Collector {
 
     @Override
     public void collect(int doc) throws IOException {
+        long stamp = this.stamps.get(doc);
+        if (stamp < this.start || stamp > this.stop)
+            return;
         this.hitCount++;
         if (this.hitCount > this.maxDocsToCollect) {
             this.moreRecordsAvailable = true;
@@ -118,6 +126,7 @@ public class OaiSortingCollector extends Collector {
     public void setNextReader(AtomicReaderContext context) throws IOException {
         this.delegateTerminated = false;
         this.earlyCollector.setNextReader(context);
+        this.stamps = context.reader().getNumericDocValues("numeric_stamp");
     }
 
     @Override
