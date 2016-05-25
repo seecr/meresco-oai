@@ -3,8 +3,9 @@
  * "Meresco Oai" are components to build Oai repositories, based on
  * "Meresco Core" and "Meresco Components".
  *
- * Copyright (C) 2013-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+ * Copyright (C) 2013-2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
  * Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+ * Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
  *
  * This file is part of "Meresco Oai"
  *
@@ -46,6 +47,7 @@ import java.util.HashSet;
 
 
 public class OaiSortingCollector extends Collector {
+    private static final String NUMERIC_STAMP_FIELD = "numeric_stamp";
     private int hitCount = 0;
     private boolean shouldCountHits;
     private boolean delegateTerminated = false;
@@ -56,8 +58,8 @@ public class OaiSortingCollector extends Collector {
 
 
     public OaiSortingCollector(int maxDocsToCollect, boolean shouldCountHits) throws IOException {
-        this.topDocsCollector = TopFieldCollector.create(new Sort(new SortField("numeric_stamp", SortField.Type.LONG)), maxDocsToCollect, false, false, false, false);
-        this.earlyCollector = new EarlyTerminatingSortingCollector(this.topDocsCollector, new Sort(new SortField("numeric_stamp", SortField.Type.LONG, true)), maxDocsToCollect + 1);
+        this.topDocsCollector = TopFieldCollector.create(new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)), maxDocsToCollect, false, false, false, false);
+        this.earlyCollector = new EarlyTerminatingSortingCollector(this.topDocsCollector, new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)), maxDocsToCollect + 1);
         this.maxDocsToCollect = maxDocsToCollect;
         this.shouldCountHits = shouldCountHits;
     }
