@@ -115,25 +115,25 @@ class OaiJazz(Observable):
             shouldCountHits=False):
         batchSize = DEFAULT_BATCH_SIZE if batchSize is None else batchSize
         searcher = self._getSearcher()
-        query = self._luceneQuery(prefix=prefix, sets=sets, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, setsMask=setsMask, partition=partition)
+        query = self._luceneQuery(prefix=prefix, sets=sets, setsMask=setsMask, partition=partition)
+        collector = self._search(query, continueAfter, oaiFrom, oaiUntil, batchSize, shouldCountHits)
+        return self._OaiSelectResult(docs=collector.docs(searcher),
+                collector=collector,
+                parent=self,
+            )
+
+    def _search(self, query, continueAfter, oaiFrom, oaiUntil, batchSize, shouldCountHits):
+        searcher = self._getSearcher()
 
         start = max(int(continueAfter or '0') + 1, self._fromTime(oaiFrom))
         stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
 
         collector = OaiSortingCollector(batchSize, shouldCountHits, long(start), long(stop))
         searcher.search(query, None, collector)
-        return self._OaiSelectResult(docs=collector.docs(searcher),
-                collector=collector,
-                parent=self,
-            )
+        return collector
 
-    def _luceneQuery(self, prefix, sets=None, continueAfter=None, oaiFrom=None, oaiUntil=None, setsMask=None, partition=None):
+    def _luceneQuery(self, prefix, sets=None, setsMask=None, partition=None):
         query = BooleanQuery()
-        if oaiFrom or continueAfter or oaiUntil:
-            start = max(int(continueAfter or '0') + 1, self._fromTime(oaiFrom))
-            stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
-            # fromRange = NumericRangeQuery.newLongRange(STAMP_FIELD, start, stop, True, True)
-            # query.add(fromRange, BooleanClause.Occur.MUST)
         if prefix:
             query.add(TermQuery(Term(PREFIX_FIELD, prefix)), BooleanClause.Occur.MUST)
         if sets:
@@ -256,16 +256,13 @@ class OaiJazz(Observable):
         return set(self._sets.keys())
 
     def getNrOfRecords(self, prefix='oai_dc', setSpec=None, continueAfter=None, oaiFrom=None, oaiUntil=None, partition=None):
-        searcher = self._getSearcher()
-        totalCollector = TotalHitCountCollector()
-        query = self._luceneQuery(prefix=prefix, sets=[setSpec] if setSpec else None, continueAfter=continueAfter, oaiFrom=oaiFrom, oaiUntil=oaiUntil, partition=partition)
-        searcher.search(query, totalCollector)
+        query = self._luceneQuery(prefix=prefix, sets=[setSpec] if setSpec else None, partition=partition)
+        collector = self._search(query, continueAfter, oaiFrom, oaiUntil, batchSize=1, shouldCountHits=True)
 
         query.add(TermQuery(Term(TOMBSTONE_FIELD, TOMBSTONE_VALUE)), BooleanClause.Occur.MUST)
-        deleteCollector = TotalHitCountCollector()
-        searcher.search(query, deleteCollector)
 
-        return {"total": totalCollector.getTotalHits(), "deletes": deleteCollector.getTotalHits()}
+        deleteCollector = self._search(query, continueAfter, oaiFrom, oaiUntil, batchSize=1, shouldCountHits=True)
+        return {"total": collector.totalHits(), "deletes": deleteCollector.totalHits()}
 
     def getRecord(self, identifier):
         doc = self._getDocument(identifier)

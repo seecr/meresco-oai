@@ -29,6 +29,7 @@ package org.meresco.oai;
 
 import java.io.IOException;
 
+import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Collector;
 import org.apache.lucene.search.CollectionTerminatedException;
@@ -42,6 +43,9 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DocumentStoredFieldVisitor;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.index.sorter.EarlyTerminatingSortingCollector;
+import org.apache.lucene.index.sorter.SortingMergePolicy;
+import org.apache.lucene.search.Sort;
+
 import java.util.Set;
 import java.util.HashSet;
 
@@ -58,7 +62,6 @@ public class OaiSortingCollector extends Collector {
     private NumericDocValues stamps;
     private long start;
     private long stop;
-
 
     public OaiSortingCollector(int maxDocsToCollect, boolean shouldCountHits, long start, long stop) throws IOException {
         this.topDocsCollector = TopFieldCollector.create(new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)), maxDocsToCollect, false, false, false, false);
@@ -97,8 +100,10 @@ public class OaiSortingCollector extends Collector {
     @Override
     public void collect(int doc) throws IOException {
         long stamp = this.stamps.get(doc);
-        if (stamp < this.start || stamp > this.stop)
+        if (stamp < this.start)
             return;
+        if (stamp > this.stop)
+            throw new CollectionTerminatedException();
         this.hitCount++;
         if (this.hitCount > this.maxDocsToCollect) {
             this.moreRecordsAvailable = true;
@@ -124,9 +129,13 @@ public class OaiSortingCollector extends Collector {
 
     @Override
     public void setNextReader(AtomicReaderContext context) throws IOException {
+        AtomicReader reader = context.reader();
+        this.stamps = reader.getNumericDocValues("numeric_stamp");
+        long lastStamp = this.stamps.get(reader.maxDoc() - 1);
+        if (lastStamp < this.start || this.stop < this.stamps.get(0))
+            throw new CollectionTerminatedException();
         this.delegateTerminated = false;
         this.earlyCollector.setNextReader(context);
-        this.stamps = context.reader().getNumericDocValues("numeric_stamp");
     }
 
     @Override
