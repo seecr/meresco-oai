@@ -4,8 +4,8 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2014-2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -48,7 +48,8 @@ class ConvertOaiV8ToV9Test(SeecrTestCase):
                 datadir,
                 join(self.tempdir, 'oai_conversion_v8_to_v9.log'),
             ))
-        self.assertEquals('9', open(join(datadir, 'oai.version')).read())
+        log = open(join(self.tempdir, 'oai_conversion_v8_to_v9.log')).read()
+        self.assertEquals('9', open(join(datadir, 'oai.version')).read(), log)
         jazz = OaiJazz(datadir)
         result = jazz.oaiSelect(prefix='oai_dc', shouldCountHits=True, partition=Partition.create("1/2"))
         records = list(result.records)
