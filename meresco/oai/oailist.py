@@ -8,10 +8,10 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -48,6 +48,7 @@ import sys
 from time import time
 from traceback import print_exc
 
+DEFAULT_DATA_BATCH_SIZE = 100
 
 class OaiList(Observable):
     """4.3 ListIdentifiers
@@ -92,10 +93,11 @@ Error and Exception Conditions
     * noSetHierarchy - The repository does not support sets.
 """
 
-    def __init__(self, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False):
+    def __init__(self, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False, dataBatchSize=DEFAULT_DATA_BATCH_SIZE):
         self._supportedVerbs = ['ListIdentifiers', 'ListRecords']
         Observable.__init__(self)
         self._batchSize = batchSize
+        self._dataBatchSize = dataBatchSize
         self._supportXWait = supportXWait
 
     def listRecords(self, arguments, **httpkwargs):
@@ -239,29 +241,26 @@ Error and Exception Conditions
         return str(uuid4())
 
     def _renderRecords(self, verb, result, selectArguments):
-        records = list(result.records)
+        allrecords = list(result.records)
         prefix = selectArguments['prefix']
-        fetchedRecords = None
+        message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
+        for i in xrange(0, len(allrecords), self._dataBatchSize):
+            records = allrecords[i:i+self._dataBatchSize]
+            fetchedRecords = self._getMultipleData(prefix=prefix, records=records)
+            for record in records:
+                yield self.all.unknown(message, record=record, metadataPrefix=prefix, fetchedRecords=fetchedRecords)
+
+    def _getMultipleData(self, prefix, records):
         try:
-            t0 = time()
-            fetchedRecords = dict(
+            return dict(
                 self.call.getMultipleData(
                     name=prefix,
                     identifiers=(r.identifier for r in records if not r.isDeleted),
                     ignoreMissing=True
                 )
             )
-            deltaT = time() - t0
-            if deltaT > 10.0:
-                sys.stderr.write("SequentialStorage.getMultipleData for {0} records took {1:.1f} seconds.\n".format(
-                    result.numberOfRecordsInBatch, deltaT
-                ))
-                sys.stderr.flush()
         except NoneOfTheObserversRespond:
-            pass
-        message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
-        for record in records:
-            yield self.all.unknown(message, record=record, metadataPrefix=prefix, fetchedRecords=fetchedRecords)
+            return None
 
     def _renderResumptionToken(self, result, selectArguments):
         if result.moreRecordsAvailable or selectArguments['x-wait']:

@@ -9,9 +9,9 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
-# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -375,6 +375,42 @@ class OaiListTest(SeecrTestCase):
 
         selectMethod = self.observer.calledMethods[1]
         self.assertEquals(dict(continueAfter='0', oaiUntil=None, prefix='oai_dc', oaiFrom=None, sets=[], batchSize=2, shouldCountHits=True, partition=None), selectMethod.kwargs)
+
+    def testGetMultipleDataWithOtherBatchSize(self):
+        self._addRecords(['id%s' % i for i in xrange(99)])
+        self.oaiList = OaiList(batchSize=10, dataBatchSize=2)
+        self.oaiList.addObserver(self.observer)
+        def getMultipleData(identifiers, **kwargs):
+            return [(id, '<data id="%s"/>' % id) for id in identifiers]
+        self.observer.methods['getMultipleData'] = getMultipleData
+        def oaiRecord(record, metadataPrefix, fetchedRecords=None):
+            yield fetchedRecords[record.identifier]
+        self.observer.methods['oaiRecord'] = oaiRecord
+
+        body = asString(self.oaiList.listRecords(arguments=dict(verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)).split(CRLF*2,1)[-1]
+        oai = parse(StringIO(body))
+        self.assertEquals(['id0', 'id1', 'id2', 'id3', 'id4', 'id5', 'id6', 'id7', 'id8', 'id9'], xpath(oai, '//oai:ListRecords/oai:data/@id'))
+
+        self.assertEquals(['getAllPrefixes',
+                'oaiSelect',
+                'oaiWatermark',
+                'getMultipleData',
+                'oaiRecord',
+                'oaiRecord',
+                'getMultipleData',
+                'oaiRecord',
+                'oaiRecord',
+                'getMultipleData',
+                'oaiRecord',
+                'oaiRecord',
+                'getMultipleData',
+                'oaiRecord',
+                'oaiRecord',
+                'getMultipleData',
+                'oaiRecord',
+                'oaiRecord'
+            ], self.observer.calledMethodNames())
+
 
     def _addRecords(self, identifiers, sets=None):
         for identifier in identifiers:
