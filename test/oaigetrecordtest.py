@@ -4,9 +4,9 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
-# Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -31,9 +31,10 @@ from lxml.etree import parse, XML
 
 from seecr.test import SeecrTestCase, CallTrace
 
-from weightless.core import asString, consume
+from weightless.core import asString, consume, be
 from meresco.xml.namespaces import xpath
 
+from meresco.components import RetrieveToGetDataAdapter
 from meresco.sequentialstore import MultiSequentialStorage
 
 from meresco.oai import OaiJazz
@@ -52,13 +53,18 @@ class OaiGetRecordTest(SeecrTestCase):
         }
 
     def testGetRecordWithMultiSequentialStorage(self):
-        oaigetrecord = OaiGetRecord()
         oaijazz = OaiJazz(self.tempdir + '/jazz')
         storage = MultiSequentialStorage(self.tempdir + "/seq-store")
         oairecord = OaiRecord()
-        oairecord.addObserver(storage)
-        oaigetrecord.addObserver(oaijazz)
-        oaigetrecord.addObserver(oairecord)
+        oaigetrecord = be((OaiGetRecord(),
+            (oaijazz,),
+            (oairecord,
+                (RetrieveToGetDataAdapter(),
+                    (storage,)
+                )
+            )
+        ))
+
         oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])
         storage.addData(identifier="id0", name="oai_dc", data="data01")
         response = oaigetrecord.getRecord(arguments=dict(

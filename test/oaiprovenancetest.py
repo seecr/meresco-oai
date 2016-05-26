@@ -8,8 +8,9 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012, 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012, 2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -33,6 +34,7 @@ from seecr.test import SeecrTestCase, CallTrace
 from StringIO import StringIO
 
 from weightless.core import asString, be
+from meresco.components import RetrieveToGetDataAdapter
 from meresco.core import Observable
 from meresco.oai.oaiprovenance import OaiProvenance
 from meresco.oai import OaiPmh
@@ -103,7 +105,9 @@ class OaiProvenanceTest(SeecrTestCase):
                 repositoryName='example',
                 adminEmail='no@example.com'),
                 (oaijazz,),
-                (MockStorage(),),
+                (RetrieveToGetDataAdapter(),
+                    (MockStorage(),),
+                ),
                 (OaiProvenance(
                         nsMap = {'oai_dc': "http://www.openarchives.org/OAI/2.0/"},
                         baseURL = ('meta', '/meta/repository/baseurl/text()'),
