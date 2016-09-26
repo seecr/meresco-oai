@@ -85,7 +85,7 @@ DEFAULT_BATCH_SIZE = 200
 class OaiJazz(Observable):
     version = '9'
 
-    def __init__(self, aDirectory, termNumerator=None, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, name=None):
+    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, name=None):
         Observable.__init__(self, name=name)
         lazyImport()
         self._directory = aDirectory
