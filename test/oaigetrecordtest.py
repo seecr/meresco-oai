@@ -7,6 +7,7 @@
 # Copyright (C) 2014-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -56,7 +57,7 @@ class OaiGetRecordTest(SeecrTestCase):
         oaijazz = OaiJazz(self.tempdir + '/jazz')
         storage = MultiSequentialStorage(self.tempdir + "/seq-store")
         oairecord = OaiRecord()
-        oaigetrecord = be((OaiGetRecord(),
+        oaigetrecord = be((OaiGetRecord(repository=OaiRepository()),
             (oaijazz,),
             (oairecord,
                 (RetrieveToGetDataAdapter(),

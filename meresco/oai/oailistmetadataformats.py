@@ -8,10 +8,11 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -55,7 +56,7 @@ Error and Exception Conditions
     * noMetadataFormats - There are no metadata formats available for the specified item.
     """
 
-    def __init__(self, repository=None, **kwargs):
+    def __init__(self, repository, **kwargs):
         super(OaiListMetadataFormats, self).__init__(**kwargs)
         self._repository = repository
 
@@ -78,11 +79,11 @@ Error and Exception Conditions
                 metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in record.prefixes]
             displayedMetadataFormats = sorted(metadataFormats)
         except OaiException, e:
-            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+            yield oaiError(e.statusCode, e.additionalMessage, arguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
             return
 
         yield oaiHeader(self, responseDate)
-        yield oaiRequestArgs(arguments, **httpkwargs)
+        yield oaiRequestArgs(arguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
         yield '<%s>' % verb
         for metadataPrefix, schema, metadataNamespace in displayedMetadataFormats:
             yield '<metadataFormat>'

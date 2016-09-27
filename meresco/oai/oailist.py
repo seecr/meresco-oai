@@ -12,6 +12,7 @@
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -93,12 +94,13 @@ Error and Exception Conditions
     * noSetHierarchy - The repository does not support sets.
 """
 
-    def __init__(self, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False, dataBatchSize=DEFAULT_DATA_BATCH_SIZE):
+    def __init__(self, repository, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False, dataBatchSize=DEFAULT_DATA_BATCH_SIZE):
         self._supportedVerbs = ['ListIdentifiers', 'ListRecords']
         Observable.__init__(self)
         self._batchSize = batchSize
         self._dataBatchSize = dataBatchSize
         self._supportXWait = supportXWait
+        self._repository = repository
 
     def listRecords(self, arguments, **httpkwargs):
         yield self._list(arguments, **httpkwargs)
@@ -114,7 +116,7 @@ Error and Exception Conditions
         try:
             selectArguments = self._validateAndParseArguments(requestArguments)
         except (OaiBadArgumentException, OaiException), e:
-            yield oaiError(e.statusCode, e.additionalMessage, requestArguments, **httpkwargs)
+            yield oaiError(e.statusCode, e.additionalMessage, requestArguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
             return
 
         while True:
@@ -143,11 +145,11 @@ Error and Exception Conditions
                         yield serverErrorPlainText + str(e)
                         raise e
                 else:
-                    yield oaiError(e.statusCode, e.additionalMessage, requestArguments, **httpkwargs)
+                    yield oaiError(e.statusCode, e.additionalMessage, requestArguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
                     return
 
         yield oaiHeader(self, responseDate)
-        yield oaiRequestArgs(requestArguments, **httpkwargs)
+        yield oaiRequestArgs(requestArguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
         yield '<%s>' % verb
         yield self._renderRecords(verb, result, selectArguments)
         yield self._renderResumptionToken(result, selectArguments)

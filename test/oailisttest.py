@@ -12,6 +12,7 @@
 # Copyright (C) 2012-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -42,6 +43,7 @@ from seecr.test.io import stderr_replaced
 
 from weightless.core import compose, Yield, NoneOfTheObserversRespond, asString, consume
 from meresco.components.http.utils import CRLF
+from meresco.oai.oairepository import OaiRepository
 from meresco.sequentialstore import MultiSequentialStorage
 
 from meresco.oai.oailist import OaiList
@@ -55,7 +57,7 @@ class OaiListTest(SeecrTestCase):
     def setUp(self):
         SeecrTestCase.setUp(self)
         self.oaiJazz = OaiJazz(self.tempdir)
-        self.oaiList = OaiList(batchSize=2)
+        self.oaiList = OaiList(batchSize=2, repository=OaiRepository())
         self.observer = CallTrace('observer', emptyGeneratorMethods=['suspendBeforeSelect'])
         self.observer.methods['suspendAfterNoResult'] = lambda **kwargs: (s for s in ['SUSPEND'])
         self.observer.methods['oaiWatermark'] = lambda o=None: (x for x in ["Crafted By Seecr"])
@@ -110,7 +112,7 @@ class OaiListTest(SeecrTestCase):
 
     def testListRecordsWithMultiSequentialStorage(self):
         oaijazz = OaiJazz(join(self.tempdir, '1'))
-        oailist = OaiList(batchSize=2)
+        oailist = OaiList(batchSize=2, repository=OaiRepository())
         storage = MultiSequentialStorage(join(self.tempdir, "2"))
         oailist.addObserver(oaijazz)
         oairecord = OaiRecord()
@@ -126,7 +128,7 @@ class OaiListTest(SeecrTestCase):
 
     def testListRecordsWithALotOfDeletedRecords(self):
         oaijazz = OaiJazz(join(self.tempdir, '1'))
-        oailist = OaiList(batchSize=2)
+        oailist = OaiList(batchSize=2, repository=OaiRepository())
         storage = MultiSequentialStorage(join(self.tempdir, "2"))
         oailist.addObserver(oaijazz)
         oairecord = OaiRecord()
@@ -214,7 +216,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals(['noRecordsMatch'], xpath(oai, "/oai:OAI-PMH/oai:error/@code"))
 
     def testListRecordsUsingXWait(self):
-        self.oaiList = OaiList(batchSize=2, supportXWait=True)
+        self.oaiList = OaiList(batchSize=2, supportXWait=True, repository=OaiRepository())
         self.oaiList.addObserver(self.observer)
 
         result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
@@ -236,7 +238,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
 
     def testListRecordsWithoutClientIdentifierGeneratesOne(self):
-        self.oaiList = OaiList(batchSize=2, supportXWait=True)
+        self.oaiList = OaiList(batchSize=2, supportXWait=True, repository=OaiRepository())
         self.oaiList.addObserver(self.observer)
 
         self.httpkwargs = {
@@ -262,7 +264,7 @@ class OaiListTest(SeecrTestCase):
 
     def testNotSupportedValueXWait(self):
         self._addRecords(['id:1', 'id:2'])
-        self.oaiList = OaiList(batchSize=2, supportXWait=True)
+        self.oaiList = OaiList(batchSize=2, supportXWait=True, repository=OaiRepository())
         self.oaiList.addObserver(self.observer)
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['YesPlease']}, **self.httpkwargs))).split(CRLF*2)
         oai = parse(StringIO(body))
@@ -340,7 +342,7 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals('badArgument', getError('2000-01-01T00:00:00Z', '1999-01-01T00:00:00Z'))
 
     def testConcurrentListRequestsDontInterfere(self):
-        self.oaiList = OaiList(batchSize=2, supportXWait=True)
+        self.oaiList = OaiList(batchSize=2, supportXWait=True, repository=OaiRepository())
         self.oaiList.addObserver(self.observer)
 
         # ListRecords request
@@ -378,7 +380,7 @@ class OaiListTest(SeecrTestCase):
 
     def testGetMultipleDataWithOtherBatchSize(self):
         self._addRecords(['id%s' % i for i in xrange(99)])
-        self.oaiList = OaiList(batchSize=10, dataBatchSize=2)
+        self.oaiList = OaiList(batchSize=10, dataBatchSize=2, repository=OaiRepository())
         self.oaiList.addObserver(self.observer)
         def getMultipleData(identifiers, **kwargs):
             return [(id, '<data id="%s"/>' % id) for id in identifiers]

@@ -8,9 +8,10 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012, 2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012, 2015-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -30,7 +31,7 @@
 #
 ## end license ##
 
-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
+from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime, OaiBadArgumentException
 from oaierror import oaiError
 from meresco.core.observable import Observable
 
@@ -49,8 +50,9 @@ Error and Exception Conditions
     * badResumptionToken - The value of the resumptionToken argument is invalid or expired.
     * noSetHierarchy - The repository does not support sets."""
 
-    def __init__(self):
+    def __init__(self, repository):
         Observable.__init__(self)
+        self._repository = repository
 
     def listSets(self, arguments, **httpkwargs):
         responseDate = zuluTime()
@@ -67,11 +69,11 @@ Error and Exception Conditions
             if len(sets) == 0:
                 raise OaiException('noSetHierarchy')
         except OaiException, e:
-            yield oaiError(e.statusCode, e.additionalMessage, arguments, **httpkwargs)
+            yield oaiError(e.statusCode, e.additionalMessage, arguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
             return
 
         yield oaiHeader(self, responseDate)
-        yield oaiRequestArgs(arguments, **httpkwargs)
+        yield oaiRequestArgs(arguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
         yield '<%s>' % verb
         for setSpec, setName in sets:
             yield '<set>'

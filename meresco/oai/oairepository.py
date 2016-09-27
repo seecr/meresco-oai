@@ -3,9 +3,10 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -28,15 +29,18 @@
 import re
 
 from oaiutils import OaiException
+from socket import gethostname
 
+HOSTNAME = gethostname()
 
 class OaiRepository(object):
-    def __init__(self, identifier=None, name=None, adminEmail=None):
+    def __init__(self, identifier=None, name=None, adminEmail=None, externalUrl=None):
         self._validateRepositoryIdentifier(identifier)
         self.identifier = identifier
         self.name = name or ''
         self.adminEmail = adminEmail or ''
         self._identifierPrefix = '' if identifier is None else 'oai:{0}:'.format(identifier)
+        self._externalUrl = externalUrl
 
     def prefixIdentifier(self, identifier):
         return self._identifierPrefix + identifier
@@ -47,6 +51,12 @@ class OaiRepository(object):
         if not identifier.startswith(self._identifierPrefix):
             raise OaiException('idDoesNotExist')
         return identifier[len(self._identifierPrefix):]
+
+    def requestUrl(self, Headers, path, port, **kwargs):
+        if self._externalUrl:
+            return self._externalUrl + path
+        hostname = Headers.get('Host', HOSTNAME).split(':')[0]
+        return 'http://%s:%s%s' % (hostname, port, path)
 
     @staticmethod
     def _validateRepositoryIdentifier(identifier):

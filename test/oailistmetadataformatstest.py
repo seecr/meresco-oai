@@ -4,8 +4,9 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -47,7 +48,7 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
         }
 
     def testListMetadataFormats(self):
-        listMetadataFormats = OaiListMetadataFormats()
+        listMetadataFormats = OaiListMetadataFormats(repository=OaiRepository())
         oaijazz = OaiJazz(self.tempdir + '/jazz')
         listMetadataFormats.addObserver(oaijazz)
         oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])

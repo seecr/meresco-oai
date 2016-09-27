@@ -8,9 +8,10 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012, 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012, 2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -36,6 +37,10 @@ from oaiutils import oaiHeader, oaiFooter, oaiRequestArgs, zuluTime
 
 
 class OaiError(Observable):
+    def __init__(self, repository, **kwargs):
+        Observable.__init__(self, **kwargs)
+        self._repository = repository
+
     def all_unknown(self, message, **kwargs):
         result = compose(self.all.unknown(message, **kwargs))
         try:
@@ -53,14 +58,14 @@ class OaiError(Observable):
     def _error(self, arguments, **kwargs):
         verbs = arguments.get('verb', [None])
         if verbs[0] is None or verbs[0] == '':
-            yield oaiError('badArgument', 'No "verb" argument found.', arguments=arguments, **kwargs)
+            yield oaiError('badArgument', 'No "verb" argument found.', arguments=arguments, requestUrl=self._repository.requestUrl(**kwargs), **kwargs)
         elif len(verbs) > 1:
-            yield oaiError('badArgument', 'More than one "verb" argument found.', arguments=arguments, **kwargs)
+            yield oaiError('badArgument', 'More than one "verb" argument found.', arguments=arguments, requestUrl=self._repository.requestUrl(**kwargs), **kwargs)
         else:
-            yield oaiError('badVerb', 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', arguments=arguments, **kwargs)
+            yield oaiError('badVerb', 'Value of the verb argument is not a legal OAI-PMH verb, the verb argument is missing, or the verb argument is repeated.', arguments=arguments, requestUrl=self._repository.requestUrl(**kwargs), **kwargs)
 
 
-def oaiError(statusCode, additionalMessage, arguments, **httpkwargs):
+def oaiError(statusCode, additionalMessage, arguments, requestUrl, **httpkwargs):
     responseDate = zuluTime()
     space = additionalMessage and ' ' or ''
     message = ERROR_CODES[statusCode] + space + additionalMessage
@@ -68,9 +73,9 @@ def oaiError(statusCode, additionalMessage, arguments, **httpkwargs):
     yield oaiHeader(responseDate=responseDate)
     if statusCode in ["badArgument", "badResumptionToken", "badVerb"]:
         """in these cases it is illegal to echo the arguments back; since the arguments are not valid in the first place the response will not validate either"""
-        yield oaiRequestArgs({}, **httpkwargs)
+        yield oaiRequestArgs({}, requestUrl=requestUrl, **httpkwargs)
     else:
-        yield oaiRequestArgs(arguments, **httpkwargs)
+        yield oaiRequestArgs(arguments, requestUrl=requestUrl, **httpkwargs)
 
     yield """<error code="%(statusCode)s">%(message)s</error>""" % locals()
 

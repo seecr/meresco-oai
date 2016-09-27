@@ -3,8 +3,9 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2011-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2013, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -44,10 +45,6 @@ class OaiBadArgumentException(OaiException):
 def zuluTime():
     return strftime('%Y-%m-%dT%H:%M:%SZ', gmtime())
 
-def requestUrl(Headers, path, port, **kwargs):
-    hostname = Headers.get('Host', HOSTNAME).split(':')[0]
-    return 'http://%s:%s%s' % (hostname, port, path)
-
 def oaiHeader(observable=None, responseDate=None):
     responseDate = zuluTime() if responseDate is None else responseDate
     yield okXml
@@ -59,8 +56,8 @@ def oaiHeader(observable=None, responseDate=None):
 def oaiFooter():
     yield OAIFOOTER
 
-def oaiRequestArgs(arguments, **httpkwargs):
-    url = xmlEscape(requestUrl(**httpkwargs))
+def oaiRequestArgs(arguments, requestUrl, **httpkwargs):
+    url = xmlEscape(requestUrl)
     args = ' '.join(['%s="%s"' % (xmlEscape(k), xmlEscape(v[0]).replace('"', '&quot;')) for k,v in sorted(arguments.items())])
     yield REQUEST % locals()
 

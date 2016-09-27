@@ -10,10 +10,11 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
-# Copyright (C) 2011-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -51,21 +52,23 @@ from oairepository import OaiRepository
 
 
 class OaiPmh(object):
-    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False):
+    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False, externalUrl=None):
         repository = OaiRepository(
             identifier=repositoryIdentifier,
             name=repositoryName,
-            adminEmail=adminEmail)
+            adminEmail=adminEmail,
+            externalUrl=externalUrl,
+        )
         outside = Transparent()
         self.addObserver = outside.addObserver
         self.addStrand = outside.addStrand
         self._internalObserverTree = be(
             (Observable(),
-                (OaiError(),
+                (OaiError(repository),
                     (OaiIdentify(repository),
                         (outside,)
                     ),
-                    (OaiList(batchSize=batchSize, supportXWait=supportXWait),
+                    (OaiList(repository=repository, batchSize=batchSize, supportXWait=supportXWait),
                         (OaiRecord(repository),
                             (outside,)
                         )
@@ -78,7 +81,7 @@ class OaiPmh(object):
                     (OaiListMetadataFormats(repository),
                         (outside,)
                     ),
-                    (OaiListSets(),
+                    (OaiListSets(repository),
                         (outside,)
                     ),
                 )
