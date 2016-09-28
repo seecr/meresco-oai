@@ -53,7 +53,7 @@ from oairepository import OaiRepository
 
 class OaiPmh(object):
     def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False, externalUrl=None):
-        repository = OaiRepository(
+        self._repository = OaiRepository(
             identifier=repositoryIdentifier,
             name=repositoryName,
             adminEmail=adminEmail,
@@ -64,29 +64,35 @@ class OaiPmh(object):
         self.addStrand = outside.addStrand
         self._internalObserverTree = be(
             (Observable(),
-                (OaiError(repository),
-                    (OaiIdentify(repository),
+                (OaiError(self._repository),
+                    (OaiIdentify(self._repository),
                         (outside,)
                     ),
-                    (OaiList(repository=repository, batchSize=batchSize, supportXWait=supportXWait),
-                        (OaiRecord(repository),
+                    (OaiList(repository=self._repository, batchSize=batchSize, supportXWait=supportXWait),
+                        (OaiRecord(self._repository),
                             (outside,)
                         )
                     ),
-                    (OaiGetRecord(repository),
-                        (OaiRecord(repository),
+                    (OaiGetRecord(self._repository),
+                        (OaiRecord(self._repository),
                             (outside,)
                         )
                     ),
-                    (OaiListMetadataFormats(repository),
+                    (OaiListMetadataFormats(self._repository),
                         (outside,)
                     ),
-                    (OaiListSets(repository),
+                    (OaiListSets(self._repository),
                         (outside,)
                     ),
                 )
             )
         )
+
+    def updateRepositoryInfo(self, name=None, adminEmail=None):
+        if name is not None:
+            self._repository.updateName(name=name)
+        if adminEmail is not None:
+            self._repository.updateAdminEmail(adminEmail=adminEmail)
 
     def observer_init(self):
         list(compose(self._internalObserverTree.once.observer_init()))

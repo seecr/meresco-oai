@@ -64,3 +64,9 @@ class OaiRepository(object):
             return
         if not re.match(r"[a-zA-Z][a-zA-Z0-9\-]*(\.[a-zA-Z][a-zA-Z0-9\-]+)+", identifier):
             raise ValueError("Invalid repository identifier: %s" % identifier)
+
+    def updateName(self, name):
+        self.name = name
+
+    def updateAdminEmail(self, adminEmail):
+        self.adminEmail = adminEmail
