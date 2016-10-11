@@ -14,6 +14,7 @@
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -197,13 +198,6 @@ class OaiJazzTest(SeecrTestCase):
     def testGetDatestamp(self):
         self.jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
         self.assertEquals('2008-07-06T05:04:03Z', self.jazz.getRecord('123').getDatestamp())
-
-    def testGetPreciseDatestamp(self):
-        jazz = OaiJazz(self.tmpdir2("b"), preciseDatestamp=True)
-        jazz.addObserver(self.observer)
-        jazz._newStamp = self.jazz._newStamp
-        jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
-        self.assertEquals('2008-07-06T05:04:03.123456Z', jazz.getRecord('123').getDatestamp())
 
     def testDeleteNonExistingRecords(self):
         self.jazz.addOaiRecord('existing', metadataFormats=[('prefix','schema', 'namespace')])

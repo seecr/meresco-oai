@@ -14,6 +14,7 @@
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -85,7 +86,7 @@ DEFAULT_BATCH_SIZE = 200
 class OaiJazz(Observable):
     version = '9'
 
-    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, preciseDatestamp=False, persistentDelete=True, name=None):
+    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, persistentDelete=True, name=None):
         Observable.__init__(self, name=name)
         lazyImport()
         self._directory = aDirectory
@@ -93,7 +94,6 @@ class OaiJazz(Observable):
             makedirs(aDirectory)
         self._versionFormatCheck()
         self._deletePrefixes = set(alwaysDeleteInPrefixes or [])
-        self._preciseDatestamp = preciseDatestamp
         self._persistentDelete = persistentDelete
         self._load()
         self._writer, self._reader, self._searcher = getLucene(aDirectory)
@@ -171,7 +171,7 @@ class OaiJazz(Observable):
             inner.continueAfter = None if len(docs) == 0 else inner._record(docs[-1]).stamp
 
         def _record(inner, doc):
-            return Record(doc, inner.parent._preciseDatestamp)
+            return Record(doc)
 
         def _records(inner):
             for doc in inner.docs:
@@ -268,7 +268,7 @@ class OaiJazz(Observable):
         doc = self._getDocument(identifier)
         if doc is None:
             return None
-        return Record(doc, preciseDatestamp=self._preciseDatestamp)
+        return Record(doc)
 
     def getDeletedRecordType(self):
         return "persistent" if self._persistentDelete else "transient"
@@ -457,9 +457,8 @@ def getLucene(path):
 
 
 class Record(object):
-    def __init__(self, doc, preciseDatestamp=False):
+    def __init__(self, doc):
         self._doc = doc
-        self._preciseDatestamp = preciseDatestamp
 
     @property
     def identifier(self):
@@ -491,8 +490,8 @@ class Record(object):
             self._sets = set(self._doc.getValues(SETS_FIELD))
         return self._sets
 
-    def getDatestamp(self):
-        return _stamp2zulutime(stamp=self.stamp, preciseDatestamp=self._preciseDatestamp)
+    def getDatestamp(self, preciseDatestamp=False):
+        return _stamp2zulutime(stamp=self.stamp, preciseDatestamp=preciseDatestamp)
 
 
 def _setSpecAndSubsets(setSpec):

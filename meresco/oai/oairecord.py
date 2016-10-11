@@ -9,6 +9,7 @@
 # Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -36,13 +37,14 @@ from meresco.core.generatorutils import decorate
 
 
 class OaiRecord(Transparent):
-    def __init__(self, repository=None, **kwargs):
-        super(OaiRecord, self).__init__(**kwargs)
+    def __init__(self, repository=None, preciseDatestamp=False, **kwargs):
+        Transparent.__init__(self, **kwargs)
         self._repository = repository
+        self._preciseDatestamp = preciseDatestamp
 
     def oaiRecordHeader(self, record, **kwargs):
         isDeletedStr = ' status="deleted"' if record.isDeleted else ''
-        datestamp = record.getDatestamp()
+        datestamp = record.getDatestamp(preciseDatestamp=self._preciseDatestamp)
         identifier = record.identifier.encode('utf-8')
         if self._repository:
             identifier = self._repository.prefixIdentifier(identifier)

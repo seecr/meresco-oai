@@ -52,7 +52,7 @@ from oairepository import OaiRepository
 
 
 class OaiPmh(object):
-    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False, externalUrl=None):
+    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False, externalUrl=None, preciseDatestamp=False):
         self._repository = OaiRepository(
             identifier=repositoryIdentifier,
             name=repositoryName,
@@ -69,12 +69,12 @@ class OaiPmh(object):
                         (outside,)
                     ),
                     (OaiList(repository=self._repository, batchSize=batchSize, supportXWait=supportXWait),
-                        (OaiRecord(self._repository),
+                        (OaiRecord(self._repository, preciseDatestamp=preciseDatestamp),
                             (outside,)
                         )
                     ),
                     (OaiGetRecord(self._repository),
-                        (OaiRecord(self._repository),
+                        (OaiRecord(self._repository, preciseDatestamp=preciseDatestamp),
                             (outside,)
                         )
                     ),

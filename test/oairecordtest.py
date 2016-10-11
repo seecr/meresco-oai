@@ -13,6 +13,7 @@
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -87,6 +88,22 @@ class OaiRecordTest(SeecrTestCase):
 </metadata>
 </record>""", result)
         self.assertEquals(["provenance('id')"], [str(m) for m in self.observer.calledMethods])
+
+    def testPreciseDatestamp(self):
+        self.setUpOaiRecord(preciseDatestamp=True)
+        record = MockRecord('id')
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=record, metadataPrefix='oai_dc', fetchedRecords={record.identifier: "<the>data</the>", 'abc': '<some>other data</some>'})))
+        self.assertEqualsWS("""<record>
+<header>
+    <identifier>id</identifier>
+    <datestamp>2011-03-25T10:45:00.123Z</datestamp>
+    <setSpec>set0</setSpec>
+    <setSpec>set1</setSpec>
+</header>
+<metadata>
+    <the>data</the>
+</metadata>
+</record>""", result)
 
     def testRecordIsDeleted(self):
         result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', deleted=True), metadataPrefix='oai_dc')))

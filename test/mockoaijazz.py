@@ -8,8 +8,9 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2013, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2016 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -91,6 +92,6 @@ class MockRecord(object):
         self.sets = set(['set0', 'set1']) if sets is None else sets
         self.prefixes = set(['oai_dc']) if prefixes is None else prefixes
         self.isDeleted = deleted
-        self.getDatestamp = lambda: '2011-03-25T10:45:00Z'
+        self.getDatestamp = lambda preciseDatestamp=False: '2011-03-25T10:45:00{0}Z'.format('.123' if preciseDatestamp else '')
         self.recordsRemaining = remaining
 
