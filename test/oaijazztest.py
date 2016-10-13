@@ -982,9 +982,10 @@ class OaiJazzTest(SeecrTestCase):
 
 
     def testStamp2Zulutime(self):
-        self.assertEquals("2012-10-04T09:21:04Z", stamp2zulutime("1349342464630008"))
+        self.assertEquals("2012-10-04T09:21:04Z", stamp2zulutime("1349342464030008"))
         self.assertEquals("", stamp2zulutime(None))
         self.assertRaises(Exception, stamp2zulutime, "not-a-stamp")
+        self.assertEquals("2012-10-04T09:21:04.030008Z", stamp2zulutime("1349342464030008", preciseDatestamp=True))
 
     def testOaiSelectIsAlwaysSortedOnStamp(self):
         self.jazz = OaiJazz(join(self.tempdir, "b"))
@@ -1081,7 +1082,6 @@ class OaiJazzTest(SeecrTestCase):
             self.fail()
         except Exception, e:
             self.assertTrue("no segments" in str(e), str(e))
-
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]

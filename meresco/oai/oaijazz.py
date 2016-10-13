@@ -461,21 +461,18 @@ class Record(object):
         return self._sets
 
     def getDatestamp(self):
-        return _stamp2zulutime(stamp=self.stamp, preciseDatestamp=self._preciseDatestamp)
-
+        return stamp2zulutime(stamp=self.stamp, preciseDatestamp=self._preciseDatestamp)
 
 def _setSpecAndSubsets(setSpec):
     subsets = setSpec.split(SETSPEC_HIERARCHY_SEPARATOR)
     for i in range(len(subsets), 0, -1):
         yield SETSPEC_HIERARCHY_SEPARATOR.join(subsets[0:i])
 
-def stamp2zulutime(stamp):
+def stamp2zulutime(stamp, preciseDatestamp=False):
     if stamp is None:
         return ''
-    return _stamp2zulutime(int(stamp))
-
-def _stamp2zulutime(stamp, preciseDatestamp=False):
-    microseconds = ".%s" % (stamp % DATESTAMP_FACTOR) if preciseDatestamp else ""
+    stamp = int(stamp)
+    microseconds = ".%06d" % (stamp % DATESTAMP_FACTOR) if preciseDatestamp else ""
     return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp / DATESTAMP_FACTOR)), microseconds)
 
 def _stampFromDocument(doc):
