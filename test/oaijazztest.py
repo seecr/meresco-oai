@@ -9,8 +9,8 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2010-2011, 2016 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
@@ -233,6 +233,9 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('42', metadataFormats=[('/%^!@#$   \n\t','schema', 'namespace')], sets=[('set%2Spec\n\n', 'setName')])
         jazz2 = OaiJazz(self.tempdir)
         self.assertEquals(['42'], list(jazz2.oaiSelect(prefix='/%^!@#$   \n\t', sets=['set%2Spec\n\n'])))
+        self.jazz.addOaiRecord('44', metadataFormats=[('/%^!@#$   \n\t','schema', 'namespace')], sets=[(str(u'set%2Spec\n\n\u2013'), 'setName')])
+        jazz2 = OaiJazz(self.tempdir)
+        self.assertEquals(['44'], list(jazz2.oaiSelect(prefix='/%^!@#$   \n\t', sets=[str(u'set%2Spec\n\n\u2013')])))
 
 
     def testOaiSelectWithFromAfterEndOfTime(self):
@@ -372,7 +375,7 @@ class OaiJazzTest(SeecrTestCase):
         for r in select:
             result.append(r)
         self.assertEquals(['00001', '00002', '00003', '00004'], result)
-        
+
         result = []
         select = self.jazz.oaiSelect(prefix='oai_dc')
         result.append(select.next())
@@ -414,7 +417,7 @@ class OaiJazzTest(SeecrTestCase):
     def testListRecordsNoResults(self):
         result = self.jazz.oaiSelect(prefix='xxx')
         self.assertEquals([], list(result))
-    
+
     def testAddSetInfo(self):
         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>%s</setSpec></header>'
         list(compose(self.oaiAddRecord.add(identifier='123', partname='oai_dc', lxmlNode=parseLxml(header % 1))))
@@ -438,14 +441,14 @@ class OaiJazzTest(SeecrTestCase):
     def testHierarchicalSets(self):
         self.jazz.addOaiRecord('record123', metadataFormats=[('oai_dc', 'schema', 'namespace')], sets=[('set1:set2:set3', 'setName123')])
         self.jazz.addOaiRecord('record124', metadataFormats=[('oai_dc', 'schema', 'namespace')], sets=[('set1:set2:set4', 'setName124')])
-        
+
         self.assertEquals(['record123', 'record124'], list(self.jazz.oaiSelect(prefix='oai_dc', sets=['set1'])))
         self.assertEquals(['record123', 'record124'], list(self.jazz.oaiSelect(prefix='oai_dc', sets=['set1:set2'])))
         self.assertEquals(['record123'], list(self.jazz.oaiSelect(prefix='oai_dc', sets=['set1:set2:set3'])))
 
     def testAddOaiRecordPrefixOnly(self):
         self.jazz.addOaiRecord(identifier='oai://1234?34', sets=[], metadataFormats=[('prefix', 'schema', 'namespace')])
-        
+
         recordIds = self.jazz.oaiSelect(prefix='prefix')
         self.assertEquals(['oai://1234?34'], list(recordIds))
 
@@ -454,7 +457,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['identifier'], list(self.jazz.oaiSelect(prefix='prefix')))
         self.assertEquals(['identifier'], list(self.jazz.oaiSelect(sets=['setSpec'],prefix='prefix')))
         self.assertEquals([], list(self.jazz.oaiSelect(sets=['unknown'],prefix='prefix')))
-    
+
     def testAddOaiRecordWithNoSets(self):
         self.jazz.addOaiRecord('id1', sets=[], metadataFormats=[('prefix','schema', 'namespace')])
         self.jazz.addOaiRecord('id2', sets=[], metadataFormats=[('prefix','schema', 'namespace')])
@@ -468,15 +471,15 @@ class OaiJazzTest(SeecrTestCase):
 
     def testUpdateOaiRecordSet(self):
         self.jazz.addOaiRecord('id:1', sets=[('setSpec1', 'setName1')], metadataFormats=[('prefix', 'schema', 'namespace')])
-        
+
         result = self.jazz.oaiSelect(prefix='prefix', sets=['setSpec1'])
         self.assertEquals(1, len(list(result)))
 
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
-        
+
         result = self.jazz.oaiSelect(prefix='prefix')
         self.assertEquals(['id:1'],list(result))
-        
+
         result = self.jazz.oaiSelect(prefix='prefix', sets=['setSpec1'])
         self.assertEquals(['id:1'], list(result))
 
@@ -489,7 +492,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(1, len(list(results)))
         results = self.jazz.oaiSelect(prefix='lom')
         self.assertEquals(['124', '121','122'], list(results))
-    
+
     def testAddOaiRecordWithUniqueNumbersAndSorting(self):
         self.jazz.addOaiRecord('123', metadataFormats=[('oai_dc', 'schema', 'namespace')])
         self.jazz.addOaiRecord('124', metadataFormats=[('lom', 'schema', 'namespace')])
@@ -520,7 +523,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix1', sets=['setSpec2'])))
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='prefix2', sets=['setSpec2'])))
         self.assertTrue(self.jazz.isDeleted('42'))
-    
+
     def testDeleteAndReadd(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
         list(compose(self.jazz.delete('42')))
@@ -529,7 +532,7 @@ class OaiJazzTest(SeecrTestCase):
         self.assertFalse(self.jazz.isDeleted('42'))
 
         self.assertEquals(['42'], list(self.jazz.oaiSelect(prefix='oai_dc')))
-        
+
     def testListRecordsWithFromAndUntil(self):
         def setTime(year, month, day):
             self.jazz._newStamp = lambda: int(timegm((year, month, day, 0, 1, 0, 0, 0 ,0))*1000000.0)
@@ -541,7 +544,7 @@ class OaiJazzTest(SeecrTestCase):
         self.jazz.addOaiRecord('2', metadataFormats=[('prefix','schema', 'namespace')])
         setTime(2007, 9, 24)
         self.jazz.addOaiRecord('1', metadataFormats=[('prefix','schema', 'namespace')])
-        
+
         result = self.jazz.oaiSelect(prefix='prefix', oaiFrom="2007-09-22T00:00:00Z")
         self.assertEquals(3, len(list(result)))
         result = self.jazz.oaiSelect(prefix='prefix', oaiFrom="2007-09-22T00:00:00Z", oaiUntil="2007-09-23T23:59:59Z")
@@ -550,14 +553,14 @@ class OaiJazzTest(SeecrTestCase):
     def testOaiSelectWithContinuAt(self):
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
         self.jazz.addOaiRecord('id:2', metadataFormats=[('prefix', 'schema', 'namespace')])
-        
+
         continueAfter = str(self.jazz.getUnique('id:1'))
         self.assertEquals(['id:2'], list(self.jazz.oaiSelect(prefix='prefix', continueAfter=continueAfter)))
 
         #add again will change the unique value
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
         self.assertEquals(['id:2', 'id:1'], list(self.jazz.oaiSelect(prefix='prefix', continueAfter=continueAfter)))
-        
+
     def testGetAllMetadataFormats(self):
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', 'schema', 'namespace')])
         self.assertEquals([('prefix', 'schema', 'namespace')], list(self.jazz.getAllMetadataFormats()))
@@ -592,7 +595,7 @@ class OaiJazzTest(SeecrTestCase):
         list(compose(self.oaiAddRecord.add(identifier='457', partname='dc2', lxmlNode=parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>'))))
         prefixes = set(self.jazz.getAllPrefixes())
         self.assertEquals(set(['oai_dc', 'dc2']), prefixes)
-        
+
     def testGetPrefixes(self):
         list(compose(self.oaiAddRecord.add(identifier='123', partname='oai_dc', lxmlNode=parseLxml('<dc/>'))))
         list(compose(self.oaiAddRecord.add(identifier='123', partname='lom', lxmlNode=parseLxml('<lom/>'))))
@@ -609,12 +612,12 @@ class OaiJazzTest(SeecrTestCase):
     def testSuspendSameClientTwiceBeforeResuming(self):
         reactor = CallTrace("reactor")
         resumed = []
-        
+
         suspendGen1 = self.jazz.suspend(clientIdentifier="a-client-id")
         suspend1 = suspendGen1.next()
         suspend1(reactor, lambda: resumed.append(True))
         suspend2 = self.jazz.suspend(clientIdentifier="a-client-id").next()
-        
+
         try:
             suspendGen1.next()
             self.fail()
