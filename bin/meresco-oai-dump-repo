@@ -10,12 +10,12 @@ from meresco.oai.tools import iterateOaiPmh
 from meresco.components import ParseArguments
 
 
-def main(baseurl, metadataPrefix, outputDir):
+def main(baseurl, metadataPrefix, outputDir, set=None):
     
     if not isdir(outputDir):
         makedirs(outputDir)
 
-    for oaiItem in iterateOaiPmh(baseurl=baseurl, metadataPrefix=metadataPrefix):
+    for oaiItem in iterateOaiPmh(baseurl=baseurl, metadataPrefix=metadataPrefix, set=set):
         filename = oaiItem.identifier.replace("/", "_")
         with open(join(outputDir, filename), "w") as fp:
             fp.write(tostring(oaiItem.record, pretty_print=True))
@@ -25,6 +25,7 @@ if __name__ == '__main__':
     parser = ParseArguments()
     parser.addOption('', '--baseurl', help='Repository Base URL', mandatory=True)
     parser.addOption('', '--metadataPrefix', help='Metadata Prefix to fetch', mandatory=True)
+    parser.addOption('', '--set', help='Set to fetch')
     parser.addOption('', '--outputDir', help='Directory to dump records to', mandatory=True)
 
     options, arguments = parser.parse() 
