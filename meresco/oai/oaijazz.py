@@ -370,8 +370,7 @@ class OaiJazz(Observable):
         allMetadataPrefixes = set(doc.getValues(PREFIX_FIELD))
         self._setMetadataPrefixes(doc=doc, metadataPrefixes=metadataPrefixes, allMetadataPrefixes=allMetadataPrefixes)
 
-        allSets = set(doc.getValues(SETS_FIELD))
-        self._setSets(doc=doc, setSpecs=setSpecs or [], allSets=allSets)
+        allSets = self._setSets(doc=doc, setSpecs=setSpecs or [])
 
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
@@ -403,7 +402,8 @@ class OaiJazz(Observable):
                 self._prefixes.setdefault(prefix, ('', ''))
                 allMetadataPrefixes.add(prefix)
 
-    def _setSets(self, doc, setSpecs, allSets):
+    def _setSets(self, doc, setSpecs):
+        allSets = set(doc.getValues(SETS_FIELD))
         for setSpec in setSpecs:
             if SETSPEC_SEPARATOR in setSpec:
                 raise ValueError('SetSpec "%s" contains illegal characters' % setSpec)
@@ -412,6 +412,7 @@ class OaiJazz(Observable):
                 if not innerSetSpec in allSets:
                     doc.add(StringField(SETS_FIELD, innerSetSpec, Field.Store.YES))
                     allSets.add(innerSetSpec)
+        return allSets
 
     def _purge(self, identifier):
         self._writer.deleteDocuments(Term(IDENTIFIER_FIELD, identifier))
