@@ -69,7 +69,11 @@ class OaiListRequest(object):
 
     def retrieveBatch(self):
         url = self.buildUrl()
-        return OaiBatch(self, parse(self._urlopen(url)))
+        try:
+            return OaiBatch(self, parse(self._urlopen(url)))
+        except:
+            print "URL {url}".format(url=url)
+            raise
 
     def _nextRequest(self, resumptionToken):
         return OaiListRequest(baseurl=self.baseurl, verb=self.verb, resumptionToken=resumptionToken)
