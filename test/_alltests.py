@@ -51,7 +51,6 @@ import unittest
 from warnings import simplefilter
 simplefilter('default')
 
-from convertoaiv8tov9test import ConvertOaiV8ToV9Test
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest

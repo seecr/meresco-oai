@@ -863,6 +863,7 @@ class OaiJazzTest(SeecrTestCase):
 
     def testDelete(self):
         self.jazz.addOaiRecord('42', metadataFormats=[('oai_dc','schema', 'namespace')])
+        r = self.jazz.getRecord('42')
         self.assertFalse(self.jazz.getRecord('42').isDeleted)
         self.assertEquals(['42'], recordIds(self.jazz.oaiSelect(prefix='oai_dc')))
         list(compose(self.jazz.delete('42')))
@@ -1190,6 +1191,23 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEqual(['id:1', 'id:2', 'id:4', 'id:3'], ids(recordsOne))
         self.assertEqual([False, False, False, False], [r.isDeleted for r in recordsOne])
         self.assertEqual([False, False, False, True], [r.isDeleted for r in recordsTwo])
+        jazz.deleteOaiRecordInSets('id:3', setSpecs={'one'})
+        recordsTwo = list(jazz.oaiSelect(prefix='prefix', sets={'two'}).records)
+        recordsOne = list(jazz.oaiSelect(prefix='prefix', sets={'one'}).records)
+        recordsAll = list(jazz.oaiSelect(prefix='prefix').records)
+        self.assertEqual(['id:1', 'id:2', 'id:4', 'id:3'], ids(recordsTwo))
+        self.assertEqual(['id:1', 'id:2', 'id:4', 'id:3'], ids(recordsOne))
+        self.assertEqual(['id:1', 'id:2', 'id:4', 'id:3'], ids(recordsAll))
+        self.assertEqual([False, False, False, True], [r.isDeleted for r in recordsOne])
+        self.assertEqual([False, False, False, True], [r.isDeleted for r in recordsTwo])
+        self.assertEqual([False, False, False, True], [r.isDeleted for r in recordsAll])
+        jazz.addOaiRecord('id:3', metadataPrefixes=['prefix'], setSpecs=['one'])
+        recordsTwo = list(jazz.oaiSelect(prefix='prefix', sets={'two'}).records)
+        recordsOne = list(jazz.oaiSelect(prefix='prefix', sets={'one'}).records)
+        self.assertEqual(['id:1', 'id:2', 'id:4', 'id:3'], ids(recordsTwo))
+        self.assertEqual(['id:1', 'id:2', 'id:4', 'id:3'], ids(recordsOne))
+        self.assertEqual([False, False, False, True], [r.isDeleted for r in recordsTwo])
+        self.assertEqual([False, False, False, False], [r.isDeleted for r in recordsOne])
 
 
 def recordIds(oaiSelectResult):

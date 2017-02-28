@@ -36,13 +36,14 @@ We assume there is no active oaiJazz in this directory
 Usage: removeSetsFromOai(jazzDir, sets=['a:b'], prefix='your_prefix')"""
     from meresco.oai.oaijazz import OaiJazz, lazyImport
     lazyImport()
-    from meresco.oai.oaijazz import Document, StringField, IDENTIFIER_FIELD, Field, PREFIX_FIELD, SETS_FIELD
+    from meresco.oai.oaijazz import Document, StringField, IDENTIFIER_FIELD, Field, PREFIX_FIELD, SETS_FIELD, SETS_DELETED_FIELD
     from meresco.oai.oaijazz import _setSpecAndSubsets
 
     class SetsDeletingOaiJazz(OaiJazz):
         def _getNewDocument(self, identifier, oldDoc):
             doc = Document()
             doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
+            oldDeletedSets = set()
             if oldDoc is not None:
                 for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
                     doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))
@@ -55,7 +56,9 @@ Usage: removeSetsFromOai(jazzDir, sets=['a:b'], prefix='your_prefix')"""
                         if oldSet in sets:
                             continue
                         doc.add(StringField(SETS_FIELD, oldSet, Field.Store.YES))
-            return doc
+                oldDeletedSets.update(oldDoc.getValues(SETS_DELETED_FIELD))
+                oldDeletedSets.difference_update(sets)
+            return doc, oldDeletedSets
     deletingOaiJazz = SetsDeletingOaiJazz(jazzDir)
     goOn = True
     while goOn:

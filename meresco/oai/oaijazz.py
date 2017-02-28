@@ -84,7 +84,7 @@ def lazyImport():
 DEFAULT_BATCH_SIZE = 200
 
 class OaiJazz(Observable):
-    version = '9'
+    version = '10'
 
     def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, persistentDelete=True, name=None, **kwargs):
         Observable.__init__(self, name=name)
@@ -376,9 +376,7 @@ class OaiJazz(Observable):
 
     def _updateOaiRecord(self, identifier, setSpecs, metadataPrefixes, delete=False, oldDoc=None, deleteInSets=None):
         oldDoc = oldDoc or self._getDocument(identifier)
-        doc = self._getNewDocument(identifier, oldDoc=oldDoc)
-        if delete:
-            doc.add(StringField(TOMBSTONE_FIELD, TOMBSTONE_VALUE, Field.Store.YES))
+        doc, oldDeletedSets = self._getNewDocument(identifier, oldDoc=oldDoc)
         newStamp = self._newStamp()
         doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
         doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
@@ -387,7 +385,9 @@ class OaiJazz(Observable):
         self._setMetadataPrefixes(doc=doc, metadataPrefixes=metadataPrefixes, allMetadataPrefixes=allMetadataPrefixes)
 
         allSets = self._setSets(doc=doc, setSpecs=setSpecs or [])
-        self._setDeletedSets(doc=doc, allSets=allSets, delete=delete, deleteInSets=deleteInSets)
+        allDeletedSets = self._setDeletedSets(doc=doc, allSets=allSets, setSpecs=setSpecs or [], delete=delete, deleteInSets=deleteInSets, oldDeletedSets=oldDeletedSets)
+        if delete or allDeletedSets and allSets == allDeletedSets:
+            doc.add(StringField(TOMBSTONE_FIELD, TOMBSTONE_VALUE, Field.Store.YES))
 
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
@@ -397,14 +397,14 @@ class OaiJazz(Observable):
         doc = Document()
         doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
         doc.add(IntField(HASH_FIELD, Partition.hashId(identifier), Field.Store.NO))
+        oldDeletedSets = set()
         if oldDoc is not None:
             for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
                 doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))
             for oldSet in oldDoc.getValues(SETS_FIELD):
                 doc.add(StringField(SETS_FIELD, oldSet, Field.Store.YES))
-            for oldDeletedSet in oldDoc.getValues(SETS_DELETED_FIELD):
-                doc.add(StringField(SETS_DELETED_FIELD, oldDeletedSet, Field.Store.YES))
-        return doc
+            oldDeletedSets.update(oldDoc.getValues(SETS_DELETED_FIELD))
+        return doc, oldDeletedSets
 
     def _newStamp(self):
         """time in microseconds"""
@@ -433,15 +433,20 @@ class OaiJazz(Observable):
                     allSets.add(innerSetSpec)
         return allSets
 
-    def _setDeletedSets(self, doc, allSets, delete, deleteInSets):
-        allDeletedSets = set(allSets) if delete else set()
-        if self._deleteInSetsSupport and deleteInSets:
-            if not set(deleteInSets).issubset(allSets):
-                raise ValueError('Sets to be deleted: {0} not in sets for this record: {1}.'.format(
-                    repr(deleteInSets),
-                    repr(allSets)
-                ))
-            allDeletedSets.update(deleteInSets)
+    def _setDeletedSets(self, doc, allSets, setSpecs, delete, deleteInSets, oldDeletedSets):
+        if delete:
+            allDeletedSets = set(allSets)
+        else:
+            allDeletedSets = set(oldDeletedSets)
+            for setSpec in setSpecs:
+                allDeletedSets.difference_update(_setSpecAndSubsets(setSpec))
+            if self._deleteInSetsSupport and deleteInSets:
+                if not set(deleteInSets).issubset(allSets):
+                    raise ValueError('Sets to be deleted: {0} not in sets for this record: {1}.'.format(
+                        repr(deleteInSets),
+                        repr(allSets)
+                    ))
+                allDeletedSets.update(deleteInSets)
         for aSet in allDeletedSets:
             doc.add(StringField(SETS_DELETED_FIELD, aSet, Field.Store.YES))
         return allDeletedSets
