@@ -10,11 +10,11 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
-# Copyright (C) 2016 SURFmarket https://surf.nl
+# Copyright (C) 2015-2017 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2016-2017 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -86,7 +86,7 @@ DEFAULT_BATCH_SIZE = 200
 class OaiJazz(Observable):
     version = '9'
 
-    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, persistentDelete=True, name=None):
+    def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, persistentDelete=True, name=None, **kwargs):
         Observable.__init__(self, name=name)
         lazyImport()
         self._directory = aDirectory
@@ -99,6 +99,10 @@ class OaiJazz(Observable):
         self._writer, self._reader, self._searcher = getLucene(aDirectory)
         self._latestModifications = set()
         self._newestStamp = self._newestStampFromIndex()
+        self._deleteInSetsSupport = False
+        if kwargs.get('deleteInSets'):
+            # Supporting deleting in sets is not OAI-PMH compatible
+            self._deleteInSetsSupport = True
 
     _sets = property(lambda self: self._data["sets"])
     _prefixes = property(lambda self: self._data["prefixes"])
@@ -120,6 +124,7 @@ class OaiJazz(Observable):
         return self._OaiSelectResult(docs=collector.docs(searcher),
                 collector=collector,
                 parent=self,
+                requestedSets=sets if self._deleteInSetsSupport else None,
             )
 
     def _search(self, query, continueAfter, oaiFrom, oaiUntil, batchSize, shouldCountHits):
@@ -159,23 +164,23 @@ class OaiJazz(Observable):
         return query
 
     class _OaiSelectResult(object):
-        def __init__(inner, docs, collector, parent):
+        def __init__(inner, docs, collector, parent, requestedSets):
             inner.docs = docs
             inner.moreRecordsAvailable = collector.moreRecordsAvailable
             recordsRemaining = collector.remainingRecords()
             if recordsRemaining != -1:
                 inner.recordsRemaining = recordsRemaining
             inner.parent = parent
-            inner.records = inner._records()
+            inner.records = inner._records(requestedSets=requestedSets)
             inner.numberOfRecordsInBatch = len(docs)
             inner.continueAfter = None if len(docs) == 0 else inner._record(docs[-1]).stamp
 
-        def _record(inner, doc):
-            return Record(doc)
+        def _record(inner, doc, **kwargs):
+            return Record(doc, **kwargs)
 
-        def _records(inner):
+        def _records(inner, **recordKwargs):
             for doc in inner.docs:
-                record = inner._record(doc)
+                record = inner._record(doc, **recordKwargs)
                 if record.identifier not in inner.parent._latestModifications:
                     yield record
 
@@ -216,6 +221,17 @@ class OaiJazz(Observable):
                 raise ValueError('setSpec not allowed for unknown record if no metadataPrefixes are provided')
             return
         self._updateOaiRecord(identifier=identifier, setSpecs=setSpecs, metadataPrefixes=metadataPrefixes, delete=True, oldDoc=oldDoc)
+
+    def deleteOaiRecordInSets(self, identifier, setSpecs):
+        if not self._deleteInSetsSupport:
+            raise ValueError('Deleting in sets not supported.')
+        if not identifier:
+            raise ValueError("Empty identifier not allowed.")
+        #metadataPrefixes = self._deletePrefixes.union(metadataPrefixes or [])
+        oldDoc = self._getDocument(identifier)
+        if oldDoc is None:
+            raise ValueError('Only support for deleting in sets for existing records.')
+        self._updateOaiRecord(identifier=identifier, setSpecs=[], metadataPrefixes=[], delete=False, deleteInSets=setSpecs, oldDoc=oldDoc)
 
     def purge(self, identifier, ignorePeristentDelete=False):
         if self._persistentDelete and not ignorePeristentDelete:
@@ -358,7 +374,7 @@ class OaiJazz(Observable):
             return None
         return results.scoreDocs[0].doc
 
-    def _updateOaiRecord(self, identifier, setSpecs, metadataPrefixes, delete=False, oldDoc=None):
+    def _updateOaiRecord(self, identifier, setSpecs, metadataPrefixes, delete=False, oldDoc=None, deleteInSets=None):
         oldDoc = oldDoc or self._getDocument(identifier)
         doc = self._getNewDocument(identifier, oldDoc=oldDoc)
         if delete:
@@ -371,6 +387,7 @@ class OaiJazz(Observable):
         self._setMetadataPrefixes(doc=doc, metadataPrefixes=metadataPrefixes, allMetadataPrefixes=allMetadataPrefixes)
 
         allSets = self._setSets(doc=doc, setSpecs=setSpecs or [])
+        self._setDeletedSets(doc=doc, allSets=allSets, delete=delete, deleteInSets=deleteInSets)
 
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
@@ -385,6 +402,8 @@ class OaiJazz(Observable):
                 doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))
             for oldSet in oldDoc.getValues(SETS_FIELD):
                 doc.add(StringField(SETS_FIELD, oldSet, Field.Store.YES))
+            for oldDeletedSet in oldDoc.getValues(SETS_DELETED_FIELD):
+                doc.add(StringField(SETS_DELETED_FIELD, oldDeletedSet, Field.Store.YES))
         return doc
 
     def _newStamp(self):
@@ -413,6 +432,19 @@ class OaiJazz(Observable):
                     doc.add(StringField(SETS_FIELD, innerSetSpec, Field.Store.YES))
                     allSets.add(innerSetSpec)
         return allSets
+
+    def _setDeletedSets(self, doc, allSets, delete, deleteInSets):
+        allDeletedSets = set(allSets) if delete else set()
+        if self._deleteInSetsSupport and deleteInSets:
+            if not set(deleteInSets).issubset(allSets):
+                raise ValueError('Sets to be deleted: {0} not in sets for this record: {1}.'.format(
+                    repr(deleteInSets),
+                    repr(allSets)
+                ))
+            allDeletedSets.update(deleteInSets)
+        for aSet in allDeletedSets:
+            doc.add(StringField(SETS_DELETED_FIELD, aSet, Field.Store.YES))
+        return allDeletedSets
 
     def _purge(self, identifier):
         self._writer.deleteDocuments(Term(IDENTIFIER_FIELD, identifier))
@@ -458,8 +490,9 @@ def getLucene(path):
 
 
 class Record(object):
-    def __init__(self, doc):
+    def __init__(self, doc, requestedSets=None):
         self._doc = doc
+        self._requestedSets = None if requestedSets is None else set(requestedSets)
 
     @property
     def identifier(self):
@@ -475,6 +508,10 @@ class Record(object):
 
     @property
     def isDeleted(self):
+        if self._requestedSets is not None:
+            matchingSets = self._requestedSets.intersection(self.sets)
+            if matchingSets:
+                return not bool(matchingSets.difference(self.deletedSets))
         if not hasattr(self, 'tombstone'):
             self.tombstone = self._doc.getField(TOMBSTONE_FIELD)
         return self.tombstone is not None
@@ -490,6 +527,12 @@ class Record(object):
         if not hasattr(self, '_sets'):
             self._sets = set(self._doc.getValues(SETS_FIELD))
         return self._sets
+
+    @property
+    def deletedSets(self):
+        if not hasattr(self, '_deletedSets'):
+            self._deletedSets = set(self._doc.getValues(SETS_DELETED_FIELD))
+        return self._deletedSets
 
     def getDatestamp(self, preciseDatestamp=False):
         return stamp2zulutime(stamp=self.stamp, preciseDatestamp=preciseDatestamp)
@@ -518,6 +561,7 @@ _MAX_MODIFICATIONS = 10000
 
 PREFIX_FIELD = "prefix"
 SETS_FIELD = "sets"
+SETS_DELETED_FIELD = "setsdeleted"
 IDENTIFIER_FIELD = "identifier"
 STAMP_FIELD = "stamp"
 HASH_FIELD = 'hash'

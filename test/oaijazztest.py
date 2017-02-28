@@ -10,11 +10,11 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
-# Copyright (C) 2016 SURFmarket https://surf.nl
+# Copyright (C) 2016-2017 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -1173,6 +1173,24 @@ class OaiJazzTest(SeecrTestCase):
                 recordIds(self.jazz.oaiSelect(
                     prefix='prefix',
                     partition=partition)))
+
+    def testOaiWithDeleteInSetsSupport(self):
+        jazz = OaiJazz(join(self.tempdir, 'b'), deleteInSets=True)
+        for i in ['id:1', 'id:2', 'id:3', 'id:4']:
+            jazz.addOaiRecord(i, metadataPrefixes=['prefix'], setSpecs=['one', 'two'])
+        ids = lambda rs:[r.identifier for r in rs]
+        result = jazz.oaiSelect(prefix='prefix', sets={'two'})
+        records = list(result.records)
+        self.assertEqual(['id:1', 'id:2', 'id:3', 'id:4'], ids(records))
+        jazz.deleteOaiRecordInSets('id:3', setSpecs={'two'})
+        result = jazz.oaiSelect(prefix='prefix', sets={'two'})
+        recordsTwo = list(result.records)
+        recordsOne = list(jazz.oaiSelect(prefix='prefix', sets={'one'}).records)
+        self.assertEqual(['id:1', 'id:2', 'id:4', 'id:3'], ids(recordsTwo))
+        self.assertEqual(['id:1', 'id:2', 'id:4', 'id:3'], ids(recordsOne))
+        self.assertEqual([False, False, False, False], [r.isDeleted for r in recordsOne])
+        self.assertEqual([False, False, False, True], [r.isDeleted for r in recordsTwo])
+
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]
