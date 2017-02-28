@@ -1,4 +1,6 @@
 deps.d
+.fuse_hidden*
+.tramp_history
 lib
 *.pyc
 *.swp
