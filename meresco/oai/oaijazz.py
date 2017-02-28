@@ -508,13 +508,13 @@ class Record(object):
 
     @property
     def isDeleted(self):
-        if self._requestedSets is not None:
+        if not hasattr(self, '_isDeleted'):
+            self._isDeleted = self._doc.getField(TOMBSTONE_FIELD) is not None
+        if not self._isDeleted and self._requestedSets is not None:
             matchingSets = self._requestedSets.intersection(self.sets)
             if matchingSets:
                 return not bool(matchingSets.difference(self.deletedSets))
-        if not hasattr(self, 'tombstone'):
-            self.tombstone = self._doc.getField(TOMBSTONE_FIELD)
-        return self.tombstone is not None
+        return self._isDeleted
 
     @property
     def prefixes(self):
