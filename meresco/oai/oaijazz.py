@@ -263,6 +263,9 @@ class OaiJazz(Observable):
     def getAllPrefixes(self):
         return set(self._prefixes.keys())
 
+    def isKnownPrefix(self, prefix):
+        return prefix in self._prefixes
+
     def updateSet(self, setSpec, setName):
         self._sets[setSpec] = setName
 

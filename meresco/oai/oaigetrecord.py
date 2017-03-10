@@ -86,7 +86,7 @@ Error and Exception Conditions
         yield oaiFooter()
 
     def _validateValues(self, record, metadataPrefix):
-        if not metadataPrefix in set(self.call.getAllPrefixes()):
+        if not self.call.isKnownPrefix(metadataPrefix):
             raise OaiException('cannotDisseminateFormat')
 
         if not record:

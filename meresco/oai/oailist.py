@@ -218,7 +218,7 @@ Error and Exception Conditions
         return selectArguments
 
     def _oaiSelect(self, prefix, sets, continueAfter, oaiFrom, oaiUntil, shouldCountHits, partition, **ignored):
-        if not prefix in set(self.call.getAllPrefixes()):
+        if not self.call.isKnownPrefix(prefix=prefix):
             raise OaiException('cannotDisseminateFormat')
         result = self.call.oaiSelect(
                 prefix=prefix,
