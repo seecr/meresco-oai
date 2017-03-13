@@ -143,6 +143,10 @@ Error and Exception Conditions
                     except Exception, e:
                         print_exc()
                         yield serverErrorPlainText + str(e)
+                        if isinstance(e, ValueError):
+                            # occurs in case the same client issues another list request while previous still suspended
+                            # TODO: improve by introducing specific Exception
+                            return
                         raise e
                 else:
                     yield oaiError(e.statusCode, e.additionalMessage, requestArguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
