@@ -85,7 +85,7 @@ class OaiGetRecordTest(SeecrTestCase):
         record.sets = []
         record.isDeleted = False
         observer = CallTrace(returnValues={
-            'getAllPrefixes': ['oai_dc'],
+            'isKnownPrefix': True,
             'getRecord': record},
             emptyGeneratorMethods=['oaiWatermark', 'oaiRecord'])
         oaigetrecord.addObserver(observer)
@@ -95,7 +95,7 @@ class OaiGetRecordTest(SeecrTestCase):
                 identifier=['oai:example.org:id0'],
             ),
             **self.httpkwargs))
-        self.assertEquals(['getRecord', 'getAllPrefixes', 'oaiWatermark', 'oaiRecord'], observer.calledMethodNames())
+        self.assertEquals(['getRecord', 'isKnownPrefix', 'oaiWatermark', 'oaiRecord'], observer.calledMethodNames())
         self.assertEquals(dict(identifier='id0'), observer.calledMethods[0].kwargs)
 
     def testGetRecordWithRepositoryIdentifierMissingExpectedPrefix(self):

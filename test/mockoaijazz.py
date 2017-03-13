@@ -52,6 +52,9 @@ class MockOaiJazz(object):
     def getAllPrefixes(self):
         return ['oai_dc']
 
+    def isKnownPrefix(self, prefix):
+        return prefix in self.getAllPrefixes()
+
     def yieldRecord(self, id, partName):
         if partName == 'oai_dc':
             yield '<some:recorddata xmlns:some="http://some.example.org" id="%s"/>' % id.replace('&', '&amp;')

@@ -8,7 +8,7 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012, 2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012, 2014, 2016-2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
@@ -30,17 +30,18 @@
 #
 ## end license ##
 
-from seecr.test import SeecrTestCase, CallTrace
+from lxml.etree import XML
 from StringIO import StringIO
 
+from seecr.test import SeecrTestCase, CallTrace
+
 from weightless.core import asString, be
-from meresco.components import RetrieveToGetDataAdapter
 from meresco.core import Observable
+from meresco.xml.namespaces import xpathFirst
+from meresco.components import RetrieveToGetDataAdapter
+from meresco.components.http.utils import CRLF
 from meresco.oai.oaiprovenance import OaiProvenance
 from meresco.oai import OaiPmh
-from meresco.xml.namespaces import xpathFirst
-from lxml.etree import XML
-from meresco.components.http.utils import CRLF
 
 
 class OaiProvenanceTest(SeecrTestCase):
@@ -99,7 +100,7 @@ class OaiProvenanceTest(SeecrTestCase):
             record.sets = set()
             record.isDeleted = False
             return record
-        oaijazz = CallTrace(methods={'getRecord': getRecord, 'getAllPrefixes': lambda: set(['oai_dc'])}, onlySpecifiedMethods=True)
+        oaijazz = CallTrace(methods={'getRecord': getRecord, 'isKnownPrefix': lambda prefix: True}, onlySpecifiedMethods=True)
         observable = be((Observable(),
             (OaiPmh(
                 repositoryName='example',

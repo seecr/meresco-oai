@@ -936,6 +936,11 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(set(['prefix1']), set(self.jazz.getRecord('id:1').prefixes))
         self.assertEquals(set(['prefix1', 'prefix2']) , set(self.jazz.getRecord('id:2').prefixes))
 
+    def testIsKnownPrefix(self):
+        self.assertFalse(self.jazz.isKnownPrefix('prefix1'))
+        self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix1', 'schema', 'namespace')])
+        self.assertTrue(self.jazz.isKnownPrefix('prefix1'))
+
     def testUpdateMetadataFormat(self):
         self.jazz.addOaiRecord('id:1', metadataFormats=[('prefix', '', '')])
         self.assertEquals(sorted([('prefix', '', '')]), sorted(self.jazz.getAllMetadataFormats()))
