@@ -4,7 +4,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
-# Copyright (C) 2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2015, 2017 Seecr (Seek You Too B.V.) http://seecr.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -26,12 +26,14 @@
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced
-from meresco.oai.suspendregister import SuspendRegister, ForcedResumeException, _PostponedState
+
 from weightless.core import compose, asList
 from weightless.io import Suspend
 
-class SuspendRegisterTest(SeecrTestCase):
+from meresco.oai.suspendregister import SuspendRegister, ForcedResumeException, _PostponedState
 
+
+class SuspendRegisterTest(SeecrTestCase):
     def testSignalOaiUpdate(self):
         def test(register):
             reactor = CallTrace("reactor")
@@ -54,7 +56,7 @@ class SuspendRegisterTest(SeecrTestCase):
             try:
                 s1.getResult()
                 self.fail()
-            except ValueError, e:
+            except ForcedResumeException, e:
                 self.assertEquals("Aborting suspended request because of new request for the same OaiClient with identifier: a-client-id.", str(e))
         test(SuspendRegister().suspendAfterNoResult)
         test(SuspendRegister(batchMode=True).suspendAfterNoResult)

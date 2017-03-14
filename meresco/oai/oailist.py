@@ -32,9 +32,14 @@
 #
 ## end license ##
 
-from meresco.components.http.utils import serverErrorPlainText, successNoContentPlainText
-from meresco.core.observable import Observable
+import sys
+from time import time
+from uuid import uuid4
+from traceback import print_exc
+
 from weightless.core import NoneOfTheObserversRespond
+from meresco.core.observable import Observable
+from meresco.components.http.utils import serverErrorPlainText, successNoContentPlainText
 
 from ._partition import Partition
 from .resumptiontoken import resumptionTokenFromString, ResumptionToken
@@ -44,10 +49,6 @@ from .oaierror import oaiError
 from .oaijazz import DEFAULT_BATCH_SIZE
 from .suspendregister import ForcedResumeException
 
-from uuid import uuid4
-import sys
-from time import time
-from traceback import print_exc
 
 DEFAULT_DATA_BATCH_SIZE = 100
 
@@ -137,16 +138,12 @@ Error and Exception Conditions
                         yield self.any.suspendAfterNoResult(
                             clientIdentifier=clientIdentifier,
                             **selectArguments)
-                    except ForcedResumeException:
-                        yield successNoContentPlainText + "OAI x-wait connection has been forcefully resumed."
+                    except ForcedResumeException, e:
+                        yield successNoContentPlainText + str(e)
                         return
                     except Exception, e:
                         print_exc()
                         yield serverErrorPlainText + str(e)
-                        if isinstance(e, ValueError):
-                            # occurs in case the same client issues another list request while previous still suspended
-                            # TODO: improve by introducing specific Exception
-                            return
                         raise e
                 else:
                     yield oaiError(e.statusCode, e.additionalMessage, requestArguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)

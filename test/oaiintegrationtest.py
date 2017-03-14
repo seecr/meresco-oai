@@ -5,7 +5,7 @@
 #
 # Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2013, 2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2013, 2015, 2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
@@ -110,10 +110,10 @@ class OaiIntegrationTest(SeecrTestCase):
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         clientId = str(uuid4())
 
-        requests = []
+        responses = []
         def doOaiListRecord(port):
             header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, additionalHeaders={'X-Meresco-Oai-Client-Identifier': clientId}, parse=False)
-            requests.append((header, body))
+            responses.append((header, body))
 
         oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent, suspendRegister))
         harvestThread1 = Thread(None, lambda: doOaiListRecord(portNumber))
@@ -134,9 +134,9 @@ class OaiIntegrationTest(SeecrTestCase):
                 self.assertTrue(clientId in suspendRegister)
                 self.assertTrue(harvest1Suspend != suspendRegister._suspendObject(clientId))
 
-                self.assertEquals(1, len(requests))
-                header, body = requests[0]
-                self.assertTrue('500' in header, header)
+                self.assertEquals(1, len(responses))
+                header, body = responses[0]
+                self.assertTrue('204' in header, header)
                 self.assertTrue(body.startswith('Aborting suspended request'), body)
 
                 storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")

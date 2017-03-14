@@ -4,7 +4,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
-# Copyright (C) 2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2015, 2017 Seecr (Seek You Too B.V.) http://seecr.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -65,9 +65,9 @@ class SuspendRegister(object):
                 sets=set() if sets is None else set(sets)
             )
         if clientIdentifier in self._register:
-            self._register.pop(clientIdentifier).throw(exc_type=ValueError, exc_value=ValueError("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
-        if len(self._register) == self._maximumSuspendedConnections:
-            self._register.pop(choice(self._register.keys())).throw(exc_type=ForcedResumeException, exc_value=ForcedResumeException(), exc_traceback=None)
+            self._register.pop(clientIdentifier).throw(exc_type=ForcedResumeException, exc_value=ForcedResumeException("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
+        elif len(self._register) == self._maximumSuspendedConnections:
+            self._register.pop(choice(self._register.keys())).throw(exc_type=ForcedResumeException, exc_value=ForcedResumeException("OAI x-wait connection has been forcefully resumed."), exc_traceback=None)
             sys.stderr.write("Too many suspended connections in SuspendRegister. One random connection has been resumed.\n")
         self._register[clientIdentifier] = suspend
         yield suspend
