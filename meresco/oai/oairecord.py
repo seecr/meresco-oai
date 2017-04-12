@@ -5,7 +5,7 @@
 #
 # Copyright (C) 2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014, 2016-2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -37,10 +37,11 @@ from meresco.core.generatorutils import decorate
 
 
 class OaiRecord(Transparent):
-    def __init__(self, repository=None, preciseDatestamp=False, **kwargs):
+    def __init__(self, repository=None, preciseDatestamp=False, deleteInSets=False, **kwargs):
         Transparent.__init__(self, **kwargs)
         self._repository = repository
         self._preciseDatestamp = preciseDatestamp
+        self._deleteInSetsSupport = deleteInSets
 
     def oaiRecordHeader(self, record, **kwargs):
         isDeletedStr = ' status="deleted"' if record.isDeleted else ''
@@ -78,5 +79,11 @@ class OaiRecord(Transparent):
 
     def _getSetSpecs(self, record):
         if record.sets:
-            return ''.join('<setSpec>%s</setSpec>' % xmlEscape(setSpec) for setSpec in record.sets)
+            deletedSets = set()
+            if self._deleteInSetsSupport:
+                deletedSets = record.deletedSets
+            return ''.join('<setSpec{1}>{0}</setSpec>'.format(
+                    xmlEscape(setSpec),
+                    ' status="deleted"' if setSpec in deletedSets else ''
+                ) for setSpec in sorted(record.sets))
         return ''

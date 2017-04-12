@@ -8,7 +8,7 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2013, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2013, 2016-2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2016 SURFmarket https://surf.nl
 #
@@ -89,10 +89,11 @@ class MockOaiJazz(object):
         return result
 
 class MockRecord(object):
-    def __init__(self, identifier, remaining=0, stamp=123412341123456L, sets=None, prefixes=None, deleted=False):
+    def __init__(self, identifier, remaining=0, stamp=123412341123456L, sets=None, prefixes=None, deleted=False, deletedSets=None):
         self.identifier = identifier
         self.stamp = stamp
         self.sets = set(['set0', 'set1']) if sets is None else sets
+        self.deletedSets = set() if deletedSets is None else deletedSets
         self.prefixes = set(['oai_dc']) if prefixes is None else prefixes
         self.isDeleted = deleted
         self.getDatestamp = lambda preciseDatestamp=False: '2011-03-25T10:45:00{0}Z'.format('.123' if preciseDatestamp else '')

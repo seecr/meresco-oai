@@ -9,7 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2014, 2016-2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -116,6 +116,20 @@ class OaiRecordTest(SeecrTestCase):
 </header>
 </record>""", result)
         self.assertEquals([], [str(m) for m in self.observer.calledMethods])
+
+    def testRecordWithDeleteInSetsSupport(self):
+        self.setUpOaiRecord(deleteInSets=True)
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', sets={'set0', 'set1'}, deletedSets={'set1'}), metadataPrefix='oai_dc')))
+        self.assertEqualsWS("""<record>
+<header>
+    <identifier>id</identifier>
+    <datestamp>2011-03-25T10:45:00Z</datestamp>
+    <setSpec>set0</setSpec>
+    <setSpec status="deleted">set1</setSpec>
+</header>
+<metadata><data/></metadata>
+</record>""", result)
+
 
     def testRecordsWithoutSets(self):
         result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id', sets=[]), metadataPrefix='oai_dc')))

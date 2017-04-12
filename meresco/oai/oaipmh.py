@@ -10,7 +10,7 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
-# Copyright (C) 2011-2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -52,7 +52,7 @@ from oairepository import OaiRepository
 
 
 class OaiPmh(object):
-    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False, externalUrl=None, preciseDatestamp=False):
+    def __init__(self, repositoryName, adminEmail, repositoryIdentifier=None, batchSize=DEFAULT_BATCH_SIZE, supportXWait=False, externalUrl=None, preciseDatestamp=False, deleteInSets=False):
         self._repository = OaiRepository(
             identifier=repositoryIdentifier,
             name=repositoryName,
@@ -69,12 +69,12 @@ class OaiPmh(object):
                         (outside,)
                     ),
                     (OaiList(repository=self._repository, batchSize=batchSize, supportXWait=supportXWait),
-                        (OaiRecord(self._repository, preciseDatestamp=preciseDatestamp),
+                        (OaiRecord(self._repository, preciseDatestamp=preciseDatestamp, deleteInSets=deleteInSets),
                             (outside,)
                         )
                     ),
                     (OaiGetRecord(self._repository),
-                        (OaiRecord(self._repository, preciseDatestamp=preciseDatestamp),
+                        (OaiRecord(self._repository, preciseDatestamp=preciseDatestamp, deleteInSets=deleteInSets),
                             (outside,)
                         )
                     ),
