@@ -1214,6 +1214,13 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEqual([False, False, False, True], [r.isDeleted for r in recordsTwo])
         self.assertEqual([False, False, False, False], [r.isDeleted for r in recordsOne])
 
+    def testDeleteRecordWithNewSet(self):
+        jazz = OaiJazz(join(self.tempdir, 'b'), deleteInSets=True)
+        jazz.addOaiRecord('id', metadataPrefixes=['prefix'], setSpecs=['one',])
+        jazz.deleteOaiRecordInSets('id', setSpecs={'two'})
+        record = list(jazz.oaiSelect(prefix='prefix').records)[0]
+        self.assertEqual({'one', 'two'}, record.sets)
+        self.assertEqual({'two'}, record.deletedSets)
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]

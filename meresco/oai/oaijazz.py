@@ -387,8 +387,7 @@ class OaiJazz(Observable):
         allMetadataPrefixes = set(doc.getValues(PREFIX_FIELD))
         self._setMetadataPrefixes(doc=doc, metadataPrefixes=metadataPrefixes, allMetadataPrefixes=allMetadataPrefixes)
 
-        allSets = self._setSets(doc=doc, setSpecs=setSpecs or [])
-        allDeletedSets = self._setDeletedSets(doc=doc, allSets=allSets, setSpecs=setSpecs or [], delete=delete, deleteInSets=deleteInSets, oldDeletedSets=oldDeletedSets)
+        allSets, allDeletedSets = self._setSets(doc=doc, setSpecs=setSpecs or [], delete=delete, deleteInSets=deleteInSets, oldDeletedSets=oldDeletedSets)
         if delete or allDeletedSets and allSets == allDeletedSets:
             doc.add(StringField(TOMBSTONE_FIELD, TOMBSTONE_VALUE, Field.Store.YES))
 
@@ -424,35 +423,28 @@ class OaiJazz(Observable):
                 self._prefixes.setdefault(prefix, ('', ''))
                 allMetadataPrefixes.add(prefix)
 
-    def _setSets(self, doc, setSpecs):
-        allSets = set(doc.getValues(SETS_FIELD))
-        for setSpec in setSpecs:
-            if SETSPEC_SEPARATOR in setSpec:
-                raise ValueError('SetSpec "%s" contains illegal characters' % setSpec)
-            for innerSetSpec in _setSpecAndSubsets(setSpec):
-                self._sets.setdefault(innerSetSpec, '')
-                if not innerSetSpec in allSets:
-                    doc.add(StringField(SETS_FIELD, innerSetSpec, Field.Store.YES))
-                    allSets.add(innerSetSpec)
-        return allSets
-
-    def _setDeletedSets(self, doc, allSets, setSpecs, delete, deleteInSets, oldDeletedSets):
+    def _setSets(self, doc, setSpecs, delete, deleteInSets, oldDeletedSets):
+        currentSets = set(doc.getValues(SETS_FIELD))
+        allSets = set(currentSets)
+        for setSpec in _validSetSpecs(setSpecs):
+            allSets.update(_setSpecAndSubsets(setSpec))
         if delete:
             allDeletedSets = set(allSets)
         else:
             allDeletedSets = set(oldDeletedSets)
-            for setSpec in setSpecs:
+            for setSpec in _validSetSpecs(setSpecs):
                 allDeletedSets.difference_update(_setSpecAndSubsets(setSpec))
             if self._deleteInSetsSupport and deleteInSets:
-                if not set(deleteInSets).issubset(allSets):
-                    raise ValueError('Sets to be deleted: {0} not in sets for this record: {1}.'.format(
-                        repr(deleteInSets),
-                        repr(allSets)
-                    ))
+                allSets.update(deleteInSets)
                 allDeletedSets.update(deleteInSets)
+        for aSet in allSets:
+            if not aSet in currentSets:
+                self._sets.setdefault(aSet, '')
+                doc.add(StringField(SETS_FIELD, aSet, Field.Store.YES))
+                allSets.add(aSet)
         for aSet in allDeletedSets:
             doc.add(StringField(SETS_DELETED_FIELD, aSet, Field.Store.YES))
-        return allDeletedSets
+        return allSets, allDeletedSets
 
     def _purge(self, identifier):
         self._writer.deleteDocuments(Term(IDENTIFIER_FIELD, identifier))
@@ -550,6 +542,12 @@ def _setSpecAndSubsets(setSpec):
     subsets = setSpec.split(SETSPEC_HIERARCHY_SEPARATOR)
     for i in range(len(subsets), 0, -1):
         yield SETSPEC_HIERARCHY_SEPARATOR.join(subsets[0:i])
+
+def _validSetSpecs(setSpecs):
+    for setSpec in setSpecs:
+        if SETSPEC_SEPARATOR in setSpec:
+            raise ValueError('SetSpec "%s" contains illegal characters' % setSpec)
+        yield setSpec
 
 def stamp2zulutime(stamp, preciseDatestamp=False):
     if stamp is None:
