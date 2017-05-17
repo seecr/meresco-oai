@@ -320,6 +320,12 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['id:-', 'id:b'], recordIds(jazz2.oaiSelect(prefix='prefix')))
         self.assertEquals(set(['b']), jazz2.getAllSets())
 
+    def testAddSetSpec(self):
+        self.jazz.addOaiRecord('id', metadataPrefixes=['prefix'], setSpecs=['a'])
+        self.assertEquals({'a'}, self.jazz.getRecord('id').sets)
+        self.jazz.addOaiRecord('id', metadataPrefixes=['prefix'], setSpecs=['b'])
+        self.assertEquals({'a', 'b'}, self.jazz.getRecord('id').sets)
+
     def testOverrideRecord(self):
         self.jazz.updateMetadataFormat('prefix', 'schema', 'namespace')
         self.jazz.updateMetadataFormat('prefix2', 'schema', 'namespace')
@@ -1221,6 +1227,22 @@ class OaiJazzTest(SeecrTestCase):
         record = list(jazz.oaiSelect(prefix='prefix').records)[0]
         self.assertEqual({'one', 'two'}, record.sets)
         self.assertEqual({'two'}, record.deletedSets)
+
+    def testSetsStaysDeleted(self):
+        jazz = OaiJazz(join(self.tempdir, 'b'), deleteInSets=True)
+        jazz.addOaiRecord('id', metadataPrefixes=['prefix'], setSpecs=['a'])
+        self.assertEquals({'a'}, jazz.getRecord('id').sets)
+        jazz.addOaiRecord('id', metadataPrefixes=['prefix'], setSpecs=['b'])
+        self.assertEquals({'a', 'b'}, jazz.getRecord('id').sets)
+        self.assertEquals(set(), jazz.getRecord('id').deletedSets)
+        jazz.deleteOaiRecordInSets('id', setSpecs=['b'])
+        self.assertEquals({'a', 'b'}, jazz.getRecord('id').sets)
+        self.assertEquals({'b'}, jazz.getRecord('id').deletedSets)
+        jazz.addOaiRecord('id', metadataPrefixes=['prefix'], setSpecs=['a', 'c'])
+        self.assertEquals({'a', 'b', 'c'}, jazz.getRecord('id').sets)
+        self.assertEquals({'b'}, jazz.getRecord('id').deletedSets)
+        jazz.addOaiRecord('id', metadataPrefixes=['prefix'], setSpecs=['b'])
+        self.assertEquals(set(), jazz.getRecord('id').deletedSets)
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]
