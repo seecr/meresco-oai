@@ -51,7 +51,7 @@ from seecr.test.io import stderr_replaced, stdout_replaced
 from weightless.core import be, compose, consume
 from meresco.core import Observable, Transparent
 
-from org.apache.lucene.document import Document, LongField, Field, NumericDocValuesField, StringField
+from org.apache.lucene.document import Document, LongPoint, Field, StoredField, NumericDocValuesField, StringField
 from org.apache.lucene.index import Term
 
 from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
@@ -66,6 +66,7 @@ def _suppressByTriggeringWarnings():
     from shutil import rmtree
     tmpdir = mkdtemp()
     try:
+        jazz = None
         jazz = OaiJazz(tmpdir)
         jazz.addObserver(CallTrace())
         with warnings.catch_warnings(record=True) as warns:
@@ -73,7 +74,8 @@ def _suppressByTriggeringWarnings():
             jazz.addOaiRecord('id:1', metadataPrefixes=['f'], sets=[('s', 'set s')])
             assert warns, 'Expected a warning to be triggered!'
     finally:
-        jazz.close()
+        if not jazz is None:
+            jazz.close()
         rmtree(tmpdir)
 _suppressByTriggeringWarnings()
 
@@ -553,7 +555,7 @@ class OaiJazzTest(SeecrTestCase):
             OaiJazz(self.tmpdir2("a"))
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v8_to_v9' in meresco-oai/bin)" % self.tmpdir2("a"), str(e))
+            self.assertEquals("The OAI index at %s is not compatible with this version (no conversion script could be provided)." % self.tmpdir2("a"), str(e))
 
     @stdout_replaced
     def testRefuseInitWithDifferentVersionFile(self):
@@ -565,7 +567,7 @@ class OaiJazzTest(SeecrTestCase):
             OaiJazz(self.tmpdir2("a"))
             self.fail("Should have raised AssertionError with instruction of how to convert OAI index.")
         except AssertionError, e:
-            self.assertEquals("The OAI index at %s need to be converted to the current version (with 'convert_oai_v8_to_v9' in meresco-oai/bin)" % self.tmpdir2("a"), str(e))
+            self.assertEquals("The OAI index at %s is not compatible with this version (no conversion script could be provided)." % self.tmpdir2("a"), str(e))
 
     def addDocuments(self, size):
         for id in range(1,size+1):
@@ -848,8 +850,10 @@ class OaiJazzTest(SeecrTestCase):
 
         doc = Document()
         doc.add(StringField("identifier", "5", Field.Store.YES))
-        doc.add(LongField("stamp", long(1215320643123455), Field.Store.YES))
-        doc.add(NumericDocValuesField("numeric_stamp", long(1215320643123455)))
+        stamp = long(1215320643123455)
+        doc.add(LongPoint("stamp", stamp))
+        doc.add(StoredField("stamp", stamp))
+        doc.add(NumericDocValuesField("numeric_stamp", stamp))
         doc.add(StringField("prefix", "oai_dc", Field.Store.YES))
         self.jazz._writer.updateDocument(Term("identifier", "5"), doc)
         self.jazz._latestModifications.add(str("5"))

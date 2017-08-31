@@ -3,7 +3,7 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2013-2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2013-2014, 2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 #
@@ -39,18 +39,18 @@ mkdir --parents $buildDir $libDir
 
 pythonVersion=$(python --version 2>&1 | awk '{print $2}' | cut -d. -f-2)
 
-javac=/usr/lib/jvm/java-1.7.0-openjdk.x86_64/bin/javac
+javac=/usr/lib/jvm/java-1.8.0-openjdk.x86_64/bin/javac
 if [ ! -f "$javac" ]; then
-    javac=/usr/lib/jvm/java-1.7.0/bin/javac
+    javac=/usr/lib/jvm/java-1.8.0/bin/javac
 fi
 
 luceneJarDir=/usr/lib64/python${pythonVersion}/site-packages/lucene
 if [ -f /etc/debian_version ]; then
-    javac=/usr/lib/jvm/java-7-openjdk-amd64/bin/javac
+    javac=/usr/lib/jvm/java-8-openjdk-amd64/bin/javac
     luceneJarDir=/usr/lib/python${pythonVersion}/dist-packages/lucene
 fi
 
-LUCENE_VERSION=4.10.1
+LUCENE_VERSION=6.5.0
 classpath=${luceneJarDir}/lucene-core-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-analyzers-common-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-facet-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-queries-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-misc-${LUCENE_VERSION}.jar
 
 ${javac} -cp ${classpath} -d ${buildDir} org/meresco/oai/*.java

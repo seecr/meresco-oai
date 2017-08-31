@@ -47,10 +47,10 @@ from meresco.core import Observable
 from meresco.pylucene import getJVM
 
 imported = False
-Long = File = Document = StringField = Field = LongField = IntField = IndexSearcher = TermQuery = \
-    BooleanQuery = NumericRangeQuery = MatchAllDocsQuery = BooleanClause = TotalHitCountCollector = \
+Long = Paths = Document = StringField = Field = StoredField = LongPoint = IntPoint = IndexSearcher = TermQuery = \
+    BooleanQuery = MatchAllDocsQuery = BooleanClause = TotalHitCountCollector = \
     Sort = SortField = DirectoryReader = Term = IndexWriter = IndexWriterConfig = FSDirectory = \
-    NumericDocValuesField = SortingMergePolicy = BytesRef = Version = WhitespaceAnalyzer = \
+    NumericDocValuesField = BytesRef = Version = WhitespaceAnalyzer = \
     OaiSortingCollector = None
 
 def lazyImport():
@@ -62,14 +62,13 @@ def lazyImport():
     VM = getJVM()
 
     from java.lang import Long
-    from java.io import File
-    from org.apache.lucene.document import Document, StringField, Field, LongField, IntField
-    from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, NumericRangeQuery, MatchAllDocsQuery
+    from java.nio.file import Paths
+    from org.apache.lucene.document import Document, StringField, Field, StoredField, LongPoint, IntPoint
+    from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, MatchAllDocsQuery
     from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
     from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
     from org.apache.lucene.store import FSDirectory
     from org.apache.lucene.document import NumericDocValuesField
-    from org.apache.lucene.index.sorter import SortingMergePolicy
     from org.apache.lucene.util import BytesRef, Version
     from org.apache.lucene.analysis.core import WhitespaceAnalyzer
 
@@ -84,7 +83,7 @@ def lazyImport():
 DEFAULT_BATCH_SIZE = 200
 
 class OaiJazz(Observable):
-    version = '10'
+    version = '11'
 
     def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, persistentDelete=True, name=None, **kwargs):
         Observable.__init__(self, name=name)
@@ -119,8 +118,8 @@ class OaiJazz(Observable):
             shouldCountHits=False):
         batchSize = DEFAULT_BATCH_SIZE if batchSize is None else batchSize
         searcher = self._getSearcher()
-        query = self._luceneQuery(prefix=prefix, sets=sets, setsMask=setsMask, partition=partition)
-        collector = self._search(query, continueAfter, oaiFrom, oaiUntil, batchSize, shouldCountHits)
+        queryBuilder = self._luceneQueryBuilder(prefix=prefix, sets=sets, setsMask=setsMask, partition=partition)
+        collector = self._search(queryBuilder.build(), continueAfter, oaiFrom, oaiUntil, batchSize, shouldCountHits)
         return self._OaiSelectResult(docs=collector.docs(searcher),
                 collector=collector,
                 parent=self,
@@ -134,34 +133,40 @@ class OaiJazz(Observable):
         stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
 
         collector = OaiSortingCollector(batchSize, shouldCountHits, long(start), long(stop))
-        searcher.search(query, None, collector)
+        searcher.search(query, collector)
         return collector
 
-    def _luceneQuery(self, prefix, sets=None, setsMask=None, partition=None):
-        query = BooleanQuery()
+    def _luceneQueryBuilder(self, prefix, sets=None, setsMask=None, partition=None):
+        numberOfClausesAdded = 0
+        queryBuilder = BooleanQuery.Builder()
         if prefix:
-            query.add(TermQuery(Term(PREFIX_FIELD, prefix)), BooleanClause.Occur.MUST)
+            queryBuilder.add(TermQuery(Term(PREFIX_FIELD, prefix)), BooleanClause.Occur.MUST)
+            numberOfClausesAdded += 1
         if sets:
-            setQuery = BooleanQuery()
+            setQueryBuilder = BooleanQuery.Builder()
             for setSpec in sets:
-                setQuery.add(TermQuery(Term(SETS_FIELD, setSpec)), BooleanClause.Occur.SHOULD)
-            query.add(setQuery, BooleanClause.Occur.MUST)
+                setQueryBuilder.add(TermQuery(Term(SETS_FIELD, setSpec)), BooleanClause.Occur.SHOULD)
+            queryBuilder.add(setQueryBuilder.build(), BooleanClause.Occur.MUST)
+            numberOfClausesAdded += 1
         for set_ in setsMask or []:
-            query.add(TermQuery(Term(SETS_FIELD, set_)), BooleanClause.Occur.MUST)
+            queryBuilder.add(TermQuery(Term(SETS_FIELD, set_)), BooleanClause.Occur.MUST)
+            numberOfClausesAdded += 1
         if partition:
             partitionQueries = []
             for start, stop in partition.ranges():
-                partitionQueries.append(NumericRangeQuery.newIntRange(HASH_FIELD, start, stop, True, False))
+                partitionQueries.append(IntPoint.newRangeQuery(HASH_FIELD, start, stop - 1))
             if len(partitionQueries) == 1:
                 pQuery = partitionQueries[0]
             else:
-                pQuery = BooleanQuery()
+                pQueryBuilder = BooleanQuery.Builder()
                 for q in partitionQueries:
-                    pQuery.add(q, BooleanClause.Occur.SHOULD)
-            query.add(pQuery, BooleanClause.Occur.MUST)
-        if query.clauses().size() == 0:
-            query.add(MatchAllDocsQuery(), BooleanClause.Occur.MUST)
-        return query
+                    pQueryBuilder.add(q, BooleanClause.Occur.SHOULD)
+                pQuery = pQueryBuilder.build()
+            queryBuilder.add(pQuery, BooleanClause.Occur.MUST)
+            numberOfClausesAdded += 1
+        if numberOfClausesAdded == 0:
+            queryBuilder.add(MatchAllDocsQuery(), BooleanClause.Occur.MUST)
+        return queryBuilder
 
     class _OaiSelectResult(object):
         def __init__(inner, docs, collector, parent, requestedSets):
@@ -275,12 +280,12 @@ class OaiJazz(Observable):
         return set(self._sets.keys())
 
     def getNrOfRecords(self, prefix='oai_dc', setSpec=None, continueAfter=None, oaiFrom=None, oaiUntil=None, partition=None):
-        query = self._luceneQuery(prefix=prefix, sets=[setSpec] if setSpec else None, partition=partition)
-        collector = self._search(query, continueAfter, oaiFrom, oaiUntil, batchSize=1, shouldCountHits=True)
+        queryBuilder = self._luceneQueryBuilder(prefix=prefix, sets=[setSpec] if setSpec else None, partition=partition)
+        collector = self._search(queryBuilder.build(), continueAfter, oaiFrom, oaiUntil, batchSize=1, shouldCountHits=True)
 
-        query.add(TermQuery(Term(TOMBSTONE_FIELD, TOMBSTONE_VALUE)), BooleanClause.Occur.MUST)
+        queryBuilder.add(TermQuery(Term(TOMBSTONE_FIELD, TOMBSTONE_VALUE)), BooleanClause.Occur.MUST)
 
-        deleteCollector = self._search(query, continueAfter, oaiFrom, oaiUntil, batchSize=1, shouldCountHits=True)
+        deleteCollector = self._search(queryBuilder.build(), continueAfter, oaiFrom, oaiUntil, batchSize=1, shouldCountHits=True)
         return {"total": collector.totalHits(), "deletes": deleteCollector.totalHits()}
 
     def getRecord(self, identifier):
@@ -322,7 +327,7 @@ class OaiJazz(Observable):
 
     def _versionFormatCheck(self):
         versionFile = join(self._directory, "oai.version")
-        msg = "The OAI index at %s need to be converted to the current version (with 'convert_oai_v8_to_v9' in meresco-oai/bin)" % self._directory
+        msg = "The OAI index at %s is not compatible with this version (no conversion script could be provided)." % self._directory
         assert listdir(self._directory) == [] or isfile(versionFile) and open(versionFile).read() == self.version, msg
         with open(versionFile, 'w') as f:
             f.write(self.version)
@@ -381,7 +386,8 @@ class OaiJazz(Observable):
         oldDoc = oldDoc or self._getDocument(identifier)
         doc, oldDeletedSets = self._getNewDocument(identifier, oldDoc=oldDoc)
         newStamp = self._newStamp()
-        doc.add(LongField(STAMP_FIELD, long(newStamp), Field.Store.YES))
+        doc.add(LongPoint(STAMP_FIELD, long(newStamp)))
+        doc.add(StoredField(STAMP_FIELD, long(newStamp)))
         doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
 
         allMetadataPrefixes = set(doc.getValues(PREFIX_FIELD))
@@ -398,7 +404,7 @@ class OaiJazz(Observable):
     def _getNewDocument(self, identifier, oldDoc):
         doc = Document()
         doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
-        doc.add(IntField(HASH_FIELD, Partition.hashId(identifier), Field.Store.NO))
+        doc.add(IntPoint(HASH_FIELD, Partition.hashId(identifier)))
         oldDeletedSets = set()
         if oldDoc is not None:
             for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
@@ -474,15 +480,13 @@ class OaiJazz(Observable):
 # helper methods
 
 def getReader(path):
-    return DirectoryReader.open(FSDirectory.open(File(path)))
+    return DirectoryReader.open(FSDirectory.open(Paths.get(path)))
 
 def getLucene(path):
-    directory = FSDirectory.open(File(path))
+    directory = FSDirectory.open(Paths.get(path))
     analyzer = WhitespaceAnalyzer()
-    config = IndexWriterConfig(Version.LATEST, analyzer)
-    mergePolicy = config.getMergePolicy()
-    sortingMergePolicy = SortingMergePolicy(mergePolicy, Sort(SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)))
-    config.setMergePolicy(sortingMergePolicy)
+    config = IndexWriterConfig(analyzer)
+    config.setIndexSort(Sort(SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)))
     writer = IndexWriter(directory, config)
     reader = writer.getReader()
     searcher = IndexSearcher(reader)

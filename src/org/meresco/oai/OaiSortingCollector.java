@@ -29,34 +29,32 @@
 package org.meresco.oai;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
-import org.apache.lucene.index.AtomicReader;
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Collector;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.search.CollectionTerminatedException;
-import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.EarlyTerminatingSortingCollector;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.LeafCollector;
 import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopFieldCollector;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.SimpleCollector;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
-import org.apache.lucene.index.NumericDocValues;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.DocumentStoredFieldVisitor;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.index.sorter.EarlyTerminatingSortingCollector;
-import org.apache.lucene.index.sorter.SortingMergePolicy;
-import org.apache.lucene.search.Sort;
-
-import java.util.Set;
-import java.util.HashSet;
+import org.apache.lucene.search.TopFieldCollector;
 
 
-public class OaiSortingCollector extends Collector {
+public class OaiSortingCollector extends SimpleCollector {
     private static final String NUMERIC_STAMP_FIELD = "numeric_stamp";
     private int hitCount = 0;
     private boolean shouldCountHits;
     private boolean delegateTerminated = false;
     private EarlyTerminatingSortingCollector earlyCollector;
+    private LeafCollector earlyLeafCollector;
     private TopFieldCollector topDocsCollector;
     public boolean moreRecordsAvailable = false;
     public int maxDocsToCollect;
@@ -65,7 +63,10 @@ public class OaiSortingCollector extends Collector {
     private long stop;
 
     public OaiSortingCollector(int maxDocsToCollect, boolean shouldCountHits, long start, long stop) throws IOException {
-        this.topDocsCollector = TopFieldCollector.create(new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)), maxDocsToCollect, false, false, false, false);
+        this.topDocsCollector = TopFieldCollector.create(
+                new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)),
+                maxDocsToCollect,
+                false, false, false);
         this.earlyCollector = new EarlyTerminatingSortingCollector(this.topDocsCollector, new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)), maxDocsToCollect + 1);
         this.maxDocsToCollect = maxDocsToCollect;
         this.shouldCountHits = shouldCountHits;
@@ -74,7 +75,7 @@ public class OaiSortingCollector extends Collector {
     }
 
     public Document[] docs(IndexSearcher searcher) throws IOException {
-        Set<String> fieldsToVisit = new HashSet<String>(4);
+        Set<String> fieldsToVisit = new HashSet<>(4);
         fieldsToVisit.add("identifier");
         fieldsToVisit.add("stamp");
         fieldsToVisit.add("sets");
@@ -114,7 +115,7 @@ public class OaiSortingCollector extends Collector {
             return;
         }
         try {
-            this.earlyCollector.collect(doc);
+            this.earlyLeafCollector.collect(doc);
         }
         catch (CollectionTerminatedException e) {
             delegateTerminated = true;
@@ -125,24 +126,23 @@ public class OaiSortingCollector extends Collector {
     }
 
     @Override
-    public void setScorer(Scorer scorer) throws IOException {
-        this.earlyCollector.setScorer(scorer);
+    public boolean needsScores() {
+        return true;
     }
 
     @Override
-    public void setNextReader(AtomicReaderContext context) throws IOException {
-        AtomicReader reader = context.reader();
+    public void setScorer(Scorer scorer) throws IOException {
+        this.earlyLeafCollector.setScorer(scorer);
+    }
+
+    @Override
+    public void doSetNextReader(LeafReaderContext context) throws IOException {
+        LeafReader reader = context.reader();
         this.stamps = reader.getNumericDocValues("numeric_stamp");
         long lastStamp = this.stamps.get(reader.maxDoc() - 1);
         if (lastStamp < this.start || this.stop < this.stamps.get(0))
             throw new CollectionTerminatedException();
         this.delegateTerminated = false;
-        this.earlyCollector.setNextReader(context);
+        this.earlyLeafCollector = this.earlyCollector.getLeafCollector(context);
     }
-
-    @Override
-    public boolean acceptsDocsOutOfOrder() {
-        return this.earlyCollector.acceptsDocsOutOfOrder();
-    }
-
 }
