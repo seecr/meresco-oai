@@ -1,3 +1,4 @@
+#!/bin/bash
 ## begin license ##
 #
 # "Meresco Oai" are components to build Oai repositories, based on
@@ -34,24 +35,38 @@ if [ -z "$libDir" ]; then
     libDir=$(dirname $mydir)/lib
 fi
 
-rm -rf $buildDir $libDir
-mkdir --parents $buildDir $libDir
-
 pythonVersion=$(python --version 2>&1 | awk '{print $2}' | cut -d. -f-2)
-
-javac=/usr/lib/jvm/java-1.8.0-openjdk.x86_64/bin/javac
-if [ ! -f "$javac" ]; then
-    javac=/usr/lib/jvm/java-1.8.0/bin/javac
-fi
-
-luceneJarDir=/usr/lib64/python${pythonVersion}/site-packages/lucene
+pythonPackagesDir=/usr/lib64/python${pythonVersion}/site-packages
 if [ -f /etc/debian_version ]; then
-    javac=/usr/lib/jvm/java-8-openjdk-amd64/bin/javac
-    luceneJarDir=/usr/lib/python${pythonVersion}/dist-packages/lucene
+    pythonPackagesDir=/usr/lib/python${pythonVersion}/dist-packages
 fi
+
+JCC_VERSION=3.0
+if ! grep -q "VERSION=\"${JCC_VERSION}\"" ${pythonPackagesDir}/jcc/config.py; then
+    echo "JCC ${JCC_VERSION} is required."
+    exit 1
+fi
+
+JAVA_VERSION=8
+javac=/usr/lib/jvm/java-${JAVA_VERSION}-openjdk-amd64/bin/javac
+if [ ! -f "$javac" ]; then
+    javac=/usr/lib/jvm/java-1.${JAVA_VERSION}.0-openjdk.x86_64/bin/javac
+fi
+if [ ! -f "$javac" ]; then
+    javac=/usr/lib/jvm/java-1.${JAVA_VERSION}.0/bin/javac
+fi
+if [ ! -f "$javac" ]; then
+    echo "No Java ${JAVA_VERSION} javac found."
+    exit 1
+fi
+
+luceneJarDir=${pythonPackagesDir}/lucene
 
 LUCENE_VERSION=6.5.0
 classpath=${luceneJarDir}/lucene-core-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-analyzers-common-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-facet-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-queries-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-misc-${LUCENE_VERSION}.jar
+
+rm -rf $buildDir $libDir
+mkdir --parents $buildDir $libDir
 
 ${javac} -cp ${classpath} -d ${buildDir} org/meresco/oai/*.java
 (cd $buildDir; jar -c org > $buildDir/meresco-oai.jar)
@@ -75,4 +90,3 @@ fi
 mv ${rootLibDir} $libDir/
 
 rm -rf $buildDir $mydir/root $mydir/meresco_oai.egg-info
-
