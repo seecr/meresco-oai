@@ -15,6 +15,7 @@
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 # Copyright (C) 2016-2017 SURFmarket https://surf.nl
+# Copyright (C) 2017 SURF https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -1247,6 +1248,10 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals({'b'}, jazz.getRecord('id').deletedSets)
         jazz.addOaiRecord('id', metadataPrefixes=['prefix'], setSpecs=['b'])
         self.assertEquals(set(), jazz.getRecord('id').deletedSets)
+
+    def testDeleteRecordInSetsIfIdentifierDidntExist(self):
+        jazz = OaiJazz(join(self.tempdir, 'b'), deleteInSets=True)
+        jazz.deleteOaiRecordInSets('id', setSpecs=['b'])
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]

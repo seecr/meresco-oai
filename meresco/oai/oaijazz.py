@@ -15,6 +15,7 @@
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2017 Koninklijke Bibliotheek (KB) http://www.kb.nl
 # Copyright (C) 2016-2017 SURFmarket https://surf.nl
+# Copyright (C) 2017 SURF https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -235,7 +236,7 @@ class OaiJazz(Observable):
         #metadataPrefixes = self._deletePrefixes.union(metadataPrefixes or [])
         oldDoc = self._getDocument(identifier)
         if oldDoc is None:
-            raise ValueError('Only support for deleting in sets for existing records.')
+            return
         self._updateOaiRecord(identifier=identifier, setSpecs=[], metadataPrefixes=[], delete=False, deleteInSets=setSpecs, oldDoc=oldDoc)
 
     def purge(self, identifier, ignorePeristentDelete=False):
