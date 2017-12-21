@@ -8,7 +8,7 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012, 2015-2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012, 2015-2017 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 # Copyright (C) 2016 SURFmarket https://surf.nl
@@ -31,9 +31,13 @@
 #
 ## end license ##
 
+from xml.sax.saxutils import escape as xmlEscape
+
+from meresco.core.observable import Observable
+
 from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime, OaiBadArgumentException
 from oaierror import oaiError
-from meresco.core.observable import Observable
+
 
 class OaiListSets(Observable):
     """4.6 ListSets
@@ -78,7 +82,7 @@ Error and Exception Conditions
         for setSpec, setName in sets:
             yield '<set>'
             yield '<setSpec>%s</setSpec>' % setSpec
-            yield '<setName>%s</setName>' % setName
+            yield '<setName>%s</setName>' % xmlEscape(setName)
             yield '</set>'
         yield '</%s>' % verb
         yield oaiFooter()

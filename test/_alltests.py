@@ -63,6 +63,7 @@ from oaiintegrationtest import OaiIntegrationTest
 from oaijazztest import OaiJazzTest
 from oailisttest import OaiListTest
 from oailistmetadataformatstest import OaiListMetadataFormatsTest
+from oailistsetstest import OaiListSetsTest
 from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest
 from oaiprovenancetest import OaiProvenanceTest
 from oairecordtest import OaiRecordTest
