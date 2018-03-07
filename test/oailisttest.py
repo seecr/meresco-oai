@@ -51,7 +51,7 @@ from meresco.oai import OaiJazz
 from meresco.oai.oairecord import OaiRecord
 from meresco.xml.namespaces import namespaces
 
-from meresco.oaiutils import ResumptionToken
+from meresco.oaicommon import ResumptionToken
 
 class OaiListTest(SeecrTestCase):
     def setUp(self):

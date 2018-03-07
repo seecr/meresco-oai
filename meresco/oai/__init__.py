@@ -61,4 +61,4 @@ from oaibranding import OaiBranding
 from .suspendregister import SuspendRegister
 
 # backwards compatible imports
-from meresco.oaiutils import stamp2zulutime, ResumptionToken, OaiDownloadProcessor, UpdateAdapterFromOaiDownloadProcessor
+from meresco.oaicommon import stamp2zulutime, ResumptionToken, OaiDownloadProcessor, UpdateAdapterFromOaiDownloadProcessor

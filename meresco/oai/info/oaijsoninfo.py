@@ -32,7 +32,7 @@ from simplejson import dumps
 
 from meresco.core import Observable
 
-from meresco.oaiutils import ResumptionToken
+from meresco.oaicommon import ResumptionToken
 
 
 class OaiJsonInfo(Observable):
