@@ -41,7 +41,7 @@ from meresco.components.http import ObservableHttpServer
 from meresco.components.http.utils import CRLF
 from meresco.components import XmlParseLxml, PeriodicDownload
 from meresco.oai import OaiPmh, OaiJazz, SuspendRegister
-from meresco.oaiutils import OaiDownloadProcessor
+from meresco.oaicommon import OaiDownloadProcessor
 from meresco.xml import xpathFirst
 from meresco.sequentialstore import MultiSequentialStorage
 

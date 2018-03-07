@@ -47,7 +47,7 @@ from .oaierror import oaiError
 from .oaijazz import DEFAULT_BATCH_SIZE
 from .suspendregister import ForcedResumeException
 
-from meresco.oaiutils import Partition, ResumptionToken, resumptionTokenFromString
+from meresco.oaicommon import Partition, ResumptionToken, resumptionTokenFromString
 
 
 DEFAULT_DATA_BATCH_SIZE = 100

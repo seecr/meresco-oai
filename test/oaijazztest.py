@@ -58,7 +58,7 @@ from org.apache.lucene.index import Term
 from meresco.oai import OaiJazz, OaiAddRecord
 import meresco.oai.oaijazz as jazzModule
 from meresco.oai.oaijazz import SETSPEC_SEPARATOR, lazyImport, _setSpecAndSubsets
-from meresco.oaiutils import Partition
+from meresco.oaicommon import Partition
 lazyImport()
 
 # Suppress DeprecationWarning for OaiJazz.addOaiRecord(); since this will be triggered by other Meresco Oai modules for the time being...

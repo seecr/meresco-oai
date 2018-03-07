@@ -41,7 +41,7 @@ from warnings import warn
 
 from json import load, dump
 from meresco.core import Observable
-from meresco.oaiutils import timeToNumber, stamp2zulutime, timestamp, Partition
+from meresco.oaicommon import timeToNumber, stamp2zulutime, timestamp, Partition
 from meresco.pylucene import getJVM
 
 imported = False

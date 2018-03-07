@@ -1,5 +1,5 @@
-python-meresco-oaiutils (>= 5.0)
-python-meresco-oaiutils (<< 5.1)
+python-meresco-oai-common (>= 5.0.1)
+python-meresco-oai-common (<< 5.1)
 python-meresco-components (>= 4.15.12)
 python-meresco-components (<< 4.16)
 python-meresco-core (>= 4.0.8)

@@ -29,7 +29,7 @@
 from seecr.test import SeecrTestCase, CallTrace
 from meresco.oai.info import OaiInfo
 from meresco.oai import OaiJazz
-from meresco.oaiutils import ResumptionToken
+from meresco.oaicommon import ResumptionToken
 from weightless.core import asString, consume, be
 from simplejson import loads
 from meresco.core import Observable
