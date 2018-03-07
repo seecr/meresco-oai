@@ -57,9 +57,8 @@ from oaisetselect import OaiSetSelect # deprecated
 from fields2oairecord import Fields2OaiRecord
 from oaijazz import OaiJazz
 from oaiaddrecord import OaiAddRecord, OaiAddDeleteRecordWithPrefixesAndSetSpecs
-from updateadapter import UpdateAdapterFromOaiDownloadProcessor
 from oaibranding import OaiBranding
 from .suspendregister import SuspendRegister
 
 # backwards compatible imports
-from meresco.oaiutils import stamp2zulutime, ResumptionToken, OaiDownloadProcessor
+from meresco.oaiutils import stamp2zulutime, ResumptionToken, OaiDownloadProcessor, UpdateAdapterFromOaiDownloadProcessor
