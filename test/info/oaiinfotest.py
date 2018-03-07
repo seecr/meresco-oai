@@ -4,7 +4,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014-2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2016, 2018 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
@@ -28,7 +28,8 @@
 
 from seecr.test import SeecrTestCase, CallTrace
 from meresco.oai.info import OaiInfo
-from meresco.oai import OaiJazz, ResumptionToken
+from meresco.oai import OaiJazz
+from meresco.oaiutils import ResumptionToken
 from weightless.core import asString, consume, be
 from simplejson import loads
 from meresco.core import Observable

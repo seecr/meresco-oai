@@ -10,7 +10,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2017 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2017 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -35,16 +35,13 @@
 #
 ## end license ##
 
-from sys import maxint
 from os.path import isdir, join, isfile
 from os import makedirs, listdir, rename
-from time import time, strftime, gmtime, strptime
-from calendar import timegm
 from warnings import warn
-from ._partition import Partition
 
 from json import load, dump
 from meresco.core import Observable
+from meresco.oaiutils import timeToNumber, stamp2zulutime, timestamp, Partition
 from meresco.pylucene import getJVM
 
 imported = False
@@ -352,20 +349,14 @@ class OaiJazz(Observable):
     def _fromTime(self, oaiFrom):
         if not oaiFrom:
             return 0
-        return self._timeToNumber(oaiFrom)
+        return timeToNumber(oaiFrom)
 
     def _untilTime(self, oaiUntil):
         if not oaiUntil:
             return None
         UNTIL_IS_INCLUSIVE = 1 # Add one second to 23:59:59
-        return self._timeToNumber(oaiUntil) + UNTIL_IS_INCLUSIVE
+        return timeToNumber(oaiUntil) + UNTIL_IS_INCLUSIVE
 
-    @staticmethod
-    def _timeToNumber(time):
-        try:
-            return int(timegm(strptime(time, '%Y-%m-%dT%H:%M:%SZ')) * DATESTAMP_FACTOR)
-        except (ValueError, OverflowError):
-            return maxint * DATESTAMP_FACTOR
 
     def _getDocument(self, identifier):
         docId = self._getDocId(identifier)
@@ -411,7 +402,7 @@ class OaiJazz(Observable):
 
     def _newStamp(self):
         """time in microseconds"""
-        newStamp = int(time() * DATESTAMP_FACTOR)
+        newStamp = timestamp()
         if newStamp <= self._newestStamp:
             newStamp = self._newestStamp + 1
         self._newestStamp = newStamp
@@ -550,19 +541,12 @@ def _validSetSpecs(setSpecs):
             raise ValueError('SetSpec "%s" contains illegal characters' % setSpec)
         yield setSpec
 
-def stamp2zulutime(stamp, preciseDatestamp=False):
-    if stamp is None:
-        return ''
-    stamp = int(stamp)
-    microseconds = ".%06d" % (stamp % DATESTAMP_FACTOR) if preciseDatestamp else ""
-    return "%s%sZ" % (strftime('%Y-%m-%dT%H:%M:%S', gmtime(stamp / DATESTAMP_FACTOR)), microseconds)
 
 def _stampFromDocument(doc):
     return int(doc.getField(STAMP_FIELD).numericValue().longValue())
 
 SETSPEC_SEPARATOR = ","
 SETSPEC_HIERARCHY_SEPARATOR = ":"
-DATESTAMP_FACTOR = 1000000
 
 _MAX_MODIFICATIONS = 10000
 
