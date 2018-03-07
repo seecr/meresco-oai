@@ -11,7 +11,7 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2011 Nederlands Instituut voor Beeld en Geluid http://instituut.beeldengeluid.nl
-# Copyright (C) 2011-2015, 2017 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2015, 2017-2018 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2011-2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
@@ -56,7 +56,6 @@ from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest
 from oaibrandingtest import OaiBrandingTest
-from oaidownloadprocessortest import OaiDownloadProcessorTest
 from oaierrortest import OaiErrorTest
 from oaigetrecordtest import OaiGetRecordTest
 from oaiintegrationtest import OaiIntegrationTest
@@ -71,8 +70,6 @@ from oairepositorytest import OaiRepositoryTest
 from oaisetmasktest import OaiSetMaskTest
 from oaisetselecttest import OaiSetSelectTest
 from oaitooltest import OaiToolTest
-from partitiontest import PartitionTest
-from resumptiontokentest import ResumptionTokenTest
 from streaminglxmltest import StreamingLxmlTest
 from suspendregistertest import SuspendRegisterTest
 from updateadaptertest import UpdateAdapterTest

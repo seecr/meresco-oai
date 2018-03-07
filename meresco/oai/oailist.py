@@ -8,7 +8,7 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2016, 2018 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -41,13 +41,13 @@ from weightless.core import NoneOfTheObserversRespond
 from meresco.core.observable import Observable
 from meresco.components.http.utils import serverErrorPlainText, successNoContentPlainText
 
-from ._partition import Partition
-from .resumptiontoken import resumptionTokenFromString, ResumptionToken
 from .oaitool import ISO8601, ISO8601Exception
 from .oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, checkBooleanArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
 from .oaierror import oaiError
 from .oaijazz import DEFAULT_BATCH_SIZE
 from .suspendregister import ForcedResumeException
+
+from meresco.oaiutils import Partition, ResumptionToken, resumptionTokenFromString
 
 
 DEFAULT_DATA_BATCH_SIZE = 100

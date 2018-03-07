@@ -9,7 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2016, 2018 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 # Copyright (C) 2016 SURFmarket https://surf.nl
@@ -48,10 +48,10 @@ from meresco.sequentialstore import MultiSequentialStorage
 
 from meresco.oai.oailist import OaiList
 from meresco.oai import OaiJazz
-from meresco.oai.resumptiontoken import ResumptionToken
 from meresco.oai.oairecord import OaiRecord
 from meresco.xml.namespaces import namespaces
 
+from meresco.oaiutils import ResumptionToken
 
 class OaiListTest(SeecrTestCase):
     def setUp(self):

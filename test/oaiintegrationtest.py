@@ -5,7 +5,7 @@
 #
 # Copyright (C) 2010-2011 Seek You Too (CQ2) http://www.cq2.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2013, 2015, 2017 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2013, 2015, 2017-2018 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
@@ -40,7 +40,8 @@ from meresco.core import Observable
 from meresco.components.http import ObservableHttpServer
 from meresco.components.http.utils import CRLF
 from meresco.components import XmlParseLxml, PeriodicDownload
-from meresco.oai import OaiPmh, OaiJazz, OaiDownloadProcessor, SuspendRegister
+from meresco.oai import OaiPmh, OaiJazz, SuspendRegister
+from meresco.oaiutils import OaiDownloadProcessor
 from meresco.xml import xpathFirst
 from meresco.sequentialstore import MultiSequentialStorage
 

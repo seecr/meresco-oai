@@ -10,7 +10,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2017 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -55,10 +55,10 @@ from meresco.core import Observable, Transparent
 from org.apache.lucene.document import Document, LongPoint, Field, StoredField, NumericDocValuesField, StringField
 from org.apache.lucene.index import Term
 
-from meresco.oai import OaiJazz, OaiAddRecord, stamp2zulutime
+from meresco.oai import OaiJazz, OaiAddRecord
 import meresco.oai.oaijazz as jazzModule
 from meresco.oai.oaijazz import SETSPEC_SEPARATOR, lazyImport, _setSpecAndSubsets
-from meresco.oai._partition import Partition
+from meresco.oaiutils import Partition
 lazyImport()
 
 # Suppress DeprecationWarning for OaiJazz.addOaiRecord(); since this will be triggered by other Meresco Oai modules for the time being...
@@ -1066,12 +1066,6 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEquals(['signalOaiUpdate'], self.observer.calledMethodNames())
         self.assertEquals({'metadataPrefixes': set(['prefix']), 'sets': set(), 'stamp':self.originalStampNumber+1}, self.observer.calledMethods[0].kwargs)
 
-
-    def testStamp2Zulutime(self):
-        self.assertEquals("2012-10-04T09:21:04Z", stamp2zulutime("1349342464030008"))
-        self.assertEquals("", stamp2zulutime(None))
-        self.assertRaises(Exception, stamp2zulutime, "not-a-stamp")
-        self.assertEquals("2012-10-04T09:21:04.030008Z", stamp2zulutime("1349342464030008", preciseDatestamp=True))
 
     def testOaiSelectIsAlwaysSortedOnStamp(self):
         self.jazz = OaiJazz(join(self.tempdir, "b"))
