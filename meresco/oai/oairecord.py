@@ -4,8 +4,8 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2011 Seek You Too (CQ2) http://www.cq2.nl
-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2014, 2016-2017 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011, 2018 Stichting Kennisnet https://www.kennisnet.nl
+# Copyright (C) 2012-2014, 2016-2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -31,7 +31,7 @@
 
 from xml.sax.saxutils import escape as xmlEscape
 
-from weightless.core import compose
+from weightless.core import compose, NoneOfTheObserversRespond
 from meresco.core import Transparent
 from meresco.core.generatorutils import decorate
 
@@ -67,8 +67,11 @@ class OaiRecord(Transparent):
                 except KeyError:
                     pass
             else:
-                data = yield self.any.retrieveData(identifier=record.identifier, name=metadataPrefix)
-                yield data
+                try:
+                    yield self.call.getData(identifier=record.identifier, name=metadataPrefix)
+                except NoneOfTheObserversRespond:
+                    data = yield self.any.retrieveData(identifier=record.identifier, name=metadataPrefix)
+                    yield data
             yield '</metadata>'
 
             provenance = compose(self.all.provenance(record.identifier))

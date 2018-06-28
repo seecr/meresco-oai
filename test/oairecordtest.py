@@ -8,8 +8,8 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2014, 2016-2017 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011, 2018 Stichting Kennisnet https://www.kennisnet.nl
+# Copyright (C) 2012-2014, 2016-2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -33,7 +33,7 @@
 #
 ## end license ##
 
-from weightless.core import compose
+from weightless.core import compose, DeclineMessage
 
 from seecr.test import SeecrTestCase, CallTrace
 
@@ -52,11 +52,8 @@ class OaiRecordTest(SeecrTestCase):
         self.oaiRecord = OaiRecord(**kwargs)
         self.observer = CallTrace('Observer')
         self.oaiRecord.addObserver(self.observer)
-        def retrieveData(**kwargs):
-            raise StopIteration('<data/>')
-            yield
-        self.observer.methods['retrieveData'] = retrieveData
         self.observer.returnValues['provenance'] = (f for f in [])
+        self.observer.returnValues['getData'] = '<data/>'
 
     def testRecord(self):
         result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords=None)))
@@ -71,7 +68,34 @@ class OaiRecordTest(SeecrTestCase):
     <data/>
 </metadata>
 </record>""", result)
-        self.assertEquals(["retrieveData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+        self.assertEquals(["getData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+
+    def testRecordWithRetrieveData(self):
+        def getData(*_, **__):
+            raise DeclineMessage()
+        def retrieveData(*_, **__):
+            raise StopIteration('<retrieved/>')
+            yield
+        self.observer.methods['retrieveData'] = retrieveData
+        self.observer.methods['getData'] = getData
+        self.observer.returnValues.pop('getData')
+        result = ''.join(compose(self.oaiRecord.oaiRecord(record=MockRecord('id'), metadataPrefix='oai_dc', fetchedRecords=None)))
+        self.assertEqualsWS("""<record>
+<header>
+    <identifier>id</identifier>
+    <datestamp>2011-03-25T10:45:00Z</datestamp>
+    <setSpec>set0</setSpec>
+    <setSpec>set1</setSpec>
+</header>
+<metadata>
+    <retrieved/>
+</metadata>
+</record>""", result)
+        self.assertEquals([
+            "getData(identifier='id', name='oai_dc')",
+            "retrieveData(identifier='id', name='oai_dc')",
+            "provenance('id')"
+        ], [str(m) for m in self.observer.calledMethods])
 
     def testRecordWithFetchedRecords(self):
         record = MockRecord('id')
@@ -142,7 +166,7 @@ class OaiRecordTest(SeecrTestCase):
     <data/>
 </metadata>
 </record>""", result)
-        self.assertEquals(["retrieveData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+        self.assertEquals(["getData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
 
     def testRecordWithProvenance(self):
         self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
@@ -159,7 +183,7 @@ class OaiRecordTest(SeecrTestCase):
 </metadata>
 <about>PROVENANCE</about>
 </record>""", result)
-        self.assertEquals(["retrieveData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+        self.assertEquals(["getData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
 
     def testDeletedRecordWithProvenance(self):
         self.observer.returnValues['provenance'] = (f for f in ['PROV','ENANCE'])
@@ -198,7 +222,7 @@ class OaiRecordTest(SeecrTestCase):
     <data/>
 </metadata>
 </record>""", result)
-        self.assertEquals(["retrieveData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
+        self.assertEquals(["getData(identifier='id', name='oai_dc')", "provenance('id')"], [str(m) for m in self.observer.calledMethods])
 
     def testRecordWithFetchedRecordsWithRepositoryIdentifier(self):
         self.setUpOaiRecord(repository=OaiRepository(identifier='example.org'))
