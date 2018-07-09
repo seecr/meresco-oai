@@ -1,4 +1,4 @@
-python-meresco-oai-common (>= 5.0.1.1)
+python-meresco-oai-common (>= 5.0.2)
 python-meresco-oai-common (<< 5.1)
 python-meresco-components (>= 4.15.22)
 python-meresco-components (<< 4.16)
