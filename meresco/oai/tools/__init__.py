@@ -4,7 +4,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
-# Copyright (C) 2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2015, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -24,17 +24,5 @@
 #
 ## end license ##
 
-from iterateoaipmh import iterateOaiPmh, OaiListRequest, OaiBatch, OaiItem
-from urlparse import parse_qs
-
-def parseOaiPmhListArguments(url):
-    baseurl, metadataPrefix, set = url, None, None
-    parts = baseurl.rsplit('?', 1)
-    if len(parts) == 2:
-        baseurl, query = parts
-        if query:
-            arguments = parse_qs(query)
-            metadataPrefix = arguments.get('metadataPrefix', [None])[0]
-            set = arguments.get('set', [None])[0]
-    return baseurl, metadataPrefix, set
+from meresco.oaicommon.tools import iterateOaiPmh, OaiListRequest, OaiBatch, OaiItem
 
