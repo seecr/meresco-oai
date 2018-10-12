@@ -4,7 +4,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
@@ -52,6 +52,6 @@ def main(arguments, **kwargs):
                     MAPPING.get(k, k.title()),
                     FORMAT_MAPPING.get(k, lambda v: v)(v)
                 )
-    yield '<dt>Link</dt>\n<dd><a href="%s?%s">ListRecords</a></dd>\n' % (oaiPath, urlencode(dict(verb="ListRecords", resumptionToken=resumptionToken[0])))
+    yield '<dt>Link</dt>\n<dd><a href="%s?%s">ListRecords</a></dd>\n' % (oaiPath, urlencode(dict(verb="ListRecords", resumptionToken=resumptionToken[0], **{'x-batchSize':['10']})))
     yield '</dl>\n'
     yield page.footer(**kwargs)

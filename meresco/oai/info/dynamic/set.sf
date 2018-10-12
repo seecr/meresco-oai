@@ -4,7 +4,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2015, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
@@ -52,6 +52,6 @@ def main(arguments, **kwargs):
         )
     yield "<dt>Link</dt>\n<dd>"
     for prefix in observable.call.prefixes():
-        yield '<a href="{0}?{1}">ListRecords {2}</a><br />\n'.format(oaiPath, urlencode(dict(verb="ListRecords", metadataPrefix=prefix, set=info['setSpec'])), prefix)
+        yield '<a href="{0}?{1}">ListRecords {2}</a><br />\n'.format(oaiPath, urlencode(dict(verb="ListRecords", metadataPrefix=prefix, set=info['setSpec'], **{'x-batchSize':['10']})), prefix)
     yield '</dd></dl>\n'
     yield page.footer(**kwargs)

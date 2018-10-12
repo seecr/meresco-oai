@@ -4,7 +4,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014-2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2015, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 #
@@ -54,8 +54,8 @@ def main(arguments, **kwargs):
             records=page.formatInt(info['nrOfRecords']['total'] - info['nrOfRecords']['deletes']),
             update=page.formatStamp(info['lastStamp']),
         )
-    yield '<dt>Link</dt>\n<dd><a href="%s?%s">ListRecords</a>\n' % (oaiPath, urlencode(dict(verb="ListRecords", metadataPrefix=info['prefix'])))
+    yield '<dt>Link</dt>\n<dd><a href="%s?%s">ListRecords</a>\n' % (oaiPath, urlencode(dict(verb="ListRecords", metadataPrefix=info['prefix'], **{'x-batchSize':['10']})))
     for setSpec in observable.call.sets():
-        yield '<br /><a href="{0}?{1}">ListRecords {2}</a>\n'.format(oaiPath, urlencode(dict(verb="ListRecords", metadataPrefix=info['prefix'], set=setSpec)), setSpec)
+        yield '<br /><a href="{0}?{1}">ListRecords {2}</a>\n'.format(oaiPath, urlencode(dict(verb="ListRecords", metadataPrefix=info['prefix'], set=setSpec, **{'x-batchSize':['10']})), setSpec)
     yield '</dd></dl>\n'
     yield page.footer(**kwargs)
