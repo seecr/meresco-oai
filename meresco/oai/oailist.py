@@ -8,7 +8,7 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2016, 2018 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2016, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -51,6 +51,7 @@ from meresco.oaicommon import Partition, ResumptionToken, resumptionTokenFromStr
 
 
 DEFAULT_DATA_BATCH_SIZE = 100
+MIN_BATCH_SIZE, MAX_BATCH_SIZE = 1, 10000
 
 class OaiList(Observable):
     """4.3 ListIdentifiers
@@ -169,6 +170,7 @@ Error and Exception Conditions
         arguments.pop('verb')
         selectArguments['x-wait'] = self._supportXWait and checkBooleanArgument(arguments, 'x-wait', {})
         selectArguments['shouldCountHits'] = checkBooleanArgument(arguments, 'x-count', {})
+        checkArgument(arguments, 'x-batchSize', selectArguments)
         if checkArgument(arguments, 'resumptionToken', selectArguments):
             if len(arguments) > 0:
                 raise OaiBadArgumentException('"resumptionToken" argument may only be used exclusively.')
@@ -216,14 +218,18 @@ Error and Exception Conditions
         selectArguments['sets'] = [set_] if set_ else []
         selectArguments['prefix'] = metadataPrefix
         selectArguments['partition'] = partition
+        try:
+            selectArguments['batchSize'] = min(MAX_BATCH_SIZE, max(MIN_BATCH_SIZE, int(selectArguments.pop('x-batchSize', self._batchSize))))
+        except ValueError:
+            selectArguments['batchSize'] = self._batchSize
         return selectArguments
 
-    def _oaiSelect(self, prefix, sets, continueAfter, oaiFrom, oaiUntil, shouldCountHits, partition, **ignored):
+    def _oaiSelect(self, prefix, sets, continueAfter, oaiFrom, oaiUntil, shouldCountHits, partition, batchSize, **ignored):
         if not self.call.isKnownPrefix(prefix=prefix):
             raise OaiException('cannotDisseminateFormat')
         result = self.call.oaiSelect(
                 prefix=prefix,
-                batchSize=self._batchSize,
+                batchSize=batchSize,
                 sets=sets,
                 continueAfter=continueAfter,
                 oaiFrom=oaiFrom,

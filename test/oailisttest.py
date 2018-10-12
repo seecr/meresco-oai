@@ -9,7 +9,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2012-2016, 2018 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2016, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
 # Copyright (C) 2016 SURFmarket https://surf.nl
@@ -95,6 +95,27 @@ class OaiListTest(SeecrTestCase):
         self.assertEquals({'recordId':'id:0&0', 'metadataPrefix':'oai_dc'}, _m(recordMethods[0].kwargs))
         self.assertEquals({'recordId':'id:1&1', 'metadataPrefix':'oai_dc'}, _m(recordMethods[1].kwargs))
         self.assertEquals([['id:0&0', 'id:1&1']], self.getMultipleDataIdentifiers)
+
+    def testListRecordsXBatchSize(self):
+        self.oaiList = OaiList(batchSize=5, repository=OaiRepository())
+        self.oaiList.addObserver(self.observer)
+        self._addRecords(['id:{0}&{0}'.format(i) for i in xrange(10)])
+
+        header, body = asString(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-batchSize': ['2']}, **self.httpkwargs)).split(CRLF*2)
+        oai = parse(StringIO(body))
+        self.assertEquals(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
+        resumption = xpathFirst(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')
+
+        header, body = asString(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken': [resumption], 'x-batchSize': ['7']}, **self.httpkwargs)).split(CRLF*2)
+        oai = parse(StringIO(body))
+        self.assertEquals(7, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
+        resumption = xpathFirst(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')
+
+        header, body = asString(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken': [resumption]}, **self.httpkwargs)).split(CRLF*2)
+        oai = parse(StringIO(body))
+        self.assertEquals(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
+        resumption = xpathFirst(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')
+        self.assertEqual(None, resumption)
 
     def testListRecordsUsesFetchedRecords(self):
         self._addRecords(['id:0&0', 'id:1'])
@@ -222,7 +243,7 @@ class OaiListTest(SeecrTestCase):
         result = compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))
         result.next()
         self.assertEquals(['suspendBeforeSelect', 'isKnownPrefix', 'suspendAfterNoResult'], [m.name for m in self.observer.calledMethods])
-        self.assertEquals({"clientIdentifier": self.clientId, "prefix": 'oai_dc', 'sets': [], 'oaiFrom': None,  'oaiUntil':None, 'shouldCountHits': False, 'x-wait':True, 'continueAfter': '0', 'partition': None}, self.observer.calledMethods[-1].kwargs)
+        self.assertEquals({"batchSize":2, "clientIdentifier": self.clientId, "prefix": 'oai_dc', 'sets': [], 'oaiFrom': None,  'oaiUntil':None, 'shouldCountHits': False, 'x-wait':True, 'continueAfter': '0', 'partition': None}, self.observer.calledMethods[-1].kwargs)
         self._addRecords(['id:1&1'])
         self.observer.calledMethods.reset()
 
