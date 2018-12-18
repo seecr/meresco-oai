@@ -76,17 +76,10 @@ public class OaiSortingCollector extends SimpleCollector {
     }
 
     public Document[] docs(IndexSearcher searcher) throws IOException {
-        Set<String> fieldsToVisit = new HashSet<>();
-        fieldsToVisit.add("identifier");
-        fieldsToVisit.add("stamp");
-        fieldsToVisit.add("sets");
-        fieldsToVisit.add("setsdeleted");
-        fieldsToVisit.add("prefixdeleted");
-        fieldsToVisit.add("tombstone");
         ScoreDoc[] hits = this.topDocsCollector.topDocs().scoreDocs;
         Document[] docs = new Document[hits.length];
         for (int i=0; i<hits.length; i++) {
-            docs[i] = searcher.doc(hits[i].doc, fieldsToVisit);
+            docs[i] = searcher.doc(hits[i].doc);
         }
         return docs;
     }

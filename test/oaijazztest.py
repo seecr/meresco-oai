@@ -1281,6 +1281,13 @@ class OaiJazzTest(SeecrTestCase):
         self.assertEqual({'B'}, record2.deletedPrefixes)
         self.assertFalse(record2.isDeleted)
 
+    def testPrefixes(self):
+        self.jazz.addOaiRecord('id:0', metadataPrefixes=['A', 'B'])
+        self.jazz.addOaiRecord('id:1', metadataPrefixes=['A', 'C'])
+        self.jazz.addOaiRecord('id:2', metadataPrefixes=['A', 'D'])
+        r = list(self.jazz.oaiSelect(prefix='A').records)
+        self.assertEqual([{'A', 'B'}, {'A', 'C'}, {'A', 'D'}], [rec.prefixes for rec in r])
+
 
 
 
