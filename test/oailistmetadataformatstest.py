@@ -107,6 +107,6 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEquals(['rdf'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
+        self.assertEquals(['oai_dc', 'rdf'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
 
 

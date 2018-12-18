@@ -76,7 +76,7 @@ Error and Exception Conditions
                 record = self.call.getRecord(identifier=identifier)
                 if record is None:
                     raise OaiException('idDoesNotExist')
-                metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in record.prefixes and prefix not in record.deletedPrefixes]
+                metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in record.prefixes]
             displayedMetadataFormats = sorted(metadataFormats)
         except OaiException, e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
