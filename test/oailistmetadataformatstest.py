@@ -4,9 +4,10 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014-2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014-2016, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 # Copyright (C) 2016 SURFmarket https://surf.nl
+# Copyright (C) 2018 Stichting Kennisnet https://www.kennisnet.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -47,19 +48,22 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
             'port':9000,
         }
 
+    def init(self, repositoryId=None):
+        self.listMetadataFormats = OaiListMetadataFormats(repository=OaiRepository(repositoryId))
+        self.oaijazz = OaiJazz(self.tempdir + '/jazz')
+        self.listMetadataFormats.addObserver(self.oaijazz)
+        self.oaijazz.addOaiRecord(identifier="id0", setSpecs=[], metadataPrefixes=['oai_dc'])
+        self.oaijazz.addOaiRecord(identifier="id1", setSpecs=[], metadataPrefixes=['rdf'])
+
     def testListMetadataFormats(self):
-        listMetadataFormats = OaiListMetadataFormats(repository=OaiRepository())
-        oaijazz = OaiJazz(self.tempdir + '/jazz')
-        listMetadataFormats.addObserver(oaijazz)
-        oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])
-        oaijazz.addOaiRecord(identifier="id1", sets=(), metadataFormats=[('rdf', '', '')])
-        response = listMetadataFormats.listMetadataFormats(arguments=dict(
+        self.init()
+        response = self.listMetadataFormats.listMetadataFormats(arguments=dict(
                 verb=['ListMetadataFormats'],
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
         self.assertEquals(['oai_dc', 'rdf'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
-        response = listMetadataFormats.listMetadataFormats(arguments=dict(
+        response = self.listMetadataFormats.listMetadataFormats(arguments=dict(
                 verb=['ListMetadataFormats'],
                 identifier=['id0'],
             ),
@@ -68,12 +72,8 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
         self.assertEquals(['oai_dc'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
 
     def testListMetadataFormatsWithRepositoryIdentifier(self):
-        listMetadataFormats = OaiListMetadataFormats(repository=OaiRepository('example.org'))
-        oaijazz = OaiJazz(self.tempdir + '/jazz')
-        listMetadataFormats.addObserver(oaijazz)
-        oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])
-        oaijazz.addOaiRecord(identifier="id1", sets=(), metadataFormats=[('rdf', '', '')])
-        response = listMetadataFormats.listMetadataFormats(arguments=dict(
+        self.init('example.org')
+        response = self.listMetadataFormats.listMetadataFormats(arguments=dict(
                 verb=['ListMetadataFormats'],
                 identifier=['id0'],
             ),
@@ -81,10 +81,32 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
         _, body = asString(response).split("\r\n\r\n")
         self.assertTrue(xpath(XML(body), '/oai:OAI-PMH/oai:error[@code="idDoesNotExist"]'), body)
 
-        response = listMetadataFormats.listMetadataFormats(arguments=dict(
+        response = self.listMetadataFormats.listMetadataFormats(arguments=dict(
                 verb=['ListMetadataFormats'],
                 identifier=['oai:example.org:id0'],
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
         self.assertEquals(['oai_dc'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
+
+    def testListMetadataFormatsWithIdentifierAndSomeDeletes(self):
+        self.init()
+        self.oaijazz.addOaiRecord(identifier="id1", setSpecs=[], metadataPrefixes=['rdf', 'oai_dc'])
+        response = self.listMetadataFormats.listMetadataFormats(arguments=dict(
+                verb=['ListMetadataFormats'],
+                identifier=['id1'],
+            ),
+            **self.httpkwargs)
+        _, body = asString(response).split("\r\n\r\n")
+        self.assertEquals(['oai_dc', 'rdf'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
+
+        self.oaijazz.deleteOaiRecordInPrefixes(identifier="id1", metadataPrefixes=['oai_dc'])
+        response = self.listMetadataFormats.listMetadataFormats(arguments=dict(
+                verb=['ListMetadataFormats'],
+                identifier=['id1'],
+            ),
+            **self.httpkwargs)
+        _, body = asString(response).split("\r\n\r\n")
+        self.assertEquals(['rdf'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
+
+

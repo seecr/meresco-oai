@@ -8,8 +8,9 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2013, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2018 Stichting Kennisnet https://www.kennisnet.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -43,8 +44,8 @@ class OaiSetSelect(Transparent):
         sets += self._setsList
         return self.call.oaiSelect(sets=sets, *args, **kwargs)
 
-    def getRecord(self, identifier):
-        record = self.call.getRecord(identifier)
+    def getRecord(self, identifier, **kwargs):
+        record = self.call.getRecord(identifier, **kwargs)
         intersection = set(record.sets).intersection(self._setsList)
         return record if intersection else None
 

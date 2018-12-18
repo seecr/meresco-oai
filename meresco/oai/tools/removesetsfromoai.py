@@ -4,8 +4,9 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
-# Copyright (C) 2015, 2017 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2015, 2017-2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2017 SURFmarket https://surf.nl
+# Copyright (C) 2018 Stichting Kennisnet https://www.kennisnet.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -28,7 +29,7 @@
 
 def removeSetsFromOai(jazzDir, sets, prefix, batchSize=None):
     """Will remove sets from OaiJazz.
-Records with this set will be updated.
+Records with these sets will be updated, hierarchical sets are not removed.
 
 BEWARE: Oai does not support deleted sets. Harvesters for specifically this set will not receive updates.
 
@@ -40,26 +41,18 @@ Usage: removeSetsFromOai(jazzDir, sets=['a:b'], prefix='your_prefix')"""
     from meresco.oai.oaijazz import Document, StringField, IDENTIFIER_FIELD, Field, PREFIX_FIELD, SETS_FIELD, SETS_DELETED_FIELD
     from meresco.oai.oaijazz import _setSpecAndSubsets
 
+    removeThis = set(sets)
+    removeHierarchicalSets = set()
+    for s in removeThis:
+        removeHierarchicalSets.update(_setSpecAndSubsets(s))
+
     class SetsDeletingOaiJazz(OaiJazz):
         def _getNewDocument(self, identifier, oldDoc):
-            doc = Document()
-            doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
-            oldDeletedSets = set()
-            if oldDoc is not None:
-                for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
-                    doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))
-                oldSets = set(oldDoc.getValues(SETS_FIELD))
-                allDeletedSets = set()
-                for aSet in sets:
-                    allDeletedSets.update(set(_setSpecAndSubsets(aSet)))
-                if allDeletedSets != oldSets:
-                    for oldSet in oldSets:
-                        if oldSet in sets:
-                            continue
-                        doc.add(StringField(SETS_FIELD, oldSet, Field.Store.YES))
-                oldDeletedSets.update(oldDoc.getValues(SETS_DELETED_FIELD))
-                oldDeletedSets.difference_update(sets)
-            return doc, oldDeletedSets
+            allSets = set(oldDoc.getValues(SETS_FIELD))
+            purgeSets = removeThis
+            if allSets == removeHierarchicalSets:
+                purgeSets = removeHierarchicalSets
+            return OaiJazz._getNewDocument(self, identifier, oldDoc, purgeSets=purgeSets)
     deletingOaiJazz = SetsDeletingOaiJazz(jazzDir)
     goOn = True
     while goOn:

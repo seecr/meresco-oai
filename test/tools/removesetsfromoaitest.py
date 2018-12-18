@@ -4,7 +4,8 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
-# Copyright (C) 2015 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2015, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
+# Copyright (C) 2018 Stichting Kennisnet https://www.kennisnet.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -56,7 +57,7 @@ class RemoveSetsFromOaiTest(SeecrTestCase):
         self.assertEquals([
                 ('id:2', set([u'a', u'a:c']), False),
                 ('id:0', set([u'a', u'a:c']), False),
-                ('id:1', set([]), False), # remove hierarchical sets! if possible
+                ('id:1', set([]), False), 
             ],
             [(r.identifier, r.sets, r.isDeleted) for r in oaiJazz.oaiSelect(prefix='prefix').records])
         self.assertEquals(set(['a', 'a:c']), oaiJazz.getAllSets())

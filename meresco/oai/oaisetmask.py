@@ -4,8 +4,9 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2012 Nederlands Instituut voor Beeld en Geluid http://www.beeldengeluid.nl
-# Copyright (C) 2012-2013 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012-2013, 2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
+# Copyright (C) 2018 Stichting Kennisnet https://www.kennisnet.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -39,8 +40,8 @@ the mask takes the form of the intersection of these setSpecs."""
     def oaiSelect(self, setsMask=None, *args, **kwargs):
         return self.call.oaiSelect(setsMask=self._combinedSetsMask(setsMask), *args, **kwargs)
 
-    def getRecord(self, identifier, setsMask=None):
-        record = self.call.getRecord(identifier)
+    def getRecord(self, identifier, setsMask=None, **kwargs):
+        record = self.call.getRecord(identifier, **kwargs)
         if self._combinedSetsMask(setsMask).issubset(record.sets):
             return record
         return None

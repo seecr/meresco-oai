@@ -9,8 +9,8 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2010-2011, 2018 Stichting Kennisnet https://www.kennisnet.nl
+# Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -1246,6 +1246,43 @@ class OaiJazzTest(SeecrTestCase):
     def testDeleteRecordInSetsIfIdentifierDidntExist(self):
         jazz = OaiJazz(join(self.tempdir, 'b'), deleteInSets=True)
         jazz.deleteOaiRecordInSets('id', setSpecs=['b'])
+
+    def testDeleteRecordInPrefixes(self):
+        for i in ['id:1', 'id:2', 'id:3']:
+            self.jazz.addOaiRecord(i, metadataPrefixes=['A', 'B'])
+        self.jazz.deleteOaiRecordInPrefixes('id:2', metadataPrefixes=['B'])
+        recordsA = list(self.jazz.oaiSelect(prefix='A').records)
+        recordsB = list(self.jazz.oaiSelect(prefix='B').records)
+        self.assertEqual(['id:1', 'id:3', 'id:2'], [r.identifier for r in recordsA])
+        self.assertEqual(['id:1', 'id:3', 'id:2'], [r.identifier for r in recordsB])
+
+        self.assertEqual([False, False, False], [r.isDeleted for r in recordsA])
+        self.assertEqual([False, False, True], [r.isDeleted for r in recordsB])
+
+    def testDeleteRecordInPrefixAndGetRecord(self):
+        self.jazz.addOaiRecord('id:2', metadataPrefixes=['A', 'B'])
+        self.jazz.deleteOaiRecordInPrefixes('id:2', metadataPrefixes=['B'])
+        record2 = self.jazz.getRecord('id:2')
+        self.assertEqual({'A', 'B'}, record2.prefixes)
+        self.assertEqual({'B'}, record2.deletedPrefixes)
+        self.assertFalse(record2.isDeleted)
+        self.assertTrue(self.jazz.getRecord('id:2', 'B').isDeleted)
+        self.assertFalse(self.jazz.getRecord('id:2', 'A').isDeleted)
+
+        self.jazz.deleteOaiRecordInPrefixes('id:2', metadataPrefixes=['A'])
+        record2 = self.jazz.getRecord('id:2')
+        self.assertEqual({'A', 'B'}, record2.prefixes)
+        self.assertEqual({'A', 'B'}, record2.deletedPrefixes)
+        self.assertTrue(record2.isDeleted)
+
+        self.jazz.addOaiRecord('id:2', metadataPrefixes=['A'])
+        record2 = self.jazz.getRecord('id:2')
+        self.assertEqual({'A', 'B'}, record2.prefixes)
+        self.assertEqual({'B'}, record2.deletedPrefixes)
+        self.assertFalse(record2.isDeleted)
+
+
+
 
 def recordIds(oaiSelectResult):
     return [record.identifier for record in oaiSelectResult.records]

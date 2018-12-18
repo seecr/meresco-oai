@@ -9,8 +9,8 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2010-2011, 2018 Stichting Kennisnet https://www.kennisnet.nl
+# Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2017 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -81,7 +81,7 @@ def lazyImport():
 DEFAULT_BATCH_SIZE = 200
 
 class OaiJazz(Observable):
-    version = '11'
+    version = '12'
 
     def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, persistentDelete=True, name=None, **kwargs):
         Observable.__init__(self, name=name)
@@ -122,6 +122,7 @@ class OaiJazz(Observable):
                 collector=collector,
                 parent=self,
                 requestedSets=sets if self._deleteInSetsSupport else None,
+                requestedPrefix=prefix,
             )
 
     def _search(self, query, continueAfter, oaiFrom, oaiUntil, batchSize, shouldCountHits):
@@ -167,14 +168,14 @@ class OaiJazz(Observable):
         return queryBuilder
 
     class _OaiSelectResult(object):
-        def __init__(inner, docs, collector, parent, requestedSets):
+        def __init__(inner, docs, collector, parent, requestedSets, requestedPrefix):
             inner.docs = docs
             inner.moreRecordsAvailable = collector.moreRecordsAvailable
             recordsRemaining = collector.remainingRecords()
             if recordsRemaining != -1:
                 inner.recordsRemaining = recordsRemaining
             inner.parent = parent
-            inner.records = inner._records(requestedSets=requestedSets)
+            inner.records = inner._records(requestedSets=requestedSets, requestedPrefix=requestedPrefix)
             inner.numberOfRecordsInBatch = len(docs)
             inner.continueAfter = None if len(docs) == 0 else inner._record(docs[-1]).stamp
 
@@ -225,12 +226,18 @@ class OaiJazz(Observable):
             return
         self._updateOaiRecord(identifier=identifier, setSpecs=setSpecs, metadataPrefixes=metadataPrefixes, delete=True, oldDoc=oldDoc)
 
+    def deleteOaiRecordInPrefixes(self, identifier, metadataPrefixes):
+        if not identifier:
+            raise ValueError("Empty identifier not allowed.")
+        if not metadataPrefixes:
+            raise ValueError("Empty metadataPrefixes not allowed.")
+        self._updateOaiRecord(identifier=identifier, setSpecs=[], metadataPrefixes=[], deleteInPrefixes=metadataPrefixes, delete=False)
+
     def deleteOaiRecordInSets(self, identifier, setSpecs):
         if not self._deleteInSetsSupport:
             raise ValueError('Deleting in sets not supported.')
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        #metadataPrefixes = self._deletePrefixes.union(metadataPrefixes or [])
         oldDoc = self._getDocument(identifier)
         if oldDoc is None:
             return
@@ -286,11 +293,11 @@ class OaiJazz(Observable):
         deleteCollector = self._search(queryBuilder.build(), continueAfter, oaiFrom, oaiUntil, batchSize=1, shouldCountHits=True)
         return {"total": collector.totalHits(), "deletes": deleteCollector.totalHits()}
 
-    def getRecord(self, identifier):
+    def getRecord(self, identifier, metadataPrefix=None):
         doc = self._getDocument(identifier)
         if doc is None:
             return None
-        return Record(doc)
+        return Record(doc, requestedPrefix=metadataPrefix)
 
     def getDeletedRecordType(self):
         return "persistent" if self._persistentDelete else "transient"
@@ -374,37 +381,41 @@ class OaiJazz(Observable):
             return None
         return results.scoreDocs[0].doc
 
-    def _updateOaiRecord(self, identifier, setSpecs, metadataPrefixes, delete=False, oldDoc=None, deleteInSets=None):
+    def _updateOaiRecord(self, identifier, setSpecs, metadataPrefixes, delete=False, oldDoc=None, deleteInSets=None, deleteInPrefixes=None):
         oldDoc = oldDoc or self._getDocument(identifier)
-        doc, oldDeletedSets = self._getNewDocument(identifier, oldDoc=oldDoc)
+        doc, oldDeletedSets, oldDeletedPrefixes = self._getNewDocument(identifier, oldDoc=oldDoc)
         newStamp = self._newStamp()
         doc.add(LongPoint(STAMP_FIELD, long(newStamp)))
         doc.add(StoredField(STAMP_FIELD, long(newStamp)))
         doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
 
-        allMetadataPrefixes = set(doc.getValues(PREFIX_FIELD))
-        self._setMetadataPrefixes(doc=doc, metadataPrefixes=metadataPrefixes, allMetadataPrefixes=allMetadataPrefixes)
+        allMetadataPrefixes, allDeletedPrefixes = self._setMetadataPrefixes(doc=doc, metadataPrefixes=asSet(metadataPrefixes), delete=delete, deleteInPrefixes=asSet(deleteInPrefixes), oldDeletedPrefixes=oldDeletedPrefixes)
 
         allSets, allDeletedSets = self._setSets(doc=doc, setSpecs=setSpecs or [], delete=delete, deleteInSets=deleteInSets, oldDeletedSets=oldDeletedSets)
-        if delete or allDeletedSets and allSets == allDeletedSets:
+        if delete or (allDeletedSets and allSets == allDeletedSets) or allMetadataPrefixes == allDeletedPrefixes:
             doc.add(StringField(TOMBSTONE_FIELD, TOMBSTONE_VALUE, Field.Store.YES))
 
         self._writer.updateDocument(Term(IDENTIFIER_FIELD, identifier), doc)
         self._latestModifications.add(str(identifier))
         self.do.signalOaiUpdate(metadataPrefixes=allMetadataPrefixes, sets=allSets, stamp=newStamp)
 
-    def _getNewDocument(self, identifier, oldDoc):
+    def _getNewDocument(self, identifier, oldDoc, purgeSets=None):
         doc = Document()
         doc.add(StringField(IDENTIFIER_FIELD, identifier, Field.Store.YES))
         doc.add(IntPoint(HASH_FIELD, Partition.hashId(identifier)))
         oldDeletedSets = set()
+        oldDeletedPrefixes = set()
         if oldDoc is not None:
+            filterPurgedSets = lambda x: x
+            if purgeSets:
+                filterPurgedSets = lambda sets: [s for s in sets if s not in purgeSets]
             for oldPrefix in oldDoc.getValues(PREFIX_FIELD):
                 doc.add(StringField(PREFIX_FIELD, oldPrefix, Field.Store.YES))
-            for oldSet in oldDoc.getValues(SETS_FIELD):
+            for oldSet in filterPurgedSets(oldDoc.getValues(SETS_FIELD)):
                 doc.add(StringField(SETS_FIELD, oldSet, Field.Store.YES))
             oldDeletedSets.update(oldDoc.getValues(SETS_DELETED_FIELD))
-        return doc, oldDeletedSets
+            oldDeletedPrefixes.update(filterPurgedSets(oldDoc.getValues(PREFIX_DELETED_FIELD)))
+        return doc, oldDeletedSets, oldDeletedPrefixes
 
     def _newStamp(self):
         """time in microseconds"""
@@ -414,12 +425,24 @@ class OaiJazz(Observable):
         self._newestStamp = newStamp
         return newStamp
 
-    def _setMetadataPrefixes(self, doc, metadataPrefixes, allMetadataPrefixes):
+    def _setMetadataPrefixes(self, doc, metadataPrefixes, delete, oldDeletedPrefixes, deleteInPrefixes):
+        allMetadataPrefixes = set(doc.getValues(PREFIX_FIELD))
+        allDeletedPrefixes = set(oldDeletedPrefixes)
         for prefix in metadataPrefixes:
+            allDeletedPrefixes.discard(prefix)
+        for prefix in metadataPrefixes.union(deleteInPrefixes):
             if prefix not in allMetadataPrefixes:
                 doc.add(StringField(PREFIX_FIELD, prefix, Field.Store.YES))
                 self._prefixes.setdefault(prefix, ('', ''))
                 allMetadataPrefixes.add(prefix)
+        allDeletedPrefixes.update(deleteInPrefixes)
+        if delete:
+            allDeletedPrefixes = allMetadataPrefixes
+
+        for prefix in allDeletedPrefixes:
+            doc.add(StringField(PREFIX_DELETED_FIELD, prefix, Field.Store.YES))
+
+        return allMetadataPrefixes, allDeletedPrefixes
 
     def _setSets(self, doc, setSpecs, delete, deleteInSets, oldDeletedSets):
         currentSets = set(doc.getValues(SETS_FIELD))
@@ -486,9 +509,10 @@ def getLucene(path):
 
 
 class Record(object):
-    def __init__(self, doc, requestedSets=None):
+    def __init__(self, doc, requestedSets=None, requestedPrefix=None):
         self._doc = doc
         self._requestedSets = None if requestedSets is None else set(requestedSets)
+        self._requestedPrefix = requestedPrefix
 
     @property
     def identifier(self):
@@ -506,17 +530,27 @@ class Record(object):
     def isDeleted(self):
         if not hasattr(self, '_isDeleted'):
             self._isDeleted = self._doc.getField(TOMBSTONE_FIELD) is not None
-        if not self._isDeleted and self._requestedSets is not None:
+        if self._isDeleted:
+            return True
+        if self._requestedPrefix in self.deletedPrefixes:
+            return True
+        if self._requestedSets is not None:
             matchingSets = self._requestedSets.intersection(self.sets)
             if matchingSets:
                 return not bool(matchingSets.difference(self.deletedSets))
-        return self._isDeleted
+        return False
 
     @property
     def prefixes(self):
         if not hasattr(self, '_prefixes'):
             self._prefixes = set(self._doc.getValues(PREFIX_FIELD))
         return self._prefixes
+
+    @property
+    def deletedPrefixes(self):
+        if not hasattr(self, '_deletedPrefixes'):
+            self._deletedPrefixes = set(self._doc.getValues(PREFIX_DELETED_FIELD))
+        return self._deletedPrefixes
 
     @property
     def sets(self):
@@ -549,12 +583,17 @@ def _validSetSpecs(setSpecs):
 def _stampFromDocument(doc):
     return int(doc.getField(STAMP_FIELD).numericValue().longValue())
 
+
+def asSet(iterableOrNone):
+    return set() if iterableOrNone is None else set(iterableOrNone)
+
 SETSPEC_SEPARATOR = ","
 SETSPEC_HIERARCHY_SEPARATOR = ":"
 
 _MAX_MODIFICATIONS = 10000
 
 PREFIX_FIELD = "prefix"
+PREFIX_DELETED_FIELD = "prefixdeleted"
 SETS_FIELD = "sets"
 SETS_DELETED_FIELD = "setsdeleted"
 IDENTIFIER_FIELD = "identifier"
