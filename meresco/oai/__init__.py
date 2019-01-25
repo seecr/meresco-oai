@@ -10,10 +10,11 @@
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010 Maastricht University Library http://www.maastrichtuniversity.nl/web/Library/home.htm
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2015, 2018 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2015, 2018-2019 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
+# Copyright (C) 2019 SURFmarket https://surf.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -55,7 +56,7 @@ from oaiprovenance import OaiProvenance
 from oaisetmask import OaiSetMask
 from oaisetselect import OaiSetSelect # deprecated
 from fields2oairecord import Fields2OaiRecord
-from oaijazz import OaiJazz
+from oaijazz import OaiJazz, allHierarchicalSetSpecs
 from oaiaddrecord import OaiAddRecord, OaiAddDeleteRecordWithPrefixesAndSetSpecs
 from oaibranding import OaiBranding
 from .suspendregister import SuspendRegister

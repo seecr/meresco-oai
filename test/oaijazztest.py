@@ -10,11 +10,11 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011, 2018 Stichting Kennisnet https://www.kennisnet.nl
-# Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) https://seecr.nl
+# Copyright (C) 2011-2019 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012-2013 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
-# Copyright (C) 2016-2017 SURFmarket https://surf.nl
+# Copyright (C) 2016-2017, 2019 SURFmarket https://surf.nl
 # Copyright (C) 2017 SURF https://surf.nl
 #
 # This file is part of "Meresco Oai"
@@ -55,7 +55,7 @@ from meresco.core import Observable, Transparent
 from org.apache.lucene.document import Document, LongPoint, Field, StoredField, NumericDocValuesField, StringField
 from org.apache.lucene.index import Term
 
-from meresco.oai import OaiJazz, OaiAddRecord
+from meresco.oai import OaiJazz, OaiAddRecord, allHierarchicalSetSpecs
 import meresco.oai.oaijazz as jazzModule
 from meresco.oai.oaijazz import SETSPEC_SEPARATOR, lazyImport, _setSpecAndSubsets
 from meresco.oaicommon import Partition
@@ -771,6 +771,9 @@ class OaiJazzTest(SeecrTestCase):
             ]),
             self.jazz.getAllSets(includeSetNames=True)
         )
+
+    def testAllHierarchicalSetSpecs(self):
+        self.assertEqual({'a', 'a:b', 'a:b:c', 'a:b:d'}, allHierarchicalSetSpecs({'a:b:c', 'a:b:d'}))
 
     def testUpdateSet(self):
         self.jazz.addOaiRecord('id:1', metadataFormats=[('oai_dc', 'schema', 'namespace')], sets=[('aSet', '')])

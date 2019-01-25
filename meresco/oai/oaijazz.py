@@ -10,11 +10,11 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011, 2018 Stichting Kennisnet https://www.kennisnet.nl
-# Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) https://seecr.nl
+# Copyright (C) 2011-2019 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2017 Koninklijke Bibliotheek (KB) http://www.kb.nl
-# Copyright (C) 2016-2017 SURFmarket https://surf.nl
+# Copyright (C) 2016-2017, 2019 SURFmarket https://surf.nl
 # Copyright (C) 2017 SURF https://surf.nl
 #
 # This file is part of "Meresco Oai"
@@ -572,6 +572,12 @@ def _setSpecAndSubsets(setSpec):
     subsets = setSpec.split(SETSPEC_HIERARCHY_SEPARATOR)
     for i in range(len(subsets), 0, -1):
         yield SETSPEC_HIERARCHY_SEPARATOR.join(subsets[0:i])
+
+def allHierarchicalSetSpecs(setSpecs):
+    result = set()
+    for setSpec in setSpecs:
+        result.update(_setSpecAndSubsets(setSpec))
+    return result
 
 def _validSetSpecs(setSpecs):
     for setSpec in setSpecs:
