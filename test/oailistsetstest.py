@@ -3,7 +3,7 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2017 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2017, 2019 Seecr (Seek You Too B.V.) https://seecr.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -33,7 +33,7 @@ from meresco.oai.oailistsets import OaiListSets
 class OaiListSetsTest(SeecrTestCase):
     def testSetNameEscaped(self):
         repository = CallTrace(returnValues=dict(requestUrl='http://example.org'))
-        observer = CallTrace(returnValues=dict(getAllSets=[('123_abc', '123 & abc')]), emptyGeneratorMethods=['oaiWatermark'])
+        observer = CallTrace(returnValues=dict(getAllSets=[('123&abc', '123 & abc')]), emptyGeneratorMethods=['oaiWatermark'])
         top = be(
             (Observable(),
                 (OaiListSets(repository),
@@ -42,4 +42,4 @@ class OaiListSetsTest(SeecrTestCase):
             )
         )
         response = asString(top.all.listSets(arguments=dict(verb=['ListSets'])))
-        self.assertTrue('<ListSets><set><setSpec>123_abc</setSpec><setName>123 &amp; abc</setName></set></ListSets>' in response, response)
+        self.assertTrue('<ListSets><set><setSpec>123&amp;abc</setSpec><setName>123 &amp; abc</setName></set></ListSets>' in response, response)

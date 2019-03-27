@@ -8,7 +8,7 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012, 2015-2017 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2012, 2015-2017, 2019 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2015 Koninklijke Bibliotheek (KB) http://www.kb.nl
 # Copyright (C) 2016 SURFmarket https://surf.nl
@@ -81,7 +81,7 @@ Error and Exception Conditions
         yield '<%s>' % verb
         for setSpec, setName in sets:
             yield '<set>'
-            yield '<setSpec>%s</setSpec>' % setSpec
+            yield '<setSpec>%s</setSpec>' % xmlEscape(setSpec)
             yield '<setName>%s</setName>' % xmlEscape(setName)
             yield '</set>'
         yield '</%s>' % verb
