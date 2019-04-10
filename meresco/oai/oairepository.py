@@ -4,7 +4,7 @@
 # "Meresco Core" and "Meresco Components".
 #
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
-# Copyright (C) 2014, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2014, 2016, 2019 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2016 SURFmarket https://surf.nl
 #
@@ -56,7 +56,8 @@ class OaiRepository(object):
         if self._externalUrl:
             return self._externalUrl + path
         hostname = Headers.get('Host', HOSTNAME).split(':')[0]
-        return 'http://%s:%s%s' % (hostname, port, path)
+        portpart = '' if port == 80 else (':%s' % port)
+        return 'http://%s%s%s' % (hostname, portpart, path)
 
     @staticmethod
     def _validateRepositoryIdentifier(identifier):

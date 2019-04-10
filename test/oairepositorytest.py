@@ -3,9 +3,9 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2014 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2014, 2019 Seecr (Seek You Too B.V.) https://seecr.nl
+# Copyright (C) 2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 #
 # This file is part of "Meresco Oai"
 #
@@ -65,3 +65,9 @@ class OaiRepositoryTest(SeecrTestCase):
             self.fail()
         except OaiException, e:
             self.assertEquals('', str(e))
+
+    def testRequestUrl(self):
+        oaiRepository = OaiRepository(identifier='example.org')
+        self.assertEqual("http://hostname:8080/path", oaiRepository.requestUrl(Headers={'Host': 'hostname:9090'}, path='/path', port=8080))
+        self.assertEqual("http://hostname:8080/path", oaiRepository.requestUrl(Headers={'Host': 'hostname:8080'}, path='/path', port=8080))
+        self.assertEqual("http://hostname/path", oaiRepository.requestUrl(Headers={'Host': 'hostname:8080'}, path='/path', port=80))
