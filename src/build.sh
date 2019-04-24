@@ -46,11 +46,9 @@ fi
 
 luceneJarDir=/usr/lib64/python${pythonVersion}/site-packages/lucene
 if [ -f /etc/debian_version ]; then
-    javac=/usr/lib/jvm/java-7-openjdk-amd64/bin/javac
+    javac=/usr/lib/jvm/java-8-openjdk-amd64/bin/javac
     luceneJarDir=/usr/lib/python${pythonVersion}/dist-packages/lucene
 fi
-
-test -f "${javac}" && javac=/usr/lib/jvm/java-8-openjdk-amd64/bin/javac
 
 LUCENE_VERSION=4.10.1
 classpath=${luceneJarDir}/lucene-core-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-analyzers-common-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-facet-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-queries-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-misc-${LUCENE_VERSION}.jar
