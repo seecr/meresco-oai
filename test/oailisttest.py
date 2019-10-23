@@ -80,6 +80,11 @@ class OaiListTest(SeecrTestCase):
             'port': 9000,
         }
 
+    def tearDown(self):
+        from time import sleep
+        sleep(0.1)
+        SeecrTestCase.tearDown(self)
+
     def testListRecords(self):
         self._addRecords(['id:0&0', 'id:1&1'])
 
@@ -384,6 +389,7 @@ class OaiListTest(SeecrTestCase):
         self._addRecords(['id%s' % i for i in xrange(99)])
 
         header, body = ''.join(s for s in compose(self.oaiList.listRecords(arguments={'verb': ['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-count': ['True']}, **self.httpkwargs)) if not s is Yield).split(CRLF*2)
+        firstBatch = body
         oai = parse(StringIO(body))
         self.assertEquals(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         recordsRemaining = xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/@recordsRemaining')[0]

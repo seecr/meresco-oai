@@ -48,6 +48,11 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
             'port':9000,
         }
 
+    def tearDown(self):
+        from time import sleep
+        sleep(0.1)
+        SeecrTestCase.tearDown(self)
+
     def init(self, repositoryId=None):
         self.listMetadataFormats = OaiListMetadataFormats(repository=OaiRepository(repositoryId))
         self.oaijazz = OaiJazz(self.tempdir + '/jazz')

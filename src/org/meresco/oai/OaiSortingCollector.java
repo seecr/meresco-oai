@@ -38,11 +38,11 @@ import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.search.CollectionTerminatedException;
-import org.apache.lucene.search.EarlyTerminatingSortingCollector;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.LeafCollector;
 import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.Scorable;
+import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.SimpleCollector;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
@@ -54,7 +54,6 @@ public class OaiSortingCollector extends SimpleCollector {
     private int hitCount = 0;
     private boolean shouldCountHits;
     private boolean delegateTerminated = false;
-    private EarlyTerminatingSortingCollector earlyCollector;
     private LeafCollector earlyLeafCollector;
     private TopFieldCollector topDocsCollector;
     public boolean moreRecordsAvailable = false;
@@ -67,8 +66,7 @@ public class OaiSortingCollector extends SimpleCollector {
         this.topDocsCollector = TopFieldCollector.create(
                 new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)),
                 maxDocsToCollect,
-                false, false, false);
-        this.earlyCollector = new EarlyTerminatingSortingCollector(this.topDocsCollector, new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)), maxDocsToCollect + 1);
+                maxDocsToCollect);
         this.maxDocsToCollect = maxDocsToCollect;
         this.shouldCountHits = shouldCountHits;
         this.start = start;
@@ -97,7 +95,8 @@ public class OaiSortingCollector extends SimpleCollector {
 
     @Override
     public void collect(int doc) throws IOException {
-        long stamp = this.stamps.get(doc);
+        this.stamps.advanceExact(doc);
+        long stamp = this.stamps.longValue();
         if (stamp < this.start)
             return;
         if (stamp > this.stop)
@@ -121,12 +120,12 @@ public class OaiSortingCollector extends SimpleCollector {
     }
 
     @Override
-    public boolean needsScores() {
-        return true;
+    public ScoreMode scoreMode() {
+        return ScoreMode.COMPLETE;
     }
 
     @Override
-    public void setScorer(Scorer scorer) throws IOException {
+    public void setScorer(Scorable scorer) throws IOException {
         this.earlyLeafCollector.setScorer(scorer);
     }
 
@@ -134,10 +133,18 @@ public class OaiSortingCollector extends SimpleCollector {
     public void doSetNextReader(LeafReaderContext context) throws IOException {
         LeafReader reader = context.reader();
         this.stamps = reader.getNumericDocValues("numeric_stamp");
-        long lastStamp = this.stamps.get(reader.maxDoc() - 1);
-        if (lastStamp < this.start || this.stop < this.stamps.get(0))
+
+        // first
+        this.stamps.advanceExact(0);
+        long firstStamp = this.stamps.longValue();
+
+        // last
+        this.stamps.advanceExact(reader.maxDoc() - 1);
+        long lastStamp = this.stamps.longValue();
+
+        if (lastStamp < this.start || this.stop < firstStamp)
             throw new CollectionTerminatedException();
         this.delegateTerminated = false;
-        this.earlyLeafCollector = this.earlyCollector.getLeafCollector(context);
+        this.earlyLeafCollector = this.topDocsCollector.getLeafCollector(context);
     }
 }

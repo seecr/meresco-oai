@@ -41,28 +41,30 @@ if [ -f /etc/debian_version ]; then
     pythonPackagesDir=/usr/lib/python${pythonVersion}/dist-packages
 fi
 
-JCC_VERSION=3.0
+JCC_VERSION=3.6
 if ! grep -q "VERSION=\"${JCC_VERSION}\"" ${pythonPackagesDir}/jcc/config.py; then
     echo "JCC ${JCC_VERSION} is required."
     exit 1
 fi
 
-JAVA_VERSION=8
-javac=/usr/lib/jvm/java-${JAVA_VERSION}-openjdk-amd64/bin/javac
-if [ ! -f "$javac" ]; then
-    javac=/usr/lib/jvm/java-1.${JAVA_VERSION}.0-openjdk.x86_64/bin/javac
+JAVA_HOME=
+test -f /etc/debian_version && JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+test -f /etc/redhat_version && JAVA_HOME=/usr/lib/jvm/java
+if [ -z "${JAVA_HOME}" ]; then
+    echo "Unable to determine JAVA_HOME"
+    exit 0
 fi
-if [ ! -f "$javac" ]; then
-    javac=/usr/lib/jvm/java-1.${JAVA_VERSION}.0/bin/javac
+
+if [ ! -d "${JAVA_HOME}" ]; then
+    echo "${JAVA_HOME} does not exist"
+    exit 0
 fi
-if [ ! -f "$javac" ]; then
-    echo "No Java ${JAVA_VERSION} javac found."
-    exit 1
-fi
+export JAVA_HOME
+javac=${JAVA_HOME}/bin/javac
 
 luceneJarDir=${pythonPackagesDir}/lucene
 
-LUCENE_VERSION=6.5.0
+LUCENE_VERSION=8.1.1
 classpath=${luceneJarDir}/lucene-core-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-analyzers-common-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-facet-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-queries-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-misc-${LUCENE_VERSION}.jar
 
 rm -rf $buildDir $libDir

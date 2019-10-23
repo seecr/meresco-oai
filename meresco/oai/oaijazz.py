@@ -313,7 +313,7 @@ class OaiJazz(Observable):
             else:
                 query = TermQuery(Term(PREFIX_FIELD, prefix))
         results = searcher.search(query, 1, sort)
-        if results.totalHits < 1:
+        if results.totalHits.value < 1:
             return None
         return _stampFromDocument(searcher.doc(results.scoreDocs[0].doc))
 
@@ -377,7 +377,7 @@ class OaiJazz(Observable):
     def _getDocId(self, identifier):
         searcher = self._getSearcher(identifier)
         results = searcher.search(TermQuery(Term(IDENTIFIER_FIELD, identifier)), 1)
-        if results.totalHits == 0:
+        if results.totalHits.value == 0:
             return None
         return results.scoreDocs[0].doc
 

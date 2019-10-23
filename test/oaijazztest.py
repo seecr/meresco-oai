@@ -100,6 +100,8 @@ class OaiJazzTest(SeecrTestCase):
     def tearDown(self):
         if self.jazz:
             self.jazz.close()
+        from time import sleep
+        sleep(0.1)
         SeecrTestCase.tearDown(self)
 
     def tmpdir2(self, name):
