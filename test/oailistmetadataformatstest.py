@@ -50,7 +50,7 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
 
     def tearDown(self):
         from time import sleep
-        sleep(0.1)
+        sleep(0.05)
         SeecrTestCase.tearDown(self)
 
     def init(self, repositoryId=None):
