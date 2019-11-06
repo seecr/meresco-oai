@@ -76,7 +76,6 @@ from suspendregistertest import SuspendRegisterTest
 from info.oaiinfotest import OaiInfoTest
 
 from tools.removesetsfromoaitest import RemoveSetsFromOaiTest
-from tools.convert11to12test import Convert11to12Test
 
 if __name__ == '__main__':
     unittest.main()
