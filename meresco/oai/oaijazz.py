@@ -12,7 +12,7 @@
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
 # Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) http://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
-# Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
+# Copyright (C) 2014, 2019 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2017 Koninklijke Bibliotheek (KB) http://www.kb.nl
 # Copyright (C) 2016-2017 SURFmarket https://surf.nl
 # Copyright (C) 2017 SURF https://surf.nl
@@ -39,7 +39,7 @@ from os.path import isdir, join, isfile
 from os import makedirs, listdir, rename
 from warnings import warn
 
-from json import load, dump
+from json import load, dump, dumps
 from meresco.core import Observable
 from meresco.oaicommon import timeToNumber, stamp2zulutime, timestamp, Partition
 from meresco.pylucene import getJVM
@@ -318,6 +318,25 @@ class OaiJazz(Observable):
         self._save()
         self._writer.close()
 
+    def export(self, outputfile):
+        meta = dict(export_version=1, sets={}, metadataPrefixes={})
+        for setSpec, setName in self.getAllSets(includeSetNames=True):
+            meta['sets'][setSpec] = {'setName': setName}
+        for prefix, schema, namespace in self.getAllMetadataFormats():
+            meta['metadataPrefixes'][prefix]={'schema':schema, 'namespace': namespace}
+        with open(outputfile, 'w') as f:
+            f.write('META:\n')
+            f.write(dumps(meta, sort_keys=True))
+            f.write('\nRECORDS:\n')
+            result = self.oaiSelect(prefix=None)
+            while result.continueAfter:
+                for r in result.records:
+                    f.write(dumps(r.asExportDict(), sort_keys=True))
+                    f.write('\n')
+                result = self.oaiSelect(prefix=None, continueAfter=result.continueAfter)
+
+
+
     def _versionFormatCheck(self):
         versionFile = join(self._directory, "oai.version")
         msg = "The OAI index at %s need to be converted to the current version (with 'convert_oai_v8_to_v9' in meresco-oai/bin)" % self._directory
@@ -528,6 +547,18 @@ class Record(object):
 
     def getDatestamp(self, preciseDatestamp=False):
         return stamp2zulutime(stamp=self.stamp, preciseDatestamp=preciseDatestamp)
+
+    def asExportDict(self):
+        self.isDeleted #side effect, sets _isDeleted
+        return dict(
+                identifier=self.identifier,
+                timestamp=self.stamp,
+                prefixes=sorted(self.prefixes),
+                deletedPrefixes=sorted(self.deletedPrefixes),
+                sets=sorted(self.sets),
+                deletedSets=sorted(self.deletedSets),
+                tombstone=self._isDeleted,
+            )
 
 
 def _setSpecAndSubsets(setSpec):
