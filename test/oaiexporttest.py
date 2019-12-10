@@ -45,7 +45,6 @@ class OaiExportTest(SeecrTestCase):
         for i in xrange(4,3000):
             jazz.addOaiRecord(identifier='id:{}'.format(i), metadataPrefixes=['prefix'])
 
-        jazz.deleteOaiRecordInPrefixes(identifier='id:2', metadataPrefixes=['someprefix'])
         jazz.deleteOaiRecordInSets(identifier='id:3', setSpecs=['d:e:f'])
         jazz.deleteOaiRecord(identifier='id:7')
 
@@ -79,17 +78,15 @@ class OaiExportTest(SeecrTestCase):
             u'identifier': u'id:0',
             u'timestamp': 'TIMESTAMP',
             u'tombstone': False,
-            u'deletedPrefixes': [],
             u'prefixes': ['prefix'],
             u'deletedSets': [],
             u'sets': [],}, record0)
-        record2 = loads(d[-3].strip())
+        record2 = loads(d[5].strip())
         record2['timestamp'] = 'TIMESTAMP'
         self.assertEqual({
             u'identifier': u'id:2',
             u'timestamp': 'TIMESTAMP',
             u'tombstone': False,
-            u'deletedPrefixes': ['someprefix'],
             u'prefixes': ['prefix', 'someprefix'],
             u'deletedSets': [],
             u'sets': ['a', 'a:b', 'd', 'd:e', 'd:e:f'],}, record2)
@@ -99,7 +96,6 @@ class OaiExportTest(SeecrTestCase):
             u'identifier': u'id:3',
             u'timestamp': 'TIMESTAMP',
             u'tombstone': False,
-            u'deletedPrefixes': [],
             u'prefixes': ['prefix', 'someprefix'],
             u'deletedSets': ['d:e:f'],
             u'sets': ['a', 'a:b', 'd', 'd:e', 'd:e:f'],}, record3)
@@ -109,7 +105,6 @@ class OaiExportTest(SeecrTestCase):
             u'identifier': u'id:7',
             u'timestamp': 'TIMESTAMP',
             u'tombstone': True,
-            u'deletedPrefixes': ['prefix'],
             u'prefixes': ['prefix'],
             u'deletedSets': [],
             u'sets': [],}, record7)

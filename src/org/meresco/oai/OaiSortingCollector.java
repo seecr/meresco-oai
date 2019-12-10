@@ -3,10 +3,11 @@
  * "Meresco Oai" are components to build Oai repositories, based on
  * "Meresco Core" and "Meresco Components".
  *
- * Copyright (C) 2013-2014, 2016-2017 Seecr (Seek You Too B.V.) http://seecr.nl
+ * Copyright (C) 2013-2014, 2016-2017, 2019 Seecr (Seek You Too B.V.) https://seecr.nl
  * Copyright (C) 2013-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
  * Copyright (C) 2016 Koninklijke Bibliotheek (KB) http://www.kb.nl
  * Copyright (C) 2017 SURFmarket https://surf.nl
+ * Copyright (C) 2019 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
  *
  * This file is part of "Meresco Oai"
  *
@@ -74,16 +75,10 @@ public class OaiSortingCollector extends Collector {
     }
 
     public Document[] docs(IndexSearcher searcher) throws IOException {
-        Set<String> fieldsToVisit = new HashSet<String>(4);
-        fieldsToVisit.add("identifier");
-        fieldsToVisit.add("stamp");
-        fieldsToVisit.add("sets");
-        fieldsToVisit.add("setsdeleted");
-        fieldsToVisit.add("tombstone");
         ScoreDoc[] hits = this.topDocsCollector.topDocs().scoreDocs;
         Document[] docs = new Document[hits.length];
         for (int i=0; i<hits.length; i++) {
-            docs[i] = searcher.doc(hits[i].doc, fieldsToVisit);
+            docs[i] = searcher.doc(hits[i].doc);
         }
         return docs;
     }

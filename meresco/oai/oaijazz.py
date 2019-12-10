@@ -10,7 +10,7 @@
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
 # Copyright (C) 2010-2011 Stichting Kennisnet http://www.kennisnet.nl
-# Copyright (C) 2011-2018 Seecr (Seek You Too B.V.) http://seecr.nl
+# Copyright (C) 2011-2019 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012-2014 Stichting Bibliotheek.nl (BNL) http://www.bibliotheek.nl
 # Copyright (C) 2014, 2019 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2015-2017 Koninklijke Bibliotheek (KB) http://www.kb.nl
@@ -554,7 +554,6 @@ class Record(object):
                 identifier=self.identifier,
                 timestamp=self.stamp,
                 prefixes=sorted(self.prefixes),
-                deletedPrefixes=sorted(self.deletedPrefixes),
                 sets=sorted(self.sets),
                 deletedSets=sorted(self.deletedSets),
                 tombstone=self._isDeleted,
