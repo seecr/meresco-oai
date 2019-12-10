@@ -28,8 +28,11 @@ from seecr.test import SeecrTestCase
 
 from meresco.oai import OaiJazz
 from json import loads
-from os.path import join
+from os.path import join, dirname, abspath
 from time import time
+
+mydir = dirname(abspath(__file__))
+datadir = join(mydir, 'data')
 
 class OaiExportTest(SeecrTestCase):
     def testExport(self):
@@ -113,6 +116,33 @@ class OaiExportTest(SeecrTestCase):
             u'prefixes': ['prefix'],
             u'deletedSets': [],
             u'sets': [],}, record7)
+
+    def testOaiJazzImport(self):
+        dumpfile = join(datadir, 'oaiexport.dump')
+        result = OaiJazz.importDump(join(self.tempdir, 'oai'), dumpfile)
+        self.assertTrue(result)
+        jazz = OaiJazz(join(self.tempdir, 'oai'), deleteInSets=True)
+        r = jazz.oaiSelect(prefix=None)
+        self.assertEqual(7, r.numberOfRecordsInBatch)
+        records = list(r.records)
+        self.assertEqual([
+                ('id:0', False, '2019-12-10T09:49:09Z', {'prefix'}),
+                ('id:1', False, '2019-12-10T09:49:29Z', {'prefix'}),
+                ('id:4', False, '2019-12-10T09:50:49Z', {'prefix'}),
+                ('id:5', False, '2019-12-10T10:05:49Z', {'prefix'}),
+                ('id:2', False, '2019-12-10T10:07:29Z', {'prefix', 'someprefix'}),
+                ('id:3', False, '2019-12-10T10:17:29Z', {'prefix', 'someprefix'}),
+                ('id:7', True, '2019-12-10T10:22:29Z', {'prefix'}),
+            ], [(rec.identifier, rec.isDeleted, rec.getDatestamp(), rec.prefixes) for rec in records])
+
+        r2 = records[-3]
+        r3 = records[-2]
+        r7 = records[-1]
+        self.assertEqual([
+            ('id:2', {'prefix', 'someprefix'}, {'someprefix'}, {'a', 'a:b', 'd', 'd:e', 'd:e:f'}, set()),
+            ('id:3', {'prefix', 'someprefix'}, set(), {'a', 'a:b', 'd', 'd:e', 'd:e:f'}, {'d:e:f'}),
+            ('id:7', {'prefix'}, {'prefix'}, set(), set()),
+            ], [(rec.identifier, rec.prefixes, rec.deletedPrefixes, rec.sets, rec.deletedSets) for rec in [r2, r3, r7]])
 
 
 

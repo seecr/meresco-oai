@@ -39,7 +39,7 @@ from os.path import isdir, join, isfile
 from os import makedirs, listdir, rename
 from warnings import warn
 
-from json import load, dump, dumps
+from json import load, dump, dumps, loads
 from meresco.core import Observable
 from meresco.oaicommon import timeToNumber, stamp2zulutime, timestamp, Partition
 from meresco.pylucene import getJVM
@@ -100,6 +100,7 @@ class OaiJazz(Observable):
         if kwargs.get('deleteInSets'):
             # Supporting deleting in sets is not OAI-PMH compatible
             self._deleteInSetsSupport = True
+        self._importMode = kwargs.get('importMode', False) # import mode when reading an export
 
     _sets = property(lambda self: self._data["sets"])
     _prefixes = property(lambda self: self._data["prefixes"])
@@ -347,6 +348,32 @@ class OaiJazz(Observable):
                     f.write('\n')
                 result = self.oaiSelect(prefix=None, continueAfter=result.continueAfter)
 
+    @classmethod
+    def importDump(cls, directory, dumpfile):
+        jazz = cls(directory, deleteInSets=True, importMode=True)
+        d = open(dumpfile)
+        assert 'META:\n' == d.next()
+        meta = loads(d.next().strip())
+        assert meta['export_version'] == 1
+        for setSpec, setDict in meta.get('sets', {}).items():
+            jazz.updateSet(setSpec=setSpec, setName=setDict.get('setName', ''))
+        for prefix, metadataDict in meta.get('metadataPrefixes', {}).items():
+            jazz.updateMetadataFormat(prefix, schema=metadataDict.get('schema', ''), namespace=metadataDict.get('namespace', ''))
+        assert 'RECORDS:\n' == d.next()
+        for record in d:
+            record = loads(record.strip())
+            jazz._updateOaiRecord(
+                    identifier=record['identifier'],
+                    setSpecs=record['sets'],
+                    metadataPrefixes=record['prefixes'],
+                    delete=record.get('tombstone', False),
+                    deleteInSets=record.get('deletedSets', []),
+                    deleteInPrefixes=record.get('deletedPrefixes', []),
+                    _overrideStamp=record['timestamp'])
+        jazz.close()
+        jazz = None
+
+        return True
 
 
     def _versionFormatCheck(self):
@@ -400,10 +427,10 @@ class OaiJazz(Observable):
             return None
         return results.scoreDocs[0].doc
 
-    def _updateOaiRecord(self, identifier, setSpecs, metadataPrefixes, delete=False, oldDoc=None, deleteInSets=None, deleteInPrefixes=None):
+    def _updateOaiRecord(self, identifier, setSpecs, metadataPrefixes, delete=False, oldDoc=None, deleteInSets=None, deleteInPrefixes=None, _overrideStamp=None):
         oldDoc = oldDoc or self._getDocument(identifier)
         doc, oldDeletedSets, oldDeletedPrefixes = self._getNewDocument(identifier, oldDoc=oldDoc)
-        newStamp = self._newStamp()
+        newStamp = _overrideStamp if self._importMode else self._newStamp()
         doc.add(LongPoint(STAMP_FIELD, long(newStamp)))
         doc.add(StoredField(STAMP_FIELD, long(newStamp)))
         doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))

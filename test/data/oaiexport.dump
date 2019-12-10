@@ -1,0 +1,10 @@
+META:
+{"export_version": 1, "metadataPrefixes": {"prefix": {"namespace": "namespace", "schema": "schema"}, "someprefix": {"namespace": "urn:ns", "schema": "https://example.org/schema.xsd"}}, "sets": {"a": {"setName": "A"}, "a:b": {"setName": ""}, "d": {"setName": ""}, "d:e": {"setName": ""}, "d:e:f": {"setName": ""}, "setSpec": {"setName": "setName"}}}
+RECORDS:
+{"deletedPrefixes": [], "deletedSets": [], "identifier": "id:0", "prefixes": ["prefix"], "sets": [], "timestamp": 1575971349537811, "tombstone": false}
+{"deletedPrefixes": [], "deletedSets": [], "identifier": "id:1", "prefixes": ["prefix"], "sets": ["a", "a:b", "d", "d:e", "d:e:f"], "timestamp": 1575971369539285, "tombstone": false}
+{"deletedPrefixes": [], "deletedSets": [], "identifier": "id:4", "prefixes": ["prefix"], "sets": [], "timestamp": 1575971449541843, "tombstone": false}
+{"deletedPrefixes": [], "deletedSets": [], "identifier": "id:5", "prefixes": ["prefix"], "sets": [], "timestamp": 1575972349542233, "tombstone": false}
+{"deletedPrefixes": ["someprefix"], "deletedSets": [], "identifier": "id:2", "prefixes": ["prefix", "someprefix"], "sets": ["a", "a:b", "d", "d:e", "d:e:f"], "timestamp": 1575972449898147, "tombstone": false}
+{"deletedPrefixes": [], "deletedSets": ["d:e:f"], "identifier": "id:3", "prefixes": ["prefix", "someprefix"], "sets": ["a", "a:b", "d", "d:e", "d:e:f"], "timestamp": 1575973049899612, "tombstone": false}
+{"deletedPrefixes": ["prefix"], "deletedSets": [], "identifier": "id:7", "prefixes": ["prefix"], "sets": [], "timestamp": 1575973349900062, "tombstone": true}
