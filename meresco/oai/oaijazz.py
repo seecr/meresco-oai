@@ -305,7 +305,7 @@ class OaiJazz(Observable):
 
     def getLastStampId(self, prefix='oai_dc', setSpec=None):
         searcher = self._getSearcher()
-        sort = Sort(SortField(None, SortField.Type.DOC, True))
+        sort = Sort(SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG, True))
         if prefix is None and setSpec is None:
             query = MatchAllDocsQuery()
         else:
