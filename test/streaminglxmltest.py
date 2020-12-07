@@ -61,7 +61,7 @@ class StreamingLxmlTest(TestCase):
         p.feed("<aap>")
         p.feed("noot")
         p.feed("</aap>")
-        self.assertEquals("<aap>noot</aap>", lxmltostring(target.root))
+        self.assertEqual("<aap>noot</aap>", lxmltostring(target.root))
 
     def testFilterTag(self):
         target = Target('mies')
@@ -70,7 +70,7 @@ class StreamingLxmlTest(TestCase):
         p.feed("noot")
         p.feed("</mies>")
         p.feed("</aap>")
-        self.assertEquals("<mies>noot</mies>", lxmltostring(target.root))
+        self.assertEqual("<mies>noot</mies>", lxmltostring(target.root))
 
 
     def testFilterTag(self):
@@ -80,4 +80,4 @@ class StreamingLxmlTest(TestCase):
         p.feed("noot")
         p.feed("</mies>")
         p.feed("</mies>")
-        self.assertEquals("<mies><mies>noot</mies></mies>", lxmltostring(target.root))
+        self.assertEqual("<mies><mies>noot</mies></mies>", lxmltostring(target.root))

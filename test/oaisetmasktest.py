@@ -51,41 +51,41 @@ class OaiSetMaskTest(SeecrTestCase):
 
     def testOaiSelect(self):
         self.dna.call.oaiSelect()
-        self.assertEquals(1, len(self.observer.calledMethods))
-        self.assertEquals(set(['set1', 'set2']), self.observer.calledMethods[0].kwargs['setsMask'])
+        self.assertEqual(1, len(self.observer.calledMethods))
+        self.assertEqual(set(['set1', 'set2']), self.observer.calledMethods[0].kwargs['setsMask'])
 
     def testOaiSelectWithSetsMask(self):
         self.dna.call.oaiSelect(setsMask=['set3'])
-        self.assertEquals(1, len(self.observer.calledMethods))
-        self.assertEquals(set(['set1', 'set2', 'set3']), self.observer.calledMethods[0].kwargs['setsMask'])
+        self.assertEqual(1, len(self.observer.calledMethods))
+        self.assertEqual(set(['set1', 'set2', 'set3']), self.observer.calledMethods[0].kwargs['setsMask'])
 
     def testGetUniqueInSets(self):
         self.observer.returnValues['getRecord'] = MockRecord('id', sets=['set1', 'set2', 'set3'])
         self.dna.call.getRecord('xyz')
-        self.assertEquals(['getRecord'], self.observer.calledMethodNames())
+        self.assertEqual(['getRecord'], self.observer.calledMethodNames())
         getRecordCall = self.observer.calledMethods[0]
-        self.assertEquals(('xyz',), getRecordCall.args)
+        self.assertEqual(('xyz',), getRecordCall.args)
 
     def testGetUniqueNotInSets(self):
         self.observer.returnValues['getRecord'] = MockRecord('id', sets=['set1'])
         self.dna.call.getRecord('xyz')
-        self.assertEquals(['getRecord'], self.observer.calledMethodNames())
+        self.assertEqual(['getRecord'], self.observer.calledMethodNames())
 
     def testGetUniqueWithSetsMask(self):
         self.observer.returnValues['getRecord'] = MockRecord('id', sets=['set1', 'set2', 'set3'])
         self.dna.call.getRecord('xyz', setsMask=['set3'])
-        self.assertEquals(['getRecord'], self.observer.calledMethodNames())
+        self.assertEqual(['getRecord'], self.observer.calledMethodNames())
         getRecordCall = self.observer.calledMethods[0]
-        self.assertEquals(('xyz',), getRecordCall.args)
+        self.assertEqual(('xyz',), getRecordCall.args)
 
         self.observer.calledMethods.reset()
         self.observer.returnValues['getRecord'] = MockRecord('id', sets=['set1', 'set2'])
         self.dna.call.getRecord('xyz', setsMask=['set3'])
-        self.assertEquals(['getRecord'], self.observer.calledMethodNames())
+        self.assertEqual(['getRecord'], self.observer.calledMethodNames())
 
     def testOtherMethodsArePassed(self):
         self.observer.methods['getAllMetadataFormats'] = lambda *a, **kw: (x for x in [])
         list(compose(self.dna.all.getAllMetadataFormats()))
-        self.assertEquals(1, len(self.observer.calledMethods))
-        self.assertEquals('getAllMetadataFormats', self.observer.calledMethods[0].name)
+        self.assertEqual(1, len(self.observer.calledMethods))
+        self.assertEqual('getAllMetadataFormats', self.observer.calledMethods[0].name)
 

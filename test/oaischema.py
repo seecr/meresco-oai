@@ -33,7 +33,7 @@
 
 from lxml.etree import parse, XMLSchema, XMLSchemaParseError
 from meresco.components import lxmltostring
-from StringIO import StringIO
+from io import BytesIO
 from os.path import join, dirname, abspath
 from glob import glob
 
@@ -47,7 +47,7 @@ rootSchema = '<?xml version="1.0" encoding="utf-8"?><schema targetNamespace="htt
         for xsd in glob(join(schemaLocation,'*.xsd'))) \
 + '</schema>'
 
-schemaXml = parse(StringIO(rootSchema))
+schemaXml = parse(BytesIO(rootSchema.encode()))
 
 schema = None
 
@@ -56,8 +56,8 @@ def getSchema():
     if not schema:
         try:
             schema = XMLSchema(schemaXml)
-        except XMLSchemaParseError, e:
-            print e.error_log.last_error
+        except XMLSchemaParseError as e:
+            print(e.error_log.last_error)
             raise
     return schema
 
@@ -68,6 +68,6 @@ def assertValidOai(lxmlTree=None, aXmlString=None):
     schema.validate(tree)
     if schema.error_log:
         for nr, line in enumerate(aXmlString.split('\n')):
-            print nr+1, line
+            print(nr+1, line)
         raise AssertionError(schema.error_log.last_error)
     return tree

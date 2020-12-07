@@ -34,9 +34,9 @@ from meresco.oai.oairepository import OaiRepository
 class OaiRepositoryTest(SeecrTestCase):
     def testBasicProperties(self):
         oaiRepository = OaiRepository(identifier='example.org', name='The Repository Name', adminEmail='admin@meresco.org')
-        self.assertEquals('example.org', oaiRepository.identifier)
-        self.assertEquals('The Repository Name', oaiRepository.name)
-        self.assertEquals('admin@meresco.org', oaiRepository.adminEmail)
+        self.assertEqual('example.org', oaiRepository.identifier)
+        self.assertEqual('The Repository Name', oaiRepository.name)
+        self.assertEqual('admin@meresco.org', oaiRepository.adminEmail)
 
     def testBadRepositoryIdentifier(self):
         def oaiRepository(repositoryIdentifier):
@@ -47,24 +47,24 @@ class OaiRepositoryTest(SeecrTestCase):
 
     def testPrefixIdentifier(self):
         oaiRepository = OaiRepository(name='The Repository Name')
-        self.assertEquals("id0", oaiRepository.prefixIdentifier('id0'))
+        self.assertEqual("id0", oaiRepository.prefixIdentifier('id0'))
 
         oaiRepository = OaiRepository(identifier='example.org')
-        self.assertEquals("oai:example.org:id0", oaiRepository.prefixIdentifier('id0'))
+        self.assertEqual("oai:example.org:id0", oaiRepository.prefixIdentifier('id0'))
 
     def testUnprefixIdentifier(self):
         oaiRepository = OaiRepository(name='The Repository Name')
-        self.assertEquals("id0", oaiRepository.unprefixIdentifier('id0'))
-        self.assertEquals("oai:example.org:id0", oaiRepository.unprefixIdentifier('oai:example.org:id0'))
+        self.assertEqual("id0", oaiRepository.unprefixIdentifier('id0'))
+        self.assertEqual("oai:example.org:id0", oaiRepository.unprefixIdentifier('oai:example.org:id0'))
 
         oaiRepository = OaiRepository(identifier='example.org')
-        self.assertEquals("id0", oaiRepository.unprefixIdentifier("oai:example.org:id0"))
+        self.assertEqual("id0", oaiRepository.unprefixIdentifier("oai:example.org:id0"))
 
         try:
-            self.assertEquals("id0", oaiRepository.unprefixIdentifier("some:other:prefix:id0"))
+            self.assertEqual("id0", oaiRepository.unprefixIdentifier("some:other:prefix:id0"))
             self.fail()
-        except OaiException, e:
-            self.assertEquals('', str(e))
+        except OaiException as e:
+            self.assertEqual('', str(e))
 
     def testRequestUrl(self):
         oaiRepository = OaiRepository(identifier='example.org')

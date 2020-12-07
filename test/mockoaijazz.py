@@ -89,7 +89,7 @@ class MockOaiJazz(object):
         return result
 
 class MockRecord(object):
-    def __init__(self, identifier, remaining=0, stamp=123412341123456L, sets=None, prefixes=None, deleted=False, deletedSets=None):
+    def __init__(self, identifier, remaining=0, stamp=123412341123456, sets=None, prefixes=None, deleted=False, deletedSets=None):
         self.identifier = identifier
         self.stamp = stamp
         self.sets = set(['set0', 'set1']) if sets is None else sets

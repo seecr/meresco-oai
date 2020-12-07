@@ -63,6 +63,7 @@ public class OaiSortingCollector extends SimpleCollector {
     private long stop;
 
     public OaiSortingCollector(int maxDocsToCollect, boolean shouldCountHits, long start, long stop) throws IOException {
+        super();
         this.topDocsCollector = TopFieldCollector.create(
                 new Sort(new SortField(NUMERIC_STAMP_FIELD, SortField.Type.LONG)),
                 maxDocsToCollect,
@@ -130,7 +131,7 @@ public class OaiSortingCollector extends SimpleCollector {
     }
 
     @Override
-    public void doSetNextReader(LeafReaderContext context) throws IOException {
+    protected void doSetNextReader(LeafReaderContext context) throws IOException {
         LeafReader reader = context.reader();
         this.stamps = reader.getNumericDocValues("numeric_stamp");
 

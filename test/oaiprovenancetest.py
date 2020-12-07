@@ -31,7 +31,7 @@
 ## end license ##
 
 from lxml.etree import XML
-from StringIO import StringIO
+from io import StringIO
 
 from seecr.test import SeecrTestCase, CallTrace
 
@@ -60,9 +60,9 @@ class OaiProvenanceTest(SeecrTestCase):
         observer = storage
         provenance.addObserver(observer)
 
-        self.assertEquals(0, storage.timesCalled)
+        self.assertEqual(0, storage.timesCalled)
         asString(observable.any.provenance("recordId"))
-        self.assertEquals(2, storage.timesCalled)
+        self.assertEqual(2, storage.timesCalled)
 
     def testProvenance(self):
         observable = Observable()
@@ -158,7 +158,7 @@ class OaiProvenanceTest(SeecrTestCase):
         provenance.addObserver(observer)
 
         result = asString(observable.any.provenance("recordId"))
-        self.assertEquals('', result)
+        self.assertEqual('', result)
 
 
 class MockStorage(object):

@@ -34,8 +34,8 @@
 
 from meresco.core.observable import Observable
 
-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
-from oaierror import oaiError
+from .oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, OaiBadArgumentException, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
+from .oaierror import oaiError
 
 
 class OaiGetRecord(Observable):
@@ -74,7 +74,7 @@ Error and Exception Conditions
             metadataPrefix = validatedArguments['metadataPrefix']
             record = self.call.getRecord(identifier=identifier, metadataPrefix=metadataPrefix)
             self._validateValues(record, metadataPrefix)
-        except OaiException, e:
+        except OaiException as e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
             return
 

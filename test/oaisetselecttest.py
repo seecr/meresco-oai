@@ -57,33 +57,33 @@ class OaiSetSelectTest(SeecrTestCase):
 
     def testOaiSelect(self):
         self.dna.call.oaiSelect()
-        self.assertEquals(1, len(self.observer.calledMethods))
+        self.assertEqual(1, len(self.observer.calledMethods))
         methodCalled = self.observer.calledMethods[0]
         self.assertTrue('sets' in methodCalled.kwargs, methodCalled)
-        self.assertEquals(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
+        self.assertEqual(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
 
     def testGetUniqueInSet(self):
         self.observer.returnValues['getRecord'] = MockRecord('id', sets=['set1'])
         self.dna.call.getRecord('xyz')
-        self.assertEquals(['getRecord'], self.observer.calledMethodNames())
+        self.assertEqual(['getRecord'], self.observer.calledMethodNames())
         getRecordCall = self.observer.calledMethods[0]
-        self.assertEquals(('xyz',), getRecordCall.args)
+        self.assertEqual(('xyz',), getRecordCall.args)
 
     def testGetUniqueNotInSet(self):
         self.observer.returnValues['getRecord'] = MockRecord('id', sets=['set4'])
         self.dna.call.getRecord('xyz')
-        self.assertEquals(['getRecord'], self.observer.calledMethodNames())
+        self.assertEqual(['getRecord'], self.observer.calledMethodNames())
 
     def testOtherMethodsArePassed(self):
         self.observer.methods['getAllMetadataFormats'] = lambda *a, **kw: (x for x in [])
         list(compose(self.dna.all.getAllMetadataFormats()))
-        self.assertEquals(1, len(self.observer.calledMethods))
-        self.assertEquals('getAllMetadataFormats', self.observer.calledMethods[0].name)
+        self.assertEqual(1, len(self.observer.calledMethods))
+        self.assertEqual('getAllMetadataFormats', self.observer.calledMethods[0].name)
 
     def testSetsIsNone(self):
         self.dna.call.oaiSelect(sets=None)
-        self.assertEquals(1, len(self.observer.calledMethods))
+        self.assertEqual(1, len(self.observer.calledMethods))
         methodCalled = self.observer.calledMethods[0]
         self.assertTrue('sets' in methodCalled.kwargs, methodCalled)
-        self.assertEquals(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
+        self.assertEqual(['set1', 'set2'], self.observer.calledMethods[0].kwargs['sets'])
 

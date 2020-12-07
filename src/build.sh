@@ -35,17 +35,19 @@ if [ -z "$libDir" ]; then
     libDir=$(dirname $mydir)/lib
 fi
 
-pythonVersion=$(python --version 2>&1 | awk '{print $2}' | cut -d. -f-2)
+export PYTHONPATH=~/EG/pyl/dist/usr/local/lib/python3.7/dist-packages/:${PYTHONPATH}
+
+pythonVersion=$(python3 --version 2>&1 | awk '{print $2}' | cut -d. -f-2)
 pythonPackagesDir=/usr/lib64/python${pythonVersion}/site-packages
 if [ -f /etc/debian_version ]; then
-    pythonPackagesDir=/usr/lib/python${pythonVersion}/dist-packages
+    pythonPackagesDir=/usr/lib/python3/dist-packages
 fi
 
-JCC_VERSION=3.6
-if ! grep -q "VERSION=\"${JCC_VERSION}\"" ${pythonPackagesDir}/jcc/config.py; then
-    echo "JCC ${JCC_VERSION} is required."
-    exit 1
-fi
+#JCC_VERSION=3.6
+#if ! grep -q "VERSION=\"${JCC_VERSION}\"" ${pythonPackagesDir}/jcc/config.py; then
+#    echo "JCC ${JCC_VERSION} is required."
+#    exit 1
+#fi
 
 JAVA_HOME=
 test -f /etc/debian_version && JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
@@ -64,7 +66,7 @@ javac=${JAVA_HOME}/bin/javac
 
 luceneJarDir=${pythonPackagesDir}/lucene
 
-LUCENE_VERSION=8.1.1
+LUCENE_VERSION=8.6.1
 classpath=${luceneJarDir}/lucene-core-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-analyzers-common-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-facet-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-queries-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-misc-${LUCENE_VERSION}.jar
 
 rm -rf $buildDir $libDir
@@ -73,16 +75,17 @@ mkdir --parents $buildDir $libDir
 ${javac} -cp ${classpath} -d ${buildDir} org/meresco/oai/*.java
 (cd $buildDir; jar -c org > $buildDir/meresco-oai.jar)
 
-python -m jcc.__main__ \
-    --root $mydir/root \
+
+python3 -m jcc.__main__ \
+    --shared \
     --use_full_names \
     --import lucene \
-    --shared \
     --arch x86_64 \
     --jar $buildDir/meresco-oai.jar \
     --python meresco_oai \
     --build \
-    --install
+    --install \
+    --root $mydir/root 
 
 rootLibDir=$mydir/root/usr/lib64/python${pythonVersion}/site-packages/meresco_oai
 if [ -f /etc/debian_version ]; then

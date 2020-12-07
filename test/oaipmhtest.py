@@ -32,12 +32,12 @@
 from seecr.test import SeecrTestCase, CallTrace
 from oaischema import assertValidOai
 
-from StringIO import StringIO
+from io import StringIO
 from lxml.etree import parse
 from os.path import join
 from socket import gethostname
 from time import sleep
-from urllib import urlencode
+from urllib.parse import urlencode
 
 from meresco.core import Observable
 from meresco.components import lxmltostring, RetrieveToGetDataAdapter
@@ -75,7 +75,7 @@ class _OaiPmhTest(SeecrTestCase):
                 )
             )
         ))
-        for i in xrange(20):
+        for i in range(20):
             identifier = recordId = 'record:id:%02d' % i
             metadataFormats = [('oai_dc', 'http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://www.openarchives.org/OAI/2.0/oai_dc/')]
             if i >= 10:
@@ -131,98 +131,98 @@ class _OaiPmhTest(SeecrTestCase):
 
     def testBugListRecordsReturnsDoubleValueOnNoRecordsMatch(self):
         header, body = self._request(verb=['ListRecords'], metadataPrefix=['oai_dc'], from_=['9999-01-01'])
-        self.assertEquals(['noRecordsMatch'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), lxmltostring(body, pretty_print=True))
+        self.assertEqual(['noRecordsMatch'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), lxmltostring(body, pretty_print=True))
 
     def testBadPathIsEscaped(self):
         header, body = self._request(path='/oai&verb=Identify')
-        self.assertEquals(['http://%s:9000/oai&verb=Identify' % HOSTNAME], xpath(body, '/oai:OAI-PMH/oai:request/text()'))
+        self.assertEqual(['http://%s:9000/oai&verb=Identify' % HOSTNAME], xpath(body, '/oai:OAI-PMH/oai:request/text()'))
 
     def testListRecords(self):
         header, body = self._request(verb=['ListRecords'], metadataPrefix=['prefix2'])
         records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
-        self.assertEquals(10, len(records))
-        self.assertEquals([self.prefix + 'record:id:11'], xpath(records[1], 'oai:header/oai:identifier/text()'))
-        self.assertEquals(['record:id:11'], xpath(records[1], 'oai:metadata/oai_dc:dc/dc:subject/text()'), lxmltostring(records[1]))
-        self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[1], 'oai:header/oai:setSpec/text()')))
+        self.assertEqual(10, len(records))
+        self.assertEqual([self.prefix + 'record:id:11'], xpath(records[1], 'oai:header/oai:identifier/text()'))
+        self.assertEqual(['record:id:11'], xpath(records[1], 'oai:metadata/oai_dc:dc/dc:subject/text()'), lxmltostring(records[1]))
+        self.assertEqual(['hierarchical', 'setSpec10'], sorted(xpath(records[1], 'oai:header/oai:setSpec/text()')))
         deletedRecords = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record[oai:header/@status="deleted"]')
-        self.assertEquals(2, len(deletedRecords))
-        self.assertEquals([0,0], [len(xpath(r, 'oai:metadata')) for r in deletedRecords])
-        self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(deletedRecords[0], 'oai:header/oai:setSpec/text()')))
+        self.assertEqual(2, len(deletedRecords))
+        self.assertEqual([0,0], [len(xpath(r, 'oai:metadata')) for r in deletedRecords])
+        self.assertEqual(['hierarchical', 'setSpec10'], sorted(xpath(deletedRecords[0], 'oai:header/oai:setSpec/text()')))
 
     def testListRecordsWithResumptionToken(self):
         header, body = self._request(verb=['ListRecords'], metadataPrefix=['oai_dc'])
         records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
-        self.assertEquals(10, len(records))
+        self.assertEqual(10, len(records))
         resumptionToken = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')[0]
         header, body = self._request(verb=['ListRecords'], resumptionToken=[resumptionToken])
         records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
-        self.assertEquals(10, len(records))
-        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
+        self.assertEqual(10, len(records))
+        self.assertEqual(0, len(xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
 
     def testListRecordsWithXCount(self):
         header, body = self._request(verb=['ListRecords'], metadataPrefix=['oai_dc'], xcount=['True'], validate=False)
         records = xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:record')
-        self.assertEquals(10, len(records))
+        self.assertEqual(10, len(records))
         recordsRemaining = int(xpath(body, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/@recordsRemaining')[0])
-        self.assertEquals(10, recordsRemaining)
+        self.assertEqual(10, recordsRemaining)
 
     def testGetRecordNotAvailable(self):
         header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=['doesNotExist'])
 
         error = xpath(body, '/oai:OAI-PMH/oai:error')[0]
-        self.assertEquals('idDoesNotExist', error.attrib['code'])
-        self.assertEquals('The value of the identifier argument is unknown or illegal in this repository.', error.text)
+        self.assertEqual('idDoesNotExist', error.attrib['code'])
+        self.assertEqual('The value of the identifier argument is unknown or illegal in this repository.', error.text)
 
     def testGetRecord(self):
         header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=[self.prefix + 'record:id:11'])
 
-        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        self.assertEqual(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
         records = xpath(body, '/oai:OAI-PMH/oai:GetRecord/oai:record')
-        self.assertEquals(1, len(records))
-        self.assertEquals([self.prefix + 'record:id:11'], xpath(records[0], 'oai:header/oai:identifier/text()'))
-        self.assertEquals(['record:id:11'], xpath(records[0], 'oai:metadata/oai_dc:dc/dc:identifier/text()'), lxmltostring(records[0]))
-        self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[0], 'oai:header/oai:setSpec/text()')))
+        self.assertEqual(1, len(records))
+        self.assertEqual([self.prefix + 'record:id:11'], xpath(records[0], 'oai:header/oai:identifier/text()'))
+        self.assertEqual(['record:id:11'], xpath(records[0], 'oai:metadata/oai_dc:dc/dc:identifier/text()'), lxmltostring(records[0]))
+        self.assertEqual(['hierarchical', 'setSpec10'], sorted(xpath(records[0], 'oai:header/oai:setSpec/text()')))
 
     def testGetRecordDeleted(self):
         header, body = self._request(verb=['GetRecord'], metadataPrefix=['oai_dc'], identifier=[self.prefix + 'record:id:10'])
 
-        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        self.assertEqual(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
         records = xpath(body, '/oai:OAI-PMH/oai:GetRecord/oai:record')
-        self.assertEquals(1, len(records))
-        self.assertEquals([self.prefix + 'record:id:10'], xpath(records[0], 'oai:header/oai:identifier/text()'))
-        self.assertEquals(0, len(xpath(records[0], 'oai:metadata')))
-        self.assertEquals(['hierarchical', 'setSpec10'], sorted(xpath(records[0], 'oai:header/oai:setSpec/text()')))
+        self.assertEqual(1, len(records))
+        self.assertEqual([self.prefix + 'record:id:10'], xpath(records[0], 'oai:header/oai:identifier/text()'))
+        self.assertEqual(0, len(xpath(records[0], 'oai:metadata')))
+        self.assertEqual(['hierarchical', 'setSpec10'], sorted(xpath(records[0], 'oai:header/oai:setSpec/text()')))
 
     def testListAllMetadataFormats(self):
         header, body = self._request(verb=['ListMetadataFormats'])
 
-        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        self.assertEqual(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
         formats = xpath(body, '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat')
-        self.assertEquals(2, len(formats), lxmltostring(body, pretty_print=True))
-        self.assertEquals(['oai_dc', 'prefix2'], [xpath(f, 'oai:metadataPrefix/text()')[0] for f in formats])
-        self.assertEquals(['http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://example.org/prefix2/?format=xsd&prefix=2'], [xpath(f, 'oai:schema/text()')[0] for f in formats])
-        self.assertEquals(['http://www.openarchives.org/OAI/2.0/oai_dc/', 'http://example.org/prefix2/'], [xpath(f, 'oai:metadataNamespace/text()')[0] for f in formats])
+        self.assertEqual(2, len(formats), lxmltostring(body, pretty_print=True))
+        self.assertEqual(['oai_dc', 'prefix2'], [xpath(f, 'oai:metadataPrefix/text()')[0] for f in formats])
+        self.assertEqual(['http://www.openarchives.org/OAI/2.0/oai_dc.xsd', 'http://example.org/prefix2/?format=xsd&prefix=2'], [xpath(f, 'oai:schema/text()')[0] for f in formats])
+        self.assertEqual(['http://www.openarchives.org/OAI/2.0/oai_dc/', 'http://example.org/prefix2/'], [xpath(f, 'oai:metadataNamespace/text()')[0] for f in formats])
 
     def testListMetadataFormatsForIdentifier(self):
         header, body = self._request(verb=['ListMetadataFormats'], identifier=[self.prefix + 'record:id:01'])
 
-        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')), lxmltostring(body, pretty_print=True))
+        self.assertEqual(0, len(xpath(body, '/oai:OAI-PMH/oai:error')), lxmltostring(body, pretty_print=True))
         formats = xpath(body, '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat')
-        self.assertEquals(1, len(formats), lxmltostring(body, pretty_print=True))
-        self.assertEquals(['oai_dc'], xpath(formats[0], 'oai:metadataPrefix/text()'))
+        self.assertEqual(1, len(formats), lxmltostring(body, pretty_print=True))
+        self.assertEqual(['oai_dc'], xpath(formats[0], 'oai:metadataPrefix/text()'))
 
     def testListMetadataFormatsForWrongIdentifier(self):
         header, body = self._request(verb=['ListMetadataFormats'], identifier=['does:not:exist'])
 
-        self.assertEquals(['idDoesNotExist'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), lxmltostring(body, pretty_print=True))
+        self.assertEqual(['idDoesNotExist'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), lxmltostring(body, pretty_print=True))
 
     def testListAllSets(self):
         header, body = self._request(verb=['ListSets'])
 
-        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        self.assertEqual(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
         setsNodes = xpath(body, '/oai:OAI-PMH/oai:ListSets/oai:set')
         sets = [(xpathFirst(n, 'oai:setSpec/text()'), xpathFirst(n, 'oai:setName/text()')) for n in setsNodes]
-        self.assertEquals(set([
+        self.assertEqual(set([
                 ('setSpec5', 'setName'),
                 ('setSpec10', None),
                 ('setSpec15', 'setName'),
@@ -242,28 +242,28 @@ class _OaiPmhTest(SeecrTestCase):
 
         header, body = self._request(verb=['ListSets'])
 
-        self.assertEquals(['noSetHierarchy'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), lxmltostring(body, pretty_print=True))
+        self.assertEqual(['noSetHierarchy'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), lxmltostring(body, pretty_print=True))
 
     def testIdentify(self):
         header, body = self._request(verb=['Identify'])
 
-        self.assertEquals("Content-Type: text/xml; charset=utf-8", header.split(CRLF)[-1])
-        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
-        self.assertEquals(['http://%s:9000/oai' % HOSTNAME], xpath(body, '/oai:OAI-PMH/oai:request/text()'))
+        self.assertEqual("Content-Type: text/xml; charset=utf-8", header.split(CRLF)[-1])
+        self.assertEqual(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        self.assertEqual(['http://%s:9000/oai' % HOSTNAME], xpath(body, '/oai:OAI-PMH/oai:request/text()'))
         identify = xpath(body, '/oai:OAI-PMH/oai:Identify')[0]
-        self.assertEquals(['The Repository Name'], xpath(identify, 'oai:repositoryName/text()'))
-        self.assertEquals(['admin@meresco.org'], xpath(identify, 'oai:adminEmail/text()'))
-        self.assertEquals(['YYYY-MM-DDThh:mm:ssZ'], xpath(identify, 'oai:granularity/text()'))
-        self.assertEquals(['1970-01-01T00:00:00Z'], xpath(identify, 'oai:earliestDatestamp/text()'))
-        self.assertEquals(['persistent'], xpath(identify, 'oai:deletedRecord/text()'))
+        self.assertEqual(['The Repository Name'], xpath(identify, 'oai:repositoryName/text()'))
+        self.assertEqual(['admin@meresco.org'], xpath(identify, 'oai:adminEmail/text()'))
+        self.assertEqual(['YYYY-MM-DDThh:mm:ssZ'], xpath(identify, 'oai:granularity/text()'))
+        self.assertEqual(['1970-01-01T00:00:00Z'], xpath(identify, 'oai:earliestDatestamp/text()'))
+        self.assertEqual(['persistent'], xpath(identify, 'oai:deletedRecord/text()'))
 
         descriptions = xpath(body, '/oai:OAI-PMH/oai:Identify/oai:description')
         if self.prefix:
-            self.assertEquals(2, len(descriptions))
-            self.assertEquals(['%s5324' % self.prefix], xpath(descriptions[0], 'identifier:oai-identifier/identifier:sampleIdentifier/text()'))
+            self.assertEqual(2, len(descriptions))
+            self.assertEqual(['%s5324' % self.prefix], xpath(descriptions[0], 'identifier:oai-identifier/identifier:sampleIdentifier/text()'))
         else:
-            self.assertEquals(1, len(descriptions))
-        self.assertEquals(['Meresco'], xpath(descriptions[-1], 'toolkit:toolkit/toolkit:title/text()'))
+            self.assertEqual(1, len(descriptions))
+        self.assertEqual(['Meresco'], xpath(descriptions[-1], 'toolkit:toolkit/toolkit:title/text()'))
 
     def testIdentifyWithTransientDeleteRecord(self):
         jazz = OaiJazz(join(self.tempdir, 'otherjazz'), persistentDelete=False)
@@ -274,21 +274,21 @@ class _OaiPmhTest(SeecrTestCase):
             )
         ))
         header, body = self._request(verb=['Identify'])
-        self.assertEquals(['transient'], xpath(body, '/oai:OAI-PMH/oai:Identify/oai:deletedRecord/text()'))
+        self.assertEqual(['transient'], xpath(body, '/oai:OAI-PMH/oai:Identify/oai:deletedRecord/text()'))
 
     def testIdentifyWithDescription(self):
         self.oaipmh.addObserver(OaiBranding('http://meresco.org/files/images/meresco-logo-small.png', 'http://www.meresco.org/', 'Meresco'))
         header, body = self._request(verb=['Identify'])
 
-        self.assertEquals(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
+        self.assertEqual(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
         descriptions = xpath(body, '/oai:OAI-PMH/oai:Identify/oai:description')
         if self.prefix:
-            self.assertEquals(3, len(descriptions))
-            self.assertEquals(['%s5324' % self.prefix], xpath(descriptions[0], 'identifier:oai-identifier/identifier:sampleIdentifier/text()'))
+            self.assertEqual(3, len(descriptions))
+            self.assertEqual(['%s5324' % self.prefix], xpath(descriptions[0], 'identifier:oai-identifier/identifier:sampleIdentifier/text()'))
         else:
-            self.assertEquals(2, len(descriptions))
-        self.assertEquals(['Meresco'], xpath(descriptions[-2], 'toolkit:toolkit/toolkit:title/text()'))
-        self.assertEquals(['Meresco'], xpath(descriptions[-1], 'branding:branding/branding:collectionIcon/branding:title/text()'))
+            self.assertEqual(2, len(descriptions))
+        self.assertEqual(['Meresco'], xpath(descriptions[-2], 'toolkit:toolkit/toolkit:title/text()'))
+        self.assertEqual(['Meresco'], xpath(descriptions[-1], 'branding:branding/branding:collectionIcon/branding:title/text()'))
 
     def testWatermarking(self):
         class OaiWatermark(object):
@@ -301,9 +301,9 @@ class _OaiPmhTest(SeecrTestCase):
             try:
                 comment = xpath(body, "/oai:OAI-PMH/comment()")[0]
             except:
-                print lxmltostring(body, pretty_print=True)
+                print(lxmltostring(body, pretty_print=True))
                 raise
-            self.assertEquals(" Watermarked by Seecr ", comment.text)
+            self.assertEqual(" Watermarked by Seecr ", comment.text)
         assertWaterMarked(verb=["Identify"])
         assertWaterMarked(verb=['ListRecords'], metadataPrefix=['prefix2'])
         assertWaterMarked(verb=['ListIdentifiers'], metadataPrefix=['prefix2'])
@@ -379,12 +379,12 @@ class _OaiPmhTest(SeecrTestCase):
             )
         ))
         list(compose(root.once.observer_init()))
-        self.assertEquals(['observer_init'], [m.name for m in observer.calledMethods])
+        self.assertEqual(['observer_init'], [m.name for m in observer.calledMethods])
 
     def assertOaiError(self, arguments, errorCode, additionalMessage = ''):
         header, body = self._request(**arguments)
 
-        self.assertEquals([errorCode], xpath(body, '/oai:OAI-PMH/oai:error/@code'), lxmltostring(body, pretty_print=True))
+        self.assertEqual([errorCode], xpath(body, '/oai:OAI-PMH/oai:error/@code'), lxmltostring(body, pretty_print=True))
         errorText = xpath(body, '/oai:OAI-PMH/oai:error/text()')[0]
         self.assertTrue(additionalMessage in errorText, 'Expected "%s" in "%s"' % (additionalMessage, errorText))
 
@@ -401,8 +401,8 @@ class OaiPmhTest(_OaiPmhTest):
         try:
             OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId")
             self.fail()
-        except ValueError, e:
-            self.assertEquals("Invalid repository identifier: repoId", str(e))
+        except ValueError as e:
+            self.assertEqual("Invalid repository identifier: repoId", str(e))
 
         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="repoId.cq2.org")
         OaiPmh(repositoryName="Repository", adminEmail="admin@example.org", repositoryIdentifier="a.aa")

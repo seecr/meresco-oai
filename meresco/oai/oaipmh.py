@@ -34,21 +34,21 @@
 #
 ## end license ##
 
-from urlparse import parse_qs
+from urllib.parse import parse_qs
 import re
 
 from weightless.core import be, compose
 from meresco.core import Transparent, Observable
 
-from oaiidentify import OaiIdentify
-from oailist import OaiList
-from oaijazz import DEFAULT_BATCH_SIZE
-from oaigetrecord import OaiGetRecord
-from oailistmetadataformats import OaiListMetadataFormats
-from oailistsets import OaiListSets
-from oaierror import OaiError
-from oairecord import OaiRecord
-from oairepository import OaiRepository
+from .oaiidentify import OaiIdentify
+from .oailist import OaiList
+from .oaijazz import DEFAULT_BATCH_SIZE
+from .oaigetrecord import OaiGetRecord
+from .oailistmetadataformats import OaiListMetadataFormats
+from .oailistsets import OaiListSets
+from .oaierror import OaiError
+from .oairecord import OaiRecord
+from .oairepository import OaiRepository
 
 
 class OaiPmh(object):

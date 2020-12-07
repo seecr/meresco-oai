@@ -64,7 +64,7 @@ class OaiErrorTest(SeecrTestCase):
         initial, remaining = result[:4], result[4:]
         remaining = ''.join(remaining)
 
-        self.assertEquals(callablesAndYields, initial)
+        self.assertEqual(callablesAndYields, initial)
         self.assertTrue('HTTP/1.0 200 OK\r\nContent-Type: text/xml; charset=utf-8\r\n\r\n', remaining)
         self.assertTrue('<error code="badArgument">' in remaining, remaining)
 
@@ -74,7 +74,7 @@ class OaiErrorTest(SeecrTestCase):
         self.data.extend(callablesAndYields)
 
         result = ''.join(compose(self.dna.all.someMessage(arguments={'http': 'arguments'}, Headers={}, path='/some/path', port=0, otherKwargs='kwargs')))
-        self.assertEquals('data', result)
+        self.assertEqual('data', result)
 
         # Callables, Yields and then data
         callablesAndYields = [Yield, callable, Yield, lambda: None]
@@ -85,6 +85,6 @@ class OaiErrorTest(SeecrTestCase):
         initial, remaining = result[:4], result[4:]
         remaining = ''.join(remaining)
 
-        self.assertEquals(callablesAndYields, initial)
-        self.assertEquals('data', remaining)
+        self.assertEqual(callablesAndYields, initial)
+        self.assertEqual('data', remaining)
 

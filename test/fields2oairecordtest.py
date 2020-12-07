@@ -45,15 +45,15 @@ class Fields2OaiRecordTest(SeecrTestCase):
         def f():
             f = yield fields2OaiRecord.beginTransaction()
             yield f
-        tx = compose(f()).next()
+        tx = next(compose(f()))
         
         tx.addField('set', ('setSpec', 'setName'))
         tx.addField('metadataFormat', ('prefix', 'schema', 'namespace'))
         list(compose(tx.commit()))
 
-        self.assertEquals(1, len(intercept.calledMethods))
-        self.assertEquals('addOaiRecord', intercept.calledMethods[0].name)
-        self.assertEquals({'identifier':'identifier',
+        self.assertEqual(1, len(intercept.calledMethods))
+        self.assertEqual('addOaiRecord', intercept.calledMethods[0].name)
+        self.assertEqual({'identifier':'identifier',
                 'metadataFormats': set([('prefix', 'schema', 'namespace')]),
                 'sets': set([('setSpec', 'setName')])},
             intercept.calledMethods[0].kwargs)
@@ -67,10 +67,10 @@ class Fields2OaiRecordTest(SeecrTestCase):
         def f():
             f = yield fields2OaiRecord.beginTransaction()
             yield f
-        tx = compose(f()).next()
+        tx = next(compose(f()))
         tx.addField('set', ('setSpec', 'setName'))
         tx.commit()
-        self.assertEquals(0, len(intercept.calledMethods))
+        self.assertEqual(0, len(intercept.calledMethods))
 
     def testWorksWithRealTransactionScope(self):
         intercept = CallTrace('Intercept', ignoredAttributes=['begin', 'commit', 'rollback'])
@@ -99,6 +99,6 @@ class Fields2OaiRecordTest(SeecrTestCase):
             )   
         )
         list(compose(root.all.add('some', 'arguments')))
-        self.assertEquals(['addOaiRecord'], [m.name for m in intercept.calledMethods])
+        self.assertEqual(['addOaiRecord'], [m.name for m in intercept.calledMethods])
         method = intercept.calledMethods[0]
-        self.assertEquals(((), {'identifier': 'an:identifier', 'metadataFormats': set([('prefix', 'schema', 'namespace')]), 'sets': set([('setSpec', 'setName')])}), (method.args, method.kwargs))        
+        self.assertEqual(((), {'identifier': 'an:identifier', 'metadataFormats': set([('prefix', 'schema', 'namespace')]), 'sets': set([('setSpec', 'setName')])}), (method.args, method.kwargs))        

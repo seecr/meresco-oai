@@ -28,7 +28,7 @@
 
 import re
 
-from oaiutils import OaiException
+from .oaiutils import OaiException
 from socket import gethostname
 
 HOSTNAME = gethostname()

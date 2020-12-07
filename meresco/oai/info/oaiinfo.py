@@ -33,7 +33,7 @@ from meresco.components.http import StringServer, PathFilter, PathRename, FileSe
 from meresco.components.http.utils import ContentTypePlainText
 from weightless.core import be
 
-from oaijsoninfo import OaiJsonInfo
+from .oaijsoninfo import OaiJsonInfo
 from time import localtime, strftime
 
 mydir = dirname(abspath(__file__))

@@ -116,7 +116,7 @@ Error and Exception Conditions
 
         try:
             selectArguments = self._validateAndParseArguments(requestArguments)
-        except (OaiBadArgumentException, OaiException), e:
+        except (OaiBadArgumentException, OaiException) as e:
             yield oaiError(e.statusCode, e.additionalMessage, requestArguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
             return
 
@@ -131,17 +131,17 @@ Error and Exception Conditions
                 responseDate = zuluTime()
                 result = self._oaiSelect(**selectArguments)
                 break
-            except OaiException, e:
+            except OaiException as e:
                 if selectArguments['x-wait'] and \
                         e.statusCode in ["noRecordsMatch", "cannotDisseminateFormat"]:
                     try:
                         yield self.any.suspendAfterNoResult(
                             clientIdentifier=clientIdentifier,
                             **selectArguments)
-                    except ForcedResumeException, e:
+                    except ForcedResumeException as e:
                         yield successNoContentPlainText + str(e)
                         return
-                    except Exception, e:
+                    except Exception as e:
                         print_exc()
                         yield serverErrorPlainText + str(e)
                         raise e
@@ -252,7 +252,7 @@ Error and Exception Conditions
         allrecords = list(result.records)
         prefix = selectArguments['prefix']
         message = "oaiRecord" if verb == 'ListRecords' else "oaiRecordHeader"
-        for i in xrange(0, len(allrecords), self._dataBatchSize):
+        for i in range(0, len(allrecords), self._dataBatchSize):
             records = allrecords[i:i+self._dataBatchSize]
             fetchedRecords = self._getMultipleData(prefix=prefix, records=records)
             for record in records:

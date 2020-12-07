@@ -42,40 +42,25 @@ from warnings import warn
 from json import load, dump, dumps, loads
 from meresco.core import Observable
 from meresco.oaicommon import timeToNumber, stamp2zulutime, timestamp, Partition
-from meresco.pylucene import getJVM
+#from meresco.pylucene import getJVM
 
-imported = False
-Long = Paths = Document = StringField = Field = StoredField = LongPoint = IntPoint = IndexSearcher = TermQuery = \
-    BooleanQuery = MatchAllDocsQuery = BooleanClause = TotalHitCountCollector = \
-    Sort = SortField = DirectoryReader = Term = IndexWriter = IndexWriterConfig = FSDirectory = \
-    NumericDocValuesField = BytesRef = Version = WhitespaceAnalyzer = \
-    OaiSortingCollector = None
+from lucene import initVM
+initVM()
+from meresco_oai import initVM
+initVM()
 
-def lazyImport():
-    global imported
-    if imported:
-        return
-    imported = True
-
-    VM = getJVM()
-
-    from java.lang import Long
-    from java.nio.file import Paths
-    from org.apache.lucene.document import Document, StringField, Field, StoredField, LongPoint, IntPoint
-    from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, MatchAllDocsQuery
-    from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
-    from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
-    from org.apache.lucene.store import FSDirectory
-    from org.apache.lucene.document import NumericDocValuesField
-    from org.apache.lucene.util import BytesRef, Version
-    from org.apache.lucene.analysis.core import WhitespaceAnalyzer
-
-    from meresco_oai import initVM
-    OAI_VM = initVM()
-
-    from org.meresco.oai import OaiSortingCollector
-
-    globals().update(locals())
+from java.lang import Long
+from java.nio.file import Paths
+from org.apache.lucene.document import Document, StringField, Field, StoredField, LongPoint, IntPoint
+from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, MatchAllDocsQuery
+from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
+from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
+from org.apache.lucene.store import FSDirectory
+from org.apache.lucene.document import NumericDocValuesField
+from org.apache.lucene.util import BytesRef, Version
+from lucene import JArray
+from org.apache.lucene.analysis.core import WhitespaceAnalyzer
+from org.meresco.oai import OaiSortingCollector
 
 
 DEFAULT_BATCH_SIZE = 200
@@ -85,7 +70,6 @@ class OaiJazz(Observable):
 
     def __init__(self, aDirectory, alwaysDeleteInPrefixes=None, persistentDelete=True, name=None, **kwargs):
         Observable.__init__(self, name=name)
-        lazyImport()
         self._directory = aDirectory
         if not isdir(aDirectory):
             makedirs(aDirectory)
@@ -132,7 +116,7 @@ class OaiJazz(Observable):
         start = max(int(continueAfter or '0') + 1, self._fromTime(oaiFrom))
         stop = self._untilTime(oaiUntil) or Long.MAX_VALUE
 
-        collector = OaiSortingCollector(batchSize, shouldCountHits, long(start), long(stop))
+        collector = OaiSortingCollector(batchSize, shouldCountHits, int(start), int(stop))
         searcher.search(query, collector)
         return collector
 
@@ -268,7 +252,7 @@ class OaiJazz(Observable):
         self._prefixes[prefix] = (schema, namespace)
 
     def getAllMetadataFormats(self):
-        for prefix, (schema, namespace) in self._prefixes.iteritems():
+        for prefix, (schema, namespace) in self._prefixes.items():
             yield (prefix, schema, namespace)
 
     def getAllPrefixes(self):
@@ -323,7 +307,7 @@ class OaiJazz(Observable):
         self._writer.commit()
 
     def handleShutdown(self):
-        print 'handle shutdown: saving OaiJazz %s' % self._directory
+        print('handle shutdown: saving OaiJazz %s' % self._directory)
         from sys import stdout; stdout.flush()
         self.close()
 
@@ -352,14 +336,14 @@ class OaiJazz(Observable):
     def importDump(cls, directory, dumpfile):
         jazz = cls(directory, deleteInSets=True, importMode=True)
         d = open(dumpfile)
-        assert 'META:\n' == d.next()
+        assert 'META:\n' == next(d)
         meta = loads(d.next().strip())
         assert meta['export_version'] == 1
-        for setSpec, setDict in meta.get('sets', {}).items():
+        for setSpec, setDict in list(meta.get('sets', {}).items()):
             jazz.updateSet(setSpec=setSpec, setName=setDict.get('setName', ''))
-        for prefix, metadataDict in meta.get('metadataPrefixes', {}).items():
+        for prefix, metadataDict in list(meta.get('metadataPrefixes', {}).items()):
             jazz.updateMetadataFormat(prefix, schema=metadataDict.get('schema', ''), namespace=metadataDict.get('namespace', ''))
-        assert 'RECORDS:\n' == d.next()
+        assert 'RECORDS:\n' == next(d)
         for record in d:
             record = loads(record.strip())
             jazz._updateOaiRecord(
@@ -379,7 +363,11 @@ class OaiJazz(Observable):
     def _versionFormatCheck(self):
         versionFile = join(self._directory, "oai.version")
         msg = "The OAI index at %s is not compatible with this version (no conversion script could be provided)." % self._directory
-        assert listdir(self._directory) == [] or isfile(versionFile) and open(versionFile).read() == self.version, msg
+        versionInFile = None
+        if isfile(versionFile):
+            with open(versionFile) as fp:
+                versionInFile = fp.read()
+        assert listdir(self._directory) == [] or isfile(versionFile) and versionInFile == self.version, msg
         with open(versionFile, 'w') as f:
             f.write(self.version)
 
@@ -431,9 +419,9 @@ class OaiJazz(Observable):
         oldDoc = oldDoc or self._getDocument(identifier)
         doc, oldDeletedSets, oldDeletedPrefixes = self._getNewDocument(identifier, oldDoc=oldDoc)
         newStamp = _overrideStamp if self._importMode else self._newStamp()
-        doc.add(LongPoint(STAMP_FIELD, long(newStamp)))
-        doc.add(StoredField(STAMP_FIELD, long(newStamp)))
-        doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, long(newStamp)))
+        doc.add(LongPoint(STAMP_FIELD, int(newStamp)))
+        doc.add(StoredField(STAMP_FIELD, BytesRef(JArray('byte')(int_to_bytes(newStamp)))))
+        doc.add(NumericDocValuesField(NUMERIC_STAMP_FIELD, int(newStamp)))
 
         allMetadataPrefixes, allDeletedPrefixes = self._setMetadataPrefixes(doc=doc, metadataPrefixes=asSet(metadataPrefixes), delete=delete, deleteInPrefixes=asSet(deleteInPrefixes), oldDeletedPrefixes=oldDeletedPrefixes)
 
@@ -534,7 +522,8 @@ class OaiJazz(Observable):
     def _load(self):
         path = join(self._directory, "data.json")
         if isfile(path):
-            self._data = load(open(path))
+            with open(path) as fp:
+                self._data = load(fp)
         else:
             self._data = dict(prefixes={}, sets={})
 
@@ -645,11 +634,18 @@ def _validSetSpecs(setSpecs):
 
 
 def _stampFromDocument(doc):
-    return int(doc.getField(STAMP_FIELD).numericValue().longValue())
+    return bytes_to_int(doc.getField(STAMP_FIELD).binaryValue().bytes.bytes_)
 
 
 def asSet(iterableOrNone):
     return set() if iterableOrNone is None else set(iterableOrNone)
+
+def int_to_bytes(number):
+    return number.to_bytes(length=(8 + (number + (number < 0)).bit_length()) // 8, byteorder='big')
+
+def bytes_to_int(bin_data):
+    return int.from_bytes(bin_data, byteorder='big')
+
 
 SETSPEC_SEPARATOR = ","
 SETSPEC_HIERARCHY_SEPARATOR = ":"

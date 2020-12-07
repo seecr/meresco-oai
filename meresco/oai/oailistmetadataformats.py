@@ -36,8 +36,8 @@ from xml.sax.saxutils import escape as xmlEscape
 
 from meresco.core import Observable
 
-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
-from oaierror import oaiError
+from .oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime
+from .oaierror import oaiError
 
 
 class OaiListMetadataFormats(Observable):
@@ -78,7 +78,7 @@ Error and Exception Conditions
                     raise OaiException('idDoesNotExist')
                 metadataFormats = [(prefix, xsd, ns) for prefix, xsd, ns in metadataFormats if prefix in record.prefixes]
             displayedMetadataFormats = sorted(metadataFormats)
-        except OaiException, e:
+        except OaiException as e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
             return
 

@@ -41,23 +41,23 @@ class RemoveSetsFromOaiTest(SeecrTestCase):
         oaiJazz.addOaiRecord('id:1', setSpecs=['a:b'], metadataFormats=[('prefix', '', '')])
         oaiJazz.addOaiRecord('id:2', setSpecs=['a:c'], metadataFormats=[('prefix', '', '')])
 
-        self.assertEquals([
-                ('id:0', set([u'a', u'a:b', u'a:c']), False),
-                ('id:1', set([u'a', u'a:b']), False),
-                ('id:2', set([u'a', u'a:c']), False),
+        self.assertEqual([
+                ('id:0', set(['a', 'a:b', 'a:c']), False),
+                ('id:1', set(['a', 'a:b']), False),
+                ('id:2', set(['a', 'a:c']), False),
             ],
             [(r.identifier, r.sets, r.isDeleted) for r in oaiJazz.oaiSelect(prefix='prefix').records])
-        self.assertEquals(set(['a:b', 'a', 'a:c']), oaiJazz.getAllSets())
+        self.assertEqual(set(['a:b', 'a', 'a:c']), oaiJazz.getAllSets())
 
         oaiJazz.close()
 
         removeSetsFromOai(self.tempdir, sets=['a:b'], prefix='prefix', batchSize=1)
 
         oaiJazz = OaiJazz(self.tempdir)
-        self.assertEquals([
-                ('id:2', set([u'a', u'a:c']), False),
-                ('id:0', set([u'a', u'a:c']), False),
+        self.assertEqual([
+                ('id:2', set(['a', 'a:c']), False),
+                ('id:0', set(['a', 'a:c']), False),
                 ('id:1', set([]), False), 
             ],
             [(r.identifier, r.sets, r.isDeleted) for r in oaiJazz.oaiSelect(prefix='prefix').records])
-        self.assertEquals(set(['a', 'a:c']), oaiJazz.getAllSets())
+        self.assertEqual(set(['a', 'a:c']), oaiJazz.getAllSets())

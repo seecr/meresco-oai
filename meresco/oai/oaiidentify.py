@@ -37,8 +37,8 @@ from xml.sax.saxutils import escape as escapeXml
 
 from meresco.core import Observable
 
-from oaiutils import oaiHeader, oaiFooter, oaiRequestArgs, zuluTime
-from oaierror import oaiError
+from .oaiutils import oaiHeader, oaiFooter, oaiRequestArgs, zuluTime
+from .oaierror import oaiError
 
 
 class OaiIdentify(Observable):
@@ -82,8 +82,8 @@ The response may include multiple instances of the following optional elements:
 
     def identify(self, arguments, **httpkwargs):
         responseDate = zuluTime()
-        if arguments.keys() != ['verb']:
-            additionalMessage = 'Argument(s) %s is/are illegal.' % ", ".join('"%s"' % key for key in arguments.keys() if key != 'verb')
+        if list(arguments.keys()) != ['verb']:
+            additionalMessage = 'Argument(s) %s is/are illegal.' % ", ".join('"%s"' % key for key in list(arguments.keys()) if key != 'verb')
             yield oaiError('badArgument',
                     additionalMessage=additionalMessage,
                     arguments=arguments,

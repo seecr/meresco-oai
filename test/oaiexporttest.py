@@ -45,7 +45,7 @@ class OaiExportTest(SeecrTestCase):
         jazz.addOaiRecord(identifier='id:1', metadataPrefixes=['prefix'], setSpecs=['a', 'a:b', 'd:e:f'])
         jazz.addOaiRecord(identifier='id:2', metadataPrefixes=['prefix', 'someprefix'], setSpecs=['a', 'a:b', 'd:e:f'])
         jazz.addOaiRecord(identifier='id:3', metadataPrefixes=['prefix', 'someprefix'], setSpecs=['a', 'a:b', 'd:e:f'])
-        for i in xrange(4,3000):
+        for i in range(4,3000):
             jazz.addOaiRecord(identifier='id:{}'.format(i), metadataPrefixes=['prefix'])
 
         jazz.deleteOaiRecordInPrefixes(identifier='id:2', metadataPrefixes=['someprefix'])
@@ -61,61 +61,61 @@ class OaiExportTest(SeecrTestCase):
         self.assertEqual('RECORDS:\n', d[2])
         meta = loads(d[1].strip())
         self.assertEqual({
-            u'export_version': 1,
-            u'metadataPrefixes': {
-                u'someprefix': {u'schema': u'https://example.org/schema.xsd', u'namespace': u'urn:ns'},
-                u'prefix': {u'schema': u'schema', u'namespace': u'namespace'},
+            'export_version': 1,
+            'metadataPrefixes': {
+                'someprefix': {'schema': 'https://example.org/schema.xsd', 'namespace': 'urn:ns'},
+                'prefix': {'schema': 'schema', 'namespace': 'namespace'},
             },
-            u'sets': {
-                u'a': {u'setName': u'A'},
-                u'a:b': {u'setName': u''},
-                u'd': {u'setName': u''},
-                u'd:e': {u'setName': u''},
-                u'd:e:f': {u'setName': u''},
-                u'setSpec': {u'setName': u'setName'},
+            'sets': {
+                'a': {'setName': 'A'},
+                'a:b': {'setName': ''},
+                'd': {'setName': ''},
+                'd:e': {'setName': ''},
+                'd:e:f': {'setName': ''},
+                'setSpec': {'setName': 'setName'},
             }
         }, meta)
         record0 = loads(d[3].strip())
         self.assertAlmostEqual(time(), record0['timestamp'] / 10.0 ** 6, delta=3)
         record0['timestamp'] = 'TIMESTAMP'
         self.assertEqual({
-            u'identifier': u'id:0',
-            u'timestamp': 'TIMESTAMP',
-            u'tombstone': False,
-            u'deletedPrefixes': [],
-            u'prefixes': ['prefix'],
-            u'deletedSets': [],
-            u'sets': [],}, record0)
+            'identifier': 'id:0',
+            'timestamp': 'TIMESTAMP',
+            'tombstone': False,
+            'deletedPrefixes': [],
+            'prefixes': ['prefix'],
+            'deletedSets': [],
+            'sets': [],}, record0)
         record2 = loads(d[-3].strip())
         record2['timestamp'] = 'TIMESTAMP'
         self.assertEqual({
-            u'identifier': u'id:2',
-            u'timestamp': 'TIMESTAMP',
-            u'tombstone': False,
-            u'deletedPrefixes': ['someprefix'],
-            u'prefixes': ['prefix', 'someprefix'],
-            u'deletedSets': [],
-            u'sets': ['a', 'a:b', 'd', 'd:e', 'd:e:f'],}, record2)
+            'identifier': 'id:2',
+            'timestamp': 'TIMESTAMP',
+            'tombstone': False,
+            'deletedPrefixes': ['someprefix'],
+            'prefixes': ['prefix', 'someprefix'],
+            'deletedSets': [],
+            'sets': ['a', 'a:b', 'd', 'd:e', 'd:e:f'],}, record2)
         record3 = loads(d[-2].strip())
         record3['timestamp'] = 'TIMESTAMP'
         self.assertEqual({
-            u'identifier': u'id:3',
-            u'timestamp': 'TIMESTAMP',
-            u'tombstone': False,
-            u'deletedPrefixes': [],
-            u'prefixes': ['prefix', 'someprefix'],
-            u'deletedSets': ['d:e:f'],
-            u'sets': ['a', 'a:b', 'd', 'd:e', 'd:e:f'],}, record3)
+            'identifier': 'id:3',
+            'timestamp': 'TIMESTAMP',
+            'tombstone': False,
+            'deletedPrefixes': [],
+            'prefixes': ['prefix', 'someprefix'],
+            'deletedSets': ['d:e:f'],
+            'sets': ['a', 'a:b', 'd', 'd:e', 'd:e:f'],}, record3)
         record7 = loads(d[-1].strip())
         record7['timestamp'] = 'TIMESTAMP'
         self.assertEqual({
-            u'identifier': u'id:7',
-            u'timestamp': 'TIMESTAMP',
-            u'tombstone': True,
-            u'deletedPrefixes': ['prefix'],
-            u'prefixes': ['prefix'],
-            u'deletedSets': [],
-            u'sets': [],}, record7)
+            'identifier': 'id:7',
+            'timestamp': 'TIMESTAMP',
+            'tombstone': True,
+            'deletedPrefixes': ['prefix'],
+            'prefixes': ['prefix'],
+            'deletedSets': [],
+            'sets': [],}, record7)
 
     def testOaiJazzImport(self):
         dumpfile = join(datadir, 'oaiexport.dump')

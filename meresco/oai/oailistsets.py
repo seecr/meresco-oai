@@ -35,8 +35,8 @@ from xml.sax.saxutils import escape as xmlEscape
 
 from meresco.core.observable import Observable
 
-from oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime, OaiBadArgumentException
-from oaierror import oaiError
+from .oaiutils import checkNoRepeatedArguments, checkNoMoreArguments, checkArgument, oaiFooter, oaiHeader, oaiRequestArgs, OaiException, zuluTime, OaiBadArgumentException
+from .oaierror import oaiError
 
 
 class OaiListSets(Observable):
@@ -72,7 +72,7 @@ Error and Exception Conditions
             sets = self.call.getAllSets(includeSetNames=True)
             if len(sets) == 0:
                 raise OaiException('noSetHierarchy')
-        except OaiException, e:
+        except OaiException as e:
             yield oaiError(e.statusCode, e.additionalMessage, arguments, requestUrl=self._repository.requestUrl(**httpkwargs), **httpkwargs)
             return
 

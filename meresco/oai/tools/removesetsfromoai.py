@@ -57,7 +57,7 @@ Usage: removeSetsFromOai(jazzDir, sets=['a:b'], prefix='your_prefix')"""
     goOn = True
     while goOn:
         select = deletingOaiJazz.oaiSelect(prefix=prefix, sets=sets, batchSize=batchSize)
-        print 'Removing set for %s records' % select.numberOfRecordsInBatch
+        print('Removing set for %s records' % select.numberOfRecordsInBatch)
         for record in select.records:
             deletingOaiJazz.addOaiRecord(identifier=record.identifier, metadataPrefixes=[prefix])
         goOn = select.numberOfRecordsInBatch

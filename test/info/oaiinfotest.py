@@ -56,17 +56,17 @@ class OaiInfoTest(SeecrTestCase):
         header, body = result.split('\r\n\r\n')
         lastStamp = self.jazz.getLastStampId(prefix=None)
         self.assertTrue(lastStamp != None)
-        self.assertEquals({'totalRecords': {'total': 3, 'deletes': 1}, 'lastStamp': lastStamp}, loads(body))
+        self.assertEqual({'totalRecords': {'total': 3, 'deletes': 1}, 'lastStamp': lastStamp}, loads(body))
 
     def testGetAllSets(self):
         result = asString(self.top.all.handleRequest(path='/info/json/sets', arguments={}))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals(['set1', 'set2'], loads(body))
+        self.assertEqual(['set1', 'set2'], loads(body))
 
     def testGetAllPrefixes(self):
         result = asString(self.top.all.handleRequest(path='/info/json/prefixes', arguments={}))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals(['oai', 'prefix1'], loads(body))
+        self.assertEqual(['oai', 'prefix1'], loads(body))
 
     def testPrefixInfo(self):
         result = asString(self.top.all.handleRequest(path='/info/json/prefix', arguments=dict(prefix=['prefix1'])))
@@ -74,7 +74,7 @@ class OaiInfoTest(SeecrTestCase):
 
         lastStamp = self.jazz.getLastStampId(prefix='prefix1')
         self.assertTrue(lastStamp != None)
-        self.assertEquals(dict(prefix='prefix1', schema='', namespace='', nrOfRecords=dict(total=3, deletes=1), lastStamp=lastStamp), loads(body))
+        self.assertEqual(dict(prefix='prefix1', schema='', namespace='', nrOfRecords=dict(total=3, deletes=1), lastStamp=lastStamp), loads(body))
 
         result = asString(self.top.all.handleRequest(path='/info/json/prefix',
             arguments=dict(prefix=['oai'])))
@@ -83,13 +83,13 @@ class OaiInfoTest(SeecrTestCase):
         oaiLastStamp = self.jazz.getLastStampId(prefix='oai')
         self.assertTrue(oaiLastStamp != None)
         self.assertTrue(lastStamp != oaiLastStamp)
-        self.assertEquals(dict(prefix='oai', schema='oai-schema', namespace='oai-namespace', nrOfRecords=dict(total=1, deletes=0), lastStamp=oaiLastStamp), loads(body))
+        self.assertEqual(dict(prefix='oai', schema='oai-schema', namespace='oai-namespace', nrOfRecords=dict(total=1, deletes=0), lastStamp=oaiLastStamp), loads(body))
 
     def testUnknownPrefixInfo(self):
         result = asString(self.top.all.handleRequest(path='/info/json/prefix',
             arguments=dict(prefix=['unknown'])))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals({}, loads(body))
+        self.assertEqual({}, loads(body))
 
     def testSetInfo(self):
         result = asString(self.top.all.handleRequest(path='/info/json/set', arguments=dict(set=['set1'])))
@@ -97,21 +97,21 @@ class OaiInfoTest(SeecrTestCase):
 
         lastStamp = self.jazz.getLastStampId(setSpec='set1', prefix=None)
         self.assertTrue(lastStamp != None)
-        self.assertEquals(dict(setSpec='set1', name='set1', nrOfRecords=dict(total=3, deletes=1), lastStamp=lastStamp), loads(body))
+        self.assertEqual(dict(setSpec='set1', name='set1', nrOfRecords=dict(total=3, deletes=1), lastStamp=lastStamp), loads(body))
 
         result = asString(self.top.all.handleRequest(path='/info/json/set',
             arguments=dict(set=['set2'])))
         header, body = result.split('\r\n\r\n')
         set2LastStamp = self.jazz.getLastStampId(setSpec='set2', prefix=None)
         self.assertTrue(lastStamp == set2LastStamp)
-        self.assertEquals(dict(setSpec='set2', name='set name 2', nrOfRecords=dict(total=1, deletes=1), lastStamp=set2LastStamp), loads(body))
+        self.assertEqual(dict(setSpec='set2', name='set name 2', nrOfRecords=dict(total=1, deletes=1), lastStamp=set2LastStamp), loads(body))
 
     def testResumptionTokenInfo(self):
-        firstRecord = self.jazz.oaiSelect(prefix='prefix1', batchSize=1).records.next()
+        firstRecord = next(self.jazz.oaiSelect(prefix='prefix1', batchSize=1).records)
         resumptionToken =  ResumptionToken(metadataPrefix='prefix1', continueAfter=firstRecord.stamp)
         result = asString(self.top.all.handleRequest(path='/info/json/resumptiontoken', arguments=dict(resumptionToken=[str(resumptionToken)])))
         header, body = result.split('\r\n\r\n')
-        self.assertEquals({
+        self.assertEqual({
                 'prefix':'prefix1',
                 'set':None,
                 'from':None,

@@ -31,7 +31,8 @@ from os.path import join
 from random import randint
 from threading import Thread
 from time import sleep
-from urllib2 import urlopen, URLError
+from urllib.request import urlopen
+from urllib.error import URLError
 from uuid import uuid4
 
 from lucene import getVMEnv
@@ -52,7 +53,7 @@ from weightless.io import Reactor
 from weightless.core import be, compose
 
 from meresco.components import lxmltostring
-from StringIO import StringIO
+from io import StringIO
 from lxml.etree import XML
 from traceback import print_exc
 
@@ -78,11 +79,11 @@ class OaiIntegrationTest(SeecrTestCase):
             requests = 3
             sleepWheel(1.0 + 1.0 * requests)
 
-            self.assertEquals(['startOaiBatch', 'add', 'add', 'stopOaiBatch', 'startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
+            self.assertEqual(['startOaiBatch', 'add', 'add', 'stopOaiBatch', 'startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
             ids = [xpath(m.kwargs['lxmlNode'], '//oai:header/oai:identifier/text()') for m in observer.calledMethods if m.name == 'add']
-            self.assertEquals([['id0'],['id1'],['id2']], ids)
+            self.assertEqual([['id0'],['id1'],['id2']], ids)
 
-            self.assertEquals(1, len(suspendRegister))
+            self.assertEqual(1, len(suspendRegister))
             observer.calledMethods.reset()
 
             requests += 1
@@ -90,12 +91,12 @@ class OaiIntegrationTest(SeecrTestCase):
             oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
             sleepWheel(1)
 
-            self.assertEquals(0, len(suspendRegister))
-            self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
+            self.assertEqual(0, len(suspendRegister))
+            self.assertEqual(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
             kwarg = lxmltostring(observer.calledMethods[1].kwargs['lxmlNode'])
             self.assertTrue("id3" in kwarg, kwarg)
             sleepWheel(1.0)
-            self.assertEquals(1, len(suspendRegister))
+            self.assertEqual(1, len(suspendRegister))
         finally:
             self.run = False
             oaiPmhThread.join()
@@ -135,7 +136,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 self.assertTrue(clientId in suspendRegister)
                 self.assertTrue(harvest1Suspend != suspendRegister._suspendObject(clientId))
 
-                self.assertEquals(1, len(responses))
+                self.assertEqual(1, len(responses))
                 header, body = responses[0]
                 self.assertTrue('204' in header, header)
                 self.assertTrue(body.startswith('Aborting suspended request'), body)
@@ -165,7 +166,7 @@ class OaiIntegrationTest(SeecrTestCase):
         def doUrlOpenWithTimeout(port, basket):
             try:
                 response = urlopen("http://localhost:%s/?verb=ListRecords&metadataPrefix=prefix&x-wait=True" % port, timeout=0.5)
-            except URLError, e:
+            except URLError as e:
                 self.assertTrue('urlopen error timed out>' in str(e), str(e))
             basket.append(response.getcode())
 
@@ -192,7 +193,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 oaiPmhThread.join()
                 oaiJazz.close()
 
-        self.assertEquals([204] * 2, statusCodes)
+        self.assertEqual([204] * 2, statusCodes)
 
     def testUpdateRecordWhileSendingData(self):
         batchSize = 3
@@ -255,7 +256,7 @@ class OaiIntegrationTest(SeecrTestCase):
         start()
         requests = 1
         sleepWheel(1.0 + 1.0 * requests)
-        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
+        self.assertEqual(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
         kwarg = lxmltostring(observer.calledMethods[1].kwargs['lxmlNode'])
         self.assertTrue("id0" in kwarg, kwarg)
         stop()
@@ -267,7 +268,7 @@ class OaiIntegrationTest(SeecrTestCase):
         start()
         requests = 1
         sleepWheel(1.0 + 1.0 * requests)
-        self.assertEquals(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
+        self.assertEqual(['startOaiBatch', 'add', 'stopOaiBatch'], [m.name for m in observer.calledMethods])
         kwarg = lxmltostring(observer.calledMethods[1].kwargs['lxmlNode'])
         self.assertFalse("id0" in kwarg, kwarg)
         self.assertTrue("id1" in kwarg, kwarg)

@@ -28,7 +28,7 @@
 #
 ## end license ##
 
-from StringIO import StringIO
+from io import StringIO
 from lxml.etree import parse, XML
 
 from seecr.test import SeecrTestCase, CallTrace
@@ -76,7 +76,7 @@ class OaiGetRecordTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEquals("data01", xpath(parse(StringIO(body)), '//oai:metadata')[0].text)
+        self.assertEqual("data01", xpath(parse(StringIO(body)), '//oai:metadata')[0].text)
 
     def testGetRecordDeletedInRequestedPrefix(self):
         oaijazz = OaiJazz(self.tempdir + '/jazz')
@@ -138,8 +138,8 @@ class OaiGetRecordTest(SeecrTestCase):
                 identifier=['oai:example.org:id0'],
             ),
             **self.httpkwargs))
-        self.assertEquals(['getRecord', 'isKnownPrefix', 'oaiWatermark', 'oaiRecord'], observer.calledMethodNames())
-        self.assertEquals(dict(identifier='id0', metadataPrefix='oai_dc'), observer.calledMethods[0].kwargs)
+        self.assertEqual(['getRecord', 'isKnownPrefix', 'oaiWatermark', 'oaiRecord'], observer.calledMethodNames())
+        self.assertEqual(dict(identifier='id0', metadataPrefix='oai_dc'), observer.calledMethods[0].kwargs)
 
     def testGetRecordWithRepositoryIdentifierMissingExpectedPrefix(self):
         oaigetrecord = OaiGetRecord(OaiRepository(identifier='example.org'))

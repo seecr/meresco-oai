@@ -34,14 +34,16 @@
 #
 ## end license ##
 
-from os.path import dirname, abspath, join, isfile                #DO_NOT_DISTRIBUTE
+from os.path import dirname, abspath, join, isfile, basename      #DO_NOT_DISTRIBUTE
 from os import stat, system                                       #DO_NOT_DISTRIBUTE
 from glob import glob                                             #DO_NOT_DISTRIBUTE
 from sys import exit, path as sysPath                             #DO_NOT_DISTRIBUTE
 mydir = dirname(abspath(__file__))                                #DO_NOT_DISTRIBUTE
 srcDir = join(dirname(dirname(mydir)), 'src')                     #DO_NOT_DISTRIBUTE
 libDir = join(dirname(dirname(mydir)), 'lib')                     #DO_NOT_DISTRIBUTE
-sofile = join(libDir, 'meresco_oai', '_meresco_oai.so')           #DO_NOT_DISTRIBUTE
+sofiles = glob(join(libDir, "meresco_oai", "*.so"))               #DO_NOT_DISTRIBUTE
+sofile = [each for each in sofiles if basename(each).startswith("_meresco_oai")][0]               #DO_NOT_DISTRIBUTE
+#sofile = join(libDir, 'meresco_oai', '_meresco_oai.so')           #DO_NOT_DISTRIBUTE
 merescoOaiFiles = join(srcDir, 'org','meresco','oai', '*.java')   #DO_NOT_DISTRIBUTE
 lastMtime = max(stat(f).st_mtime for f in glob(merescoOaiFiles))  #DO_NOT_DISTRIBUTE
 if not isfile(sofile) or stat(sofile).st_mtime < lastMtime:       #DO_NOT_DISTRIBUTE
@@ -50,15 +52,15 @@ if not isfile(sofile) or stat(sofile).st_mtime < lastMtime:       #DO_NOT_DISTRI
         exit(result)                                              #DO_NOT_DISTRIBUTE
 sysPath.insert(0, libDir)                                         #DO_NOT_DISTRIBUTE
 
-from __version__ import VERSION
-from oaipmh import OaiPmh
-from oaiprovenance import OaiProvenance
-from oaisetmask import OaiSetMask
-from oaisetselect import OaiSetSelect # deprecated
-from fields2oairecord import Fields2OaiRecord
-from oaijazz import OaiJazz, allHierarchicalSetSpecs
-from oaiaddrecord import OaiAddRecord, OaiAddDeleteRecordWithPrefixesAndSetSpecs
-from oaibranding import OaiBranding
+from .__version__ import VERSION
+from .oaipmh import OaiPmh
+from .oaiprovenance import OaiProvenance
+from .oaisetmask import OaiSetMask
+from .oaisetselect import OaiSetSelect # deprecated
+from .fields2oairecord import Fields2OaiRecord
+from .oaijazz import OaiJazz, allHierarchicalSetSpecs
+from .oaiaddrecord import OaiAddRecord, OaiAddDeleteRecordWithPrefixesAndSetSpecs
+from .oaibranding import OaiBranding
 from .suspendregister import SuspendRegister
 
 # backwards compatible imports

@@ -32,7 +32,7 @@
 
 from meresco.components import XmlCompose
 from lxml.etree import parse
-from StringIO import StringIO
+from io import StringIO
 
 PROVENANCE_TEMPLATE = """<provenance xmlns="http://www.openarchives.org/OAI/2.0/provenance"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

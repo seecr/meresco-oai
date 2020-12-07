@@ -35,7 +35,7 @@ from meresco.core import Observable
 
 class Fields2OaiRecord(Observable):
     def beginTransaction(self):
-        raise StopIteration(Fields2OaiRecord.Fields2OaiRecordTx(self))
+        return Fields2OaiRecord.Fields2OaiRecordTx(self)
         yield
 
     class Fields2OaiRecordTx(object):

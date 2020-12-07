@@ -39,7 +39,7 @@ class OaiToolTest(SeecrTestCase):
     def testWriteRequestArgs(self):
         result = ''.join(oaiRequestArgs({'identifier': ['with a "']}, requestUrl='https://example.org/oai', Headers={'Host':'localhost'}, port=8000, path='/oai'))
 
-        self.assertEquals('<request identifier="with a &quot;">https://example.org/oai</request>', result)
+        self.assertEqual('<request identifier="with a &quot;">https://example.org/oai</request>', result)
 
     def testSetSpecName(self):
         self.assertTrue(validSetSpecName("name"))
@@ -78,7 +78,7 @@ second
             try:
                 ISO8601(s)
                 self.fail()
-            except ISO8601Exception, e:
+            except ISO8601Exception as e:
                 pass
 
         wrong('2000')
@@ -95,12 +95,12 @@ second
 
         iso8601 = ISO8601('2000-01-01T00:00:00Z')
         self.assertFalse(iso8601.isShort())
-        self.assertEquals('2000-01-01T00:00:00Z', str(iso8601))
-        self.assertEquals('2000-01-01T00:00:00Z', iso8601.floor())
-        self.assertEquals('2000-01-01T00:00:00Z', iso8601.ceil())
+        self.assertEqual('2000-01-01T00:00:00Z', str(iso8601))
+        self.assertEqual('2000-01-01T00:00:00Z', iso8601.floor())
+        self.assertEqual('2000-01-01T00:00:00Z', iso8601.ceil())
 
         iso8601 = ISO8601('2000-01-01')
         self.assertTrue(iso8601.isShort())
-        self.assertEquals('2000-01-01T00:00:00Z', str(iso8601))
-        self.assertEquals('2000-01-01T00:00:00Z', iso8601.floor())
-        self.assertEquals('2000-01-01T23:59:59Z', iso8601.ceil())
+        self.assertEqual('2000-01-01T00:00:00Z', str(iso8601))
+        self.assertEqual('2000-01-01T00:00:00Z', iso8601.floor())
+        self.assertEqual('2000-01-01T23:59:59Z', iso8601.ceil())

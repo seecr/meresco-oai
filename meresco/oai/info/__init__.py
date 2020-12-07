@@ -24,5 +24,5 @@
 #
 ## end license ##
 
-from oaiinfo import OaiInfo
-from oaijsoninfo import OaiJsonInfo
+from .oaiinfo import OaiInfo
+from .oaijsoninfo import OaiJsonInfo

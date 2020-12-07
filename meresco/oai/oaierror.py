@@ -33,7 +33,7 @@
 
 from meresco.core import Observable
 from weightless.core import compose, Yield
-from oaiutils import oaiHeader, oaiFooter, oaiRequestArgs, zuluTime
+from .oaiutils import oaiHeader, oaiFooter, oaiRequestArgs, zuluTime
 
 
 class OaiError(Observable):
@@ -44,10 +44,10 @@ class OaiError(Observable):
     def all_unknown(self, message, **kwargs):
         result = compose(self.all.unknown(message, **kwargs))
         try:
-            firstDataResult = result.next()
+            firstDataResult = next(result)
             while callable(firstDataResult) or firstDataResult is Yield:
                 yield firstDataResult
-                firstDataResult = result.next()
+                firstDataResult = next(result)
         except StopIteration:
             yield self._error(**kwargs)
             return

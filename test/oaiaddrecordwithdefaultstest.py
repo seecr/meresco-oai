@@ -40,8 +40,8 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
 
         list(compose(subject.add('id', ignored="kwarg", data="na")))
 
-        self.assertEquals(['addOaiRecord'], [m.name for m in observer.calledMethods])
-        self.assertEquals({'identifier':'id',
+        self.assertEqual(['addOaiRecord'], [m.name for m in observer.calledMethods])
+        self.assertEqual({'identifier':'id',
             'setSpecs': ['setSpec'],
             'metadataPrefixes': ['prefix']},
             observer.calledMethods[0].kwargs)
@@ -53,8 +53,8 @@ class OaiAddRecordWithDefaultsTest(SeecrTestCase):
 
         list(compose(subject.delete('id', ignored="kwarg", data="na")))
 
-        self.assertEquals(['deleteOaiRecord'], [m.name for m in observer.calledMethods])
-        self.assertEquals({'identifier':'id',
+        self.assertEqual(['deleteOaiRecord'], [m.name for m in observer.calledMethods])
+        self.assertEqual({'identifier':'id',
             'setSpecs': ['setSpec'],
             'metadataPrefixes': ['prefix']},
             observer.calledMethods[0].kwargs)
