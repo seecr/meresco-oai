@@ -55,7 +55,8 @@ class OaiExportTest(SeecrTestCase):
         dumpfile = join(self.tempdir, 'dump')
         jazz.export(dumpfile)
 
-        d = open(dumpfile).readlines()
+        with open(dumpfile) as fp:
+            d = fp.readlines()
         self.assertEqual(3003, len(d))
         self.assertEqual('META:\n', d[0])
         self.assertEqual('RECORDS:\n', d[2])

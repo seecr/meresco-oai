@@ -58,9 +58,9 @@ from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest
 from oaibrandingtest import OaiBrandingTest
 from oaierrortest import OaiErrorTest
 from oaijazztest import OaiJazzTest
-#from oaiexporttest import OaiExportTest
-#from oaigetrecordtest import OaiGetRecordTest
-#from oaiintegrationtest import OaiIntegrationTest
+from oaiexporttest import OaiExportTest
+from oaigetrecordtest import OaiGetRecordTest
+from oaiintegrationtest import OaiIntegrationTest
 #from oaijazztest import OaiJazzTest
 #from oailisttest import OaiListTest
 #from oailistmetadataformatstest import OaiListMetadataFormatsTest

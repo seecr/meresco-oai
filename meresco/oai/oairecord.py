@@ -46,7 +46,7 @@ class OaiRecord(Transparent):
     def oaiRecordHeader(self, record, **kwargs):
         isDeletedStr = ' status="deleted"' if record.isDeleted else ''
         datestamp = record.getDatestamp(preciseDatestamp=self._preciseDatestamp)
-        identifier = record.identifier.encode('utf-8')
+        identifier = record.identifier
         if self._repository:
             identifier = self._repository.prefixIdentifier(identifier)
         yield '<header%s>' % isDeletedStr

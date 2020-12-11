@@ -28,7 +28,7 @@
 #
 ## end license ##
 
-from io import StringIO
+from io import BytesIO
 from lxml.etree import parse, XML
 
 from seecr.test import SeecrTestCase, CallTrace
@@ -76,7 +76,7 @@ class OaiGetRecordTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual("data01", xpath(parse(StringIO(body)), '//oai:metadata')[0].text)
+        self.assertEqual("data01", xpath(parse(BytesIO(body.encode())), '//oai:metadata')[0].text)
 
     def testGetRecordDeletedInRequestedPrefix(self):
         oaijazz = OaiJazz(self.tempdir + '/jazz')
@@ -100,7 +100,7 @@ class OaiGetRecordTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual('deleted', xpathFirst(XML(body), '/oai:OAI-PMH/oai:GetRecord/oai:record/oai:header/@status'), body)
+        self.assertEqual('deleted', xpathFirst(XML(body.encode()), '/oai:OAI-PMH/oai:GetRecord/oai:record/oai:header/@status'), body)
 
         response = oaigetrecord.getRecord(arguments=dict(
                 verb=['GetRecord'],
@@ -109,7 +109,7 @@ class OaiGetRecordTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual("data", xpathFirst(XML(body), '//oai:metadata/text()'))
+        self.assertEqual("data", xpathFirst(XML(body.encode()), '//oai:metadata/text()'))
 
         response = oaigetrecord.getRecord(arguments=dict(
                 verb=['GetRecord'],
@@ -118,7 +118,7 @@ class OaiGetRecordTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual('cannotDisseminateFormat', xpathFirst(XML(body), '/oai:OAI-PMH/oai:error/@code'))
+        self.assertEqual('cannotDisseminateFormat', xpathFirst(XML(body.encode()), '/oai:OAI-PMH/oai:error/@code'))
 
     def testGetRecordWithRepositoryIdentifier(self):
         oaigetrecord = OaiGetRecord(OaiRepository(identifier='example.org'))
@@ -150,4 +150,4 @@ class OaiGetRecordTest(SeecrTestCase):
         ),
         **self.httpkwargs))
         header, body = result.split('\r\n\r\n')
-        self.assertEqual('idDoesNotExist', xpathFirst(XML(body), '/oai:OAI-PMH/oai:error/@code'))
+        self.assertEqual('idDoesNotExist', xpathFirst(XML(body.encode()), '/oai:OAI-PMH/oai:error/@code'))

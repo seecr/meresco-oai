@@ -335,27 +335,27 @@ class OaiJazz(Observable):
     @classmethod
     def importDump(cls, directory, dumpfile):
         jazz = cls(directory, deleteInSets=True, importMode=True)
-        d = open(dumpfile)
-        assert 'META:\n' == next(d)
-        meta = loads(d.next().strip())
-        assert meta['export_version'] == 1
-        for setSpec, setDict in list(meta.get('sets', {}).items()):
-            jazz.updateSet(setSpec=setSpec, setName=setDict.get('setName', ''))
-        for prefix, metadataDict in list(meta.get('metadataPrefixes', {}).items()):
-            jazz.updateMetadataFormat(prefix, schema=metadataDict.get('schema', ''), namespace=metadataDict.get('namespace', ''))
-        assert 'RECORDS:\n' == next(d)
-        for record in d:
-            record = loads(record.strip())
-            jazz._updateOaiRecord(
-                    identifier=record['identifier'],
-                    setSpecs=record['sets'],
-                    metadataPrefixes=record['prefixes'],
-                    delete=record.get('tombstone', False),
-                    deleteInSets=record.get('deletedSets', []),
-                    deleteInPrefixes=record.get('deletedPrefixes', []),
-                    _overrideStamp=record['timestamp'])
-        jazz.close()
-        jazz = None
+        with open(dumpfile) as d:
+            assert 'META:\n' == next(d)
+            meta = loads(next(d).strip())
+            assert meta['export_version'] == 1
+            for setSpec, setDict in list(meta.get('sets', {}).items()):
+                jazz.updateSet(setSpec=setSpec, setName=setDict.get('setName', ''))
+            for prefix, metadataDict in list(meta.get('metadataPrefixes', {}).items()):
+                jazz.updateMetadataFormat(prefix, schema=metadataDict.get('schema', ''), namespace=metadataDict.get('namespace', ''))
+            assert 'RECORDS:\n' == next(d)
+            for record in d:
+                record = loads(record.strip())
+                jazz._updateOaiRecord(
+                        identifier=record['identifier'],
+                        setSpecs=record['sets'],
+                        metadataPrefixes=record['prefixes'],
+                        delete=record.get('tombstone', False),
+                        deleteInSets=record.get('deletedSets', []),
+                        deleteInPrefixes=record.get('deletedPrefixes', []),
+                        _overrideStamp=record['timestamp'])
+            jazz.close()
+            jazz = None
 
         return True
 

@@ -74,7 +74,7 @@ class SuspendRegister(object):
         suspend.getResult()
 
     def _handleOaiUpdateSignal(self, prefixAndSets):
-        for clientId, suspend in self._register.items()[:]:
+        for clientId, suspend in list(self._register.items()): #[:]:
             sets = prefixAndSets.get(suspend.oaiListResumeMask['prefix'])
             if sets is None:
                 continue
