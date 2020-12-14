@@ -34,6 +34,7 @@ from time import sleep
 from urllib.request import urlopen
 from urllib.error import URLError
 from uuid import uuid4
+from socket import timeout
 
 from lucene import getVMEnv
 
@@ -48,7 +49,7 @@ from meresco.sequentialstore import MultiSequentialStorage
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.utils import getRequest, sleepWheel
-from seecr.test.io import stderr_replaced
+from seecr.test.io import stderr_replaced, stdout_replaced
 from weightless.io import Reactor
 from weightless.core import be, compose
 
@@ -115,7 +116,7 @@ class OaiIntegrationTest(SeecrTestCase):
         responses = []
         def doOaiListRecord(port):
             header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, additionalHeaders={'X-Meresco-Oai-Client-Identifier': clientId}, parse=False)
-            responses.append((header, body))
+            responses.append((header.decode(), body.decode()))
 
         oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent, suspendRegister))
         harvestThread1 = Thread(None, lambda: doOaiListRecord(portNumber))
@@ -152,6 +153,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 harvestThread2.join()
                 oaiJazz.close()
 
+    @stderr_replaced
     def testShouldNotStartToLoopLikeAMadMan(self):
         self.run = True
         portNumber = randint(50000, 60000)
@@ -160,15 +162,12 @@ class OaiIntegrationTest(SeecrTestCase):
         oaiJazz.addObserver(suspendRegister)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
 
-        # def doOaiListRecord(port):
-        #     header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, parse=False)
-
         def doUrlOpenWithTimeout(port, basket):
             try:
                 response = urlopen("http://localhost:%s/?verb=ListRecords&metadataPrefix=prefix&x-wait=True" % port, timeout=0.5)
-            except URLError as e:
-                self.assertTrue('urlopen error timed out>' in str(e), str(e))
-            basket.append(response.getcode())
+                basket.append(response.getcode())
+            except timeout as e:
+                self.assertTrue('timed out' in str(e), str(e))
 
         oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent, suspendRegister))
         threads = []
@@ -220,7 +219,7 @@ class OaiIntegrationTest(SeecrTestCase):
             if 'identifier>id0<' in stuff:
                  oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
 
-        result = XML(buf.getvalue().split(CRLF*2)[-1])
+        result = XML(buf.getvalue().split(CRLF*2)[-1].encode())
         resumptionToken = xpathFirst(result, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken/text()')
         self.assertFalse(resumptionToken is None)
 
@@ -274,40 +273,42 @@ class OaiIntegrationTest(SeecrTestCase):
         self.assertTrue("id1" in kwarg, kwarg)
         stop()
 
+    @stdout_replaced
     def startOaiHarvester(self, portNumber, observer):
-        reactor = Reactor()
-        server = be(
-            (Observable(),
-                (PeriodicDownload(reactor, 'localhost', portNumber),
-                    (XmlParseLxml(fromKwarg="data", toKwarg="lxmlNode"),
-                        (OaiDownloadProcessor('/', 'prefix', self.tempdir),
-                            (observer,),
+        with Reactor() as reactor:
+            server = be(
+                (Observable(),
+                    (PeriodicDownload(reactor, 'localhost', portNumber),
+                        (XmlParseLxml(fromKwarg="data", toKwarg="lxmlNode"),
+                            (OaiDownloadProcessor('/', 'prefix', self.tempdir),
+                                (observer,),
+                            )
                         )
                     )
                 )
             )
-        )
-        list(compose(server.once.observer_init()))
-        self._loopReactor(reactor)
+            list(compose(server.once.observer_init()))
+            self._loopReactor(reactor)
 
+    @stdout_replaced
     def startOaiPmh(self, portNumber, oaiJazz, storageComponent, register):
         getVMEnv().attachCurrentThread()
-        reactor = Reactor()
-        server = be(
-            (Observable(),
-                (ObservableHttpServer(reactor, portNumber),
-                    (OaiPmh(repositoryName='repositoryName', adminEmail='adminEmail', batchSize=2, supportXWait=True),
-                        (register,),
-                        (oaiJazz,
+        with Reactor() as reactor:
+            server = be(
+                (Observable(),
+                    (ObservableHttpServer(reactor, portNumber),
+                        (OaiPmh(repositoryName='repositoryName', adminEmail='adminEmail', batchSize=2, supportXWait=True),
                             (register,),
-                        ),
-                        (storageComponent,)
+                            (oaiJazz,
+                                (register,),
+                            ),
+                            (storageComponent,)
+                        )
                     )
                 )
             )
-        )
-        list(compose(server.once.observer_init()))
-        self._loopReactor(reactor)
+            list(compose(server.once.observer_init()))
+            self._loopReactor(reactor)
 
     def _addOaiRecords(self, storageComponent, oaiJazz, count):
         for i in range(count):

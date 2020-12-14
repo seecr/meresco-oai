@@ -67,7 +67,7 @@ class SuspendRegister(object):
         if clientIdentifier in self._register:
             self._register.pop(clientIdentifier).throw(exc_type=ForcedResumeException, exc_value=ForcedResumeException("Aborting suspended request because of new request for the same OaiClient with identifier: %s." % clientIdentifier), exc_traceback=None)
         elif len(self._register) == self._maximumSuspendedConnections:
-            self._register.pop(choice(self._register.keys())).throw(exc_type=ForcedResumeException, exc_value=ForcedResumeException("OAI x-wait connection has been forcefully resumed."), exc_traceback=None)
+            self._register.pop(choice(list(self._register.keys()))).throw(exc_type=ForcedResumeException, exc_value=ForcedResumeException("OAI x-wait connection has been forcefully resumed."), exc_traceback=None)
             sys.stderr.write("Too many suspended connections in SuspendRegister. One random connection has been resumed.\n")
         self._register[clientIdentifier] = suspend
         yield suspend
