@@ -61,8 +61,8 @@ from oaijazztest import OaiJazzTest
 from oaiexporttest import OaiExportTest
 from oaigetrecordtest import OaiGetRecordTest
 from oaiintegrationtest import OaiIntegrationTest
-#from oaijazztest import OaiJazzTest
-#from oailisttest import OaiListTest
+from oaijazztest import OaiJazzTest
+from oailisttest import OaiListTest
 #from oailistmetadataformatstest import OaiListMetadataFormatsTest
 #from oailistsetstest import OaiListSetsTest
 #from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest

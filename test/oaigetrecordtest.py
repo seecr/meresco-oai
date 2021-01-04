@@ -56,6 +56,7 @@ class OaiGetRecordTest(SeecrTestCase):
 
     def testGetRecordWithMultiSequentialStorage(self):
         oaijazz = OaiJazz(self.tempdir + '/jazz')
+        oaijazz.updateMetadataFormat(prefix="oai_dc", schema="", namespace="")
         storage = MultiSequentialStorage(self.tempdir + "/seq-store")
         oairecord = OaiRecord()
         oaigetrecord = be((OaiGetRecord(repository=OaiRepository()),
@@ -67,7 +68,7 @@ class OaiGetRecordTest(SeecrTestCase):
             )
         ))
 
-        oaijazz.addOaiRecord(identifier="id0", sets=(), metadataFormats=[('oai_dc', '', '')])
+        oaijazz.addOaiRecord(identifier="id0", metadataPrefixes=['oai_dc'])
         storage.addData(identifier="id0", name="oai_dc", data="data01")
         response = oaigetrecord.getRecord(arguments=dict(
                 verb=['GetRecord'],

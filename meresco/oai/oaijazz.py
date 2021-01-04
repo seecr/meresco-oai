@@ -173,25 +173,11 @@ class OaiJazz(Observable):
                 if record.identifier not in inner.parent._latestModifications:
                     yield record
 
-    def addOaiRecord(self, identifier, metadataPrefixes=None, setSpecs=None, metadataFormats=None, sets=None):
+    def addOaiRecord(self, identifier, metadataPrefixes=None, setSpecs=None):
         if not identifier:
             raise ValueError("Empty identifier not allowed.")
-        if not metadataFormats and not metadataPrefixes:
+        if not metadataPrefixes:
             raise ValueError('No metadataPrefix specified for record with identifier "%s"' % identifier)
-        if metadataFormats:
-            if metadataPrefixes:
-                raise ValueError("Either use metadataPrefixes or metadataFormats, not both.")
-            warn("Use updateMetadataFormat to register a schema and namespace with a metadataPrefix.", DeprecationWarning)  # Since version 5.11.5
-            metadataPrefixes = [p for (p, _, _) in metadataFormats]
-            for prefix, schema, namespace in metadataFormats:
-                self._prefixes[prefix] = (schema, namespace)
-        if sets:
-            if setSpecs:
-                raise ValueError("Either use setSpecs or sets, not both.")
-            warn("Use updateSet to register a set name with a setSpec.", DeprecationWarning)  # Since version 5.11.5
-            setSpecs = [s for (s, _) in sets]
-            for setSpec, setName in sets:
-                self._sets[setSpec] = setName
         self._updateOaiRecord(identifier=identifier, metadataPrefixes=metadataPrefixes, setSpecs=setSpecs)
 
     def delete(self, identifier):

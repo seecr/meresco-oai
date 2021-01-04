@@ -65,6 +65,7 @@ class OaiIntegrationTest(SeecrTestCase):
         portNumber = randint(50000, 60000)
         suspendRegister = SuspendRegister()
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        oaiJazz.updateMetadataFormat(prefix="prefix", schema="", namespace="")
         oaiJazz.addObserver(suspendRegister)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, 3)
@@ -89,7 +90,7 @@ class OaiIntegrationTest(SeecrTestCase):
 
             requests += 1
             storageComponent.addData(identifier="id3", name="prefix", data="<a>a3</a>")
-            oaiJazz.addOaiRecord(identifier="id3", sets=[], metadataFormats=[("prefix", "", "")])
+            oaiJazz.addOaiRecord(identifier="id3", metadataPrefixes=["prefix"])
             sleepWheel(1)
 
             self.assertEqual(0, len(suspendRegister))
@@ -108,6 +109,7 @@ class OaiIntegrationTest(SeecrTestCase):
         self.run = True
         portNumber = randint(50000, 60000)
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        oaiJazz.updateMetadataFormat(prefix="prefix", schema="", namespace="")
         suspendRegister = SuspendRegister()
         oaiJazz.addObserver(suspendRegister)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
@@ -143,7 +145,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 self.assertTrue(body.startswith('Aborting suspended request'), body)
 
                 storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
-                oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
+                oaiJazz.addOaiRecord(identifier="id1", metadataPrefixes=["prefix"])
                 sleep(0.1)
 
             finally:
@@ -197,6 +199,7 @@ class OaiIntegrationTest(SeecrTestCase):
     def testUpdateRecordWhileSendingData(self):
         batchSize = 3
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        oaiJazz.updateMetadataFormat(prefix="prefix", schema="", namespace="")
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
         self._addOaiRecords(storageComponent, oaiJazz, count=batchSize + 10)
         dna = be((Observable(),
@@ -217,7 +220,7 @@ class OaiIntegrationTest(SeecrTestCase):
         for stuff in stream:
             buf.write(stuff)
             if 'identifier>id0<' in stuff:
-                 oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
+                 oaiJazz.addOaiRecord(identifier="id1", metadataPrefixes=["prefix"])
 
         result = XML(buf.getvalue().split(CRLF*2)[-1].encode())
         resumptionToken = xpathFirst(result, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken/text()')
@@ -227,6 +230,7 @@ class OaiIntegrationTest(SeecrTestCase):
     def testNearRealtimeOaiSavesState(self):
         observer = CallTrace("observer", ignoredAttributes=["observer_init"], methods={'add': lambda **kwargs: (x for x in [])})
         oaiJazz = OaiJazz(join(self.tempdir, 'oai'))
+        oaiJazz.updateMetadataFormat(prefix="prefix", schema="", namespace="")
         suspendRegister = SuspendRegister()
         oaiJazz.addObserver(suspendRegister)
         storageComponent = MultiSequentialStorage(join(self.tempdir, 'storage'))
@@ -262,7 +266,7 @@ class OaiIntegrationTest(SeecrTestCase):
         observer.calledMethods.reset()
 
         storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
-        oaiJazz.addOaiRecord(identifier="id1", sets=[], metadataFormats=[("prefix", "", "")])
+        oaiJazz.addOaiRecord(identifier="id1", metadataPrefixes=["prefix"])
 
         start()
         requests = 1
@@ -311,9 +315,10 @@ class OaiIntegrationTest(SeecrTestCase):
             self._loopReactor(reactor)
 
     def _addOaiRecords(self, storageComponent, oaiJazz, count):
+        oaiJazz.updateMetadataFormat(prefix="prefix", schema="", namespace="")
         for i in range(count):
             storageComponent.addData(identifier="id%s" % i, name="prefix", data="<a>a%s</a>" % i)
-            oaiJazz.addOaiRecord(identifier="id%s" % i, sets=[], metadataFormats=[("prefix", "", "")])
+            oaiJazz.addOaiRecord(identifier="id%s" % i, metadataPrefixes=["prefix"])
 
     def _loopReactor(self, reactor):
         def tick():

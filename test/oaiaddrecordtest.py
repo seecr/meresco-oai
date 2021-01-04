@@ -55,10 +55,9 @@ class OaiAddRecordTest(SeecrTestCase):
         lxmlNode = parseLxml('<empty/>')
         consume(self.subject.add('id', 'partName', lxmlNode))
 
-        self.assertEqual(['addOaiRecord'], self.observer.calledMethodNames())
-        self.assertEqual('id', self.observer.calledMethods[0].kwargs['identifier'])
-        self.assertEqual([('partName', '', '')], self.observer.calledMethods[0].kwargs['metadataFormats'])
-        self.assertEqual(set(), self.observer.calledMethods[0].kwargs['sets'])
+        self.assertEqual(['updateMetadataFormat', 'addOaiRecord'], self.observer.calledMethodNames())
+        self.assertEqual('id', self.observer.calledMethods[1].kwargs['identifier'])
+        self.assertEqual({'prefix': 'partName', 'schema': '', 'namespace': ''}, self.observer.calledMethods[0].kwargs)
 
     def testAddSetInfo(self):
         record = createElement('oai:record')
@@ -67,10 +66,10 @@ class OaiAddRecordTest(SeecrTestCase):
 
         consume(self.subject.add('123', 'oai_dc', record))
 
-        self.assertEqual(['addOaiRecord'], self.observer.calledMethodNames())
-        self.assertEqual('123', self.observer.calledMethods[0].kwargs['identifier'])
-        self.assertEqual(set([('1','1')]), self.observer.calledMethods[0].kwargs['sets'])
-        self.assertEqual([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[0].kwargs['metadataFormats'])
+        self.assertEqual(['updateSet', 'updateMetadataFormat', 'addOaiRecord'], self.observer.calledMethodNames())
+        self.assertEqual('123', self.observer.calledMethods[2].kwargs['identifier'])
+        self.assertEqual({'setSpec': '1', 'setName': '1'}, self.observer.calledMethods[0].kwargs)
+        self.assertEqual({'prefix': 'oai_dc', 'schema': '', 'namespace': "http://www.openarchives.org/OAI/2.0/"}, self.observer.calledMethods[1].kwargs)
 
     def testAddSetInfoWithElementTree(self):
         oaiContainer = createElement('oai:PMH')
@@ -80,44 +79,48 @@ class OaiAddRecordTest(SeecrTestCase):
 
         consume(self.subject.add('123', 'oai_dc', xpathFirst(oaiContainer, '/oai:PMH/oai:record')))
 
-        self.assertEqual(['addOaiRecord'], self.observer.calledMethodNames())
-        self.assertEqual('123', self.observer.calledMethods[0].kwargs['identifier'])
-        self.assertEqual(set([('1','1')]), self.observer.calledMethods[0].kwargs['sets'])
-        self.assertEqual([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[0].kwargs['metadataFormats'])
+        self.assertEqual(['updateSet', 'updateMetadataFormat', 'addOaiRecord'], self.observer.calledMethodNames())
+        self.assertEqual('123', self.observer.calledMethods[2].kwargs['identifier'])
+        self.assertEqual({'setSpec': '1', 'setName': '1'}, self.observer.calledMethods[0].kwargs)
+        self.assertEqual({'prefix': 'oai_dc', 'schema': '', 'namespace': "http://www.openarchives.org/OAI/2.0/"}, self.observer.calledMethods[1].kwargs)
 
     def testAddElementTree(self):
         header = parse(StringIO('<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>1</setSpec></header>'))
 
         consume(self.subject.add('123', 'oai_dc', header))
 
-        self.assertEqual(['addOaiRecord'], self.observer.calledMethodNames())
-        self.assertEqual('123', self.observer.calledMethods[0].kwargs['identifier'])
-        self.assertEqual(set([('1','1')]), self.observer.calledMethods[0].kwargs['sets'])
-        self.assertEqual([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[0].kwargs['metadataFormats'])
+        self.assertEqual(['updateSet', 'updateMetadataFormat', 'addOaiRecord'], self.observer.calledMethodNames())
+        self.assertEqual('123', self.observer.calledMethods[2].kwargs['identifier'])
+        self.assertEqual({'setSpec': '1', 'setName': '1'}, self.observer.calledMethods[0].kwargs)
+        self.assertEqual({'prefix': 'oai_dc', 'schema': '', 'namespace': "http://www.openarchives.org/OAI/2.0/"}, self.observer.calledMethods[1].kwargs)
 
     def testAddRecognizeNamespace(self):
         header = '<header xmlns="this.is.not.the.right.ns"><setSpec>%s</setSpec></header>'
         consume(self.subject.add('123', 'oai_dc', parseLxml(header % 1)))
         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/"><setSpec>%s</setSpec></header>'
         consume(self.subject.add('124', 'oai_dc', parseLxml(header % 1)))
-        self.assertEqual(['addOaiRecord', 'addOaiRecord'], self.observer.calledMethodNames())
-        self.assertEqual([('oai_dc', '', "this.is.not.the.right.ns")], self.observer.calledMethods[0].kwargs['metadataFormats'])
-        self.assertEqual([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[1].kwargs['metadataFormats'])
+        self.assertEqual(['updateMetadataFormat', 'addOaiRecord', 'updateSet', 'updateMetadataFormat', 'addOaiRecord'], self.observer.calledMethodNames())
+        self.assertEqual({'prefix': 'oai_dc', 'schema': '', 'namespace': 'this.is.not.the.right.ns'}, self.observer.calledMethods[0].kwargs)
+        self.assertEqual({'prefix': 'oai_dc', 'schema': '', 'namespace': "http://www.openarchives.org/OAI/2.0/"}, self.observer.calledMethods[3].kwargs)
 
     def testMultipleHierarchicalSets(self):
         spec = "<setSpec>%s</setSpec>"
         header = '<header xmlns="http://www.openarchives.org/OAI/2.0/">%s</header>'
         consume(self.subject.add('124', 'oai_dc', parseLxml(header % (spec % '2:3' + spec % '3:4'))))
-        self.assertEqual('124', self.observer.calledMethods[0].kwargs['identifier'])
-        self.assertEqual([('oai_dc', '', "http://www.openarchives.org/OAI/2.0/")], self.observer.calledMethods[0].kwargs['metadataFormats'])
-        self.assertEqual(set([('2:3', '2:3'), ('3:4', '3:4')]), self.observer.calledMethods[0].kwargs['sets'])
+        self.assertEqual(['updateSet', 'updateSet', 'updateMetadataFormat', 'addOaiRecord'], self.observer.calledMethodNames())
+        self.assertEqual('124', self.observer.calledMethods[3].kwargs['identifier'])
+        self.assertEqual({'prefix': 'oai_dc', 'schema': '', 'namespace': "http://www.openarchives.org/OAI/2.0/"}, self.observer.calledMethods[2].kwargs)
+        self.assertEqual({'setSpec': '2:3', 'setName': '2:3'}, self.observer.calledMethods[0].kwargs)
+        self.assertEqual({'setSpec': '3:4', 'setName': '3:4'}, self.observer.calledMethods[1].kwargs)
 
     def testMetadataPrefixes(self):
         consume(self.subject.add('456', 'oai_dc', parseLxml('<oai_dc:dc xmlns:oai_dc="http://oai_dc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
              xsi:schemaLocation="http://oai_dc http://oai_dc/dc.xsd"/>')))
-        self.assertEqual([('oai_dc', 'http://oai_dc/dc.xsd', 'http://oai_dc')], self.observer.calledMethods[0].kwargs['metadataFormats'])
+        self.assertEqual(['updateMetadataFormat', 'addOaiRecord'], self.observer.calledMethodNames())
+        self.assertEqual({'prefix': 'oai_dc', 'schema': 'http://oai_dc/dc.xsd', 'namespace': 'http://oai_dc'}, self.observer.calledMethods[0].kwargs)
         consume(self.subject.add('457', 'dc2', parseLxml('<oai_dc:dc xmlns:oai_dc="http://dc2"/>')))
-        self.assertEqual([('dc2', '', 'http://dc2')], self.observer.calledMethods[1].kwargs['metadataFormats'])
+        self.assertEqual(['updateMetadataFormat', 'addOaiRecord', 'updateMetadataFormat', 'addOaiRecord'], self.observer.calledMethodNames())
+        self.assertEqual({'prefix': 'dc2', 'schema':'', 'namespace': 'http://dc2'}, self.observer.calledMethods[2].kwargs)
 
     def testMetadataPrefixesFromRootTag(self):
         consume(self.subject.add('456', 'oai_dc', parseLxml('''<oai_dc:dc
@@ -128,8 +131,10 @@ class OaiAddRecordTest(SeecrTestCase):
                             http://oai_dc
                             http://oai_dc/dc.xsd">
 </oai_dc:dc>''')))
-        self.assertEqual([('oai_dc', 'http://oai_dc/dc.xsd', 'http://oai_dc')], self.observer.calledMethods[0].kwargs['metadataFormats'])
+        self.assertEqual({'prefix': 'oai_dc', 'schema':'http://oai_dc/dc.xsd', 'namespace': 'http://oai_dc'}, self.observer.calledMethods[0].kwargs)
 
     def testIncompletePrefixInfo(self):
         consume(self.subject.add('457', 'dc2', parseLxml('<oai_dc/>')))
-        self.assertEqual([('dc2', '', '')], self.observer.calledMethods[0].kwargs['metadataFormats'])
+        self.assertEqual(2, len(self.observer.calledMethods))
+        self.assertEqual({'prefix': 'dc2', 'schema': '', 'namespace': ''}, self.observer.calledMethods[0].kwargs)
+        self.assertEqual(['dc2'], self.observer.calledMethods[1].kwargs['metadataPrefixes'])

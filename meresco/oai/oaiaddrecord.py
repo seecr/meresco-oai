@@ -72,15 +72,16 @@ class OaiAddRecord(Transparent):
             oaiHeader = xpathFirst(record, '/oai:header')
 
         setSpecs = [] if oaiHeader is None else xpath(oaiHeader, 'oai:setSpec/text()')
-        sets = set((str(s), str(s)) for s in setSpecs)
+        for s in setSpecs:
+            self.call.updateSet(setSpec=str(s), setName=str(s))
 
         namespace = record.nsmap.get(record.prefix or None, '')
         schemaLocation = record.attrib.get(expandNs('xsi:schemaLocation'), '')
         ns2xsd = schemaLocation.split()
         schema = dict(zip(ns2xsd[::2],ns2xsd[1::2])).get(namespace, '')
         schema, namespace = self._magicSchemaNamespace(record.prefix, partname, schema, namespace)
-        metadataFormats=[(partname, schema, namespace)]
-        self.call.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=metadataFormats)
+        self.call.updateMetadataFormat(prefix=partname, schema=schema, namespace=namespace)
+        self.call.addOaiRecord(identifier=identifier, setSpecs=[str(s) for s in setSpecs], metadataPrefixes=[partname])
         return
         yield
 

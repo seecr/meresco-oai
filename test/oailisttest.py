@@ -32,7 +32,7 @@
 #
 ## end license ##
 
-from io import StringIO
+from io import BytesIO
 from xml.sax.saxutils import escape as escapeXml
 from lxml.etree import parse
 from uuid import uuid4
@@ -89,7 +89,7 @@ class OaiListTest(SeecrTestCase):
         self._addRecords(['id:0&0', 'id:1&1'])
 
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
 
         self.assertEqual(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         self.assertEqual(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken')))
@@ -107,17 +107,17 @@ class OaiListTest(SeecrTestCase):
         self._addRecords(['id:{0}&{0}'.format(i) for i in range(10)])
 
         header, body = asString(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-batchSize': ['2']}, **self.httpkwargs)).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         resumption = xpathFirst(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')
 
         header, body = asString(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken': [resumption], 'x-batchSize': ['7']}, **self.httpkwargs)).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(7, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         resumption = xpathFirst(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')
 
         header, body = asString(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken': [resumption]}, **self.httpkwargs)).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         resumption = xpathFirst(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')
         self.assertEqual(None, resumption)
@@ -145,12 +145,13 @@ class OaiListTest(SeecrTestCase):
         oailist.addObserver(storage)
         oailist.addObserver(oairecord)
         identifier = "id0"
-        oaijazz.addOaiRecord(identifier, (), metadataFormats=[('oai_dc', '', '')])
+        self.oaiJazz.updateMetadataFormat(prefix='oai_dc', schema='', namespace='')
+        oaijazz.addOaiRecord(identifier, metadataPrefixes=['oai_dc'])
         storage.addData(identifier=identifier, name="oai_dc", data="data01")
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual("data01", xpath(parse(StringIO(body)), '//oai:metadata')[0].text)
+        self.assertEqual("data01", xpath(parse(BytesIO(body.encode())), '//oai:metadata')[0].text)
 
     def testListRecordsWithALotOfDeletedRecords(self):
         oaijazz = OaiJazz(join(self.tempdir, '1'))
@@ -160,19 +161,20 @@ class OaiListTest(SeecrTestCase):
         oairecord = OaiRecord()
         oailist.addObserver(storage)
         oailist.addObserver(oairecord)
+        self.oaiJazz.updateMetadataFormat(prefix='oai_dc', schema='', namespace='')
         for id in ['id0', 'id1', 'id1']:
-            oaijazz.addOaiRecord(id, (), metadataFormats=[('oai_dc', '', '')])
+            oaijazz.addOaiRecord(id, metadataPrefixes=['oai_dc'])
             storage.addData(identifier=id, name="oai_dc", data="data_%s" % id)
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual(["data_id0", "data_id1"], xpath(parse(StringIO(body)), '//oai:metadata/text()'))
+        self.assertEqual(["data_id0", "data_id1"], xpath(parse(BytesIO(body.encode())), '//oai:metadata/text()'))
 
     def testListIdentifiers(self):
         self._addRecords(['id:0&0', 'id:1&1'])
 
         header, body = ''.join(compose(self.oaiList.listIdentifiers(arguments={'verb':['ListIdentifiers'], 'metadataPrefix': ['oai_dc']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
 
         self.assertEqual(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListIdentifiers/mock:record')))
         self.assertEqual(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListIdentifiers/oai:resumptionToken')))
@@ -187,7 +189,7 @@ class OaiListTest(SeecrTestCase):
         self._addRecords(['id:0&0', 'id:1&1', 'id:2&2'], sets=[('set0', 'setName')])
 
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'from': ['2000-01-01T00:00:00Z'], 'until': ['4012-01-01T00:00:00Z'], 'set': ['set0']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
 
         self.assertEqual(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         resumptionToken = ResumptionToken.fromString(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')[0])
@@ -208,7 +210,7 @@ class OaiListTest(SeecrTestCase):
         self._addRecords(['id:2&2'], sets=[('set0', 'setName')])
 
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken':['u4012-01-01T00:00:00Z|c1000|moai_dc|sset0|f2000-01-01T00:00:00Z']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
 
         self.assertEqual(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         self.assertEqual(['isKnownPrefix', 'oaiSelect', 'oaiWatermark', 'getMultipleData', 'oaiRecord'], [m.name for m in self.observer.calledMethods])
@@ -221,7 +223,7 @@ class OaiListTest(SeecrTestCase):
         self._addRecords(['id:2&2', 'id:3&3'])
         resumptionToken = str(ResumptionToken(metadataPrefix='oai_dc', continueAfter=0))
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken':[resumptionToken]}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
 
         self.assertEqual(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         resumptionTokens = xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken')
@@ -237,7 +239,7 @@ class OaiListTest(SeecrTestCase):
     def testNoRecordsMatch(self):
         self._addRecords(['id:0'])
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix':['oai_dc'], 'set': ['does_not_exist']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
 
         self.assertEqual(['noRecordsMatch'], xpath(oai, "/oai:OAI-PMH/oai:error/@code"))
 
@@ -253,7 +255,7 @@ class OaiListTest(SeecrTestCase):
         self.observer.calledMethods.reset()
 
         header, body = ''.join(compose(result)).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
 
         self.assertEqual(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         self.assertEqual(1, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')))
@@ -284,7 +286,7 @@ class OaiListTest(SeecrTestCase):
     def testNotSupportedXWait(self):
         self._addRecords(['id:1', 'id:2'])
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['True']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
 
         self.assertEqual(['badArgument'], xpath(oai, "/oai:OAI-PMH/oai:error/@code"))
 
@@ -293,7 +295,7 @@ class OaiListTest(SeecrTestCase):
         self.oaiList = OaiList(batchSize=2, supportXWait=True, repository=OaiRepository())
         self.oaiList.addObserver(self.observer)
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-wait': ['YesPlease']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
 
         self.assertEqual(['badArgument'], xpath(oai, "/oai:OAI-PMH/oai:error/@code"))
         self.assertTrue("only supports 'True' as valid value" in xpath(oai, "/oai:OAI-PMH/oai:error/text()")[0])
@@ -301,29 +303,29 @@ class OaiListTest(SeecrTestCase):
     def testListRecordsWithPartition(self):
         self._addRecords(['id:1', 'id:2'])
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-partition': ['2/2']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(['id:1/oai_dc'], xpath(oai, '//mock:record/text()'))
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-partition': ['1/2']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(['id:2/oai_dc'], xpath(oai, '//mock:record/text()'))
 
     @stderr_replaced
     def testListRecordsWithOldPartitionParameter(self):
         self._addRecords(['id:1', 'id:2'])
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-parthash': ['2/2']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(['id:1/oai_dc'], xpath(oai, '//mock:record/text()'))
 
     def testListRecordsProducesResumptionTokenWithPartition(self):
         self._addRecords(['id:%s' % i for i in range(10)])
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-partition':['1/2']}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         resumptionToken = ResumptionToken.fromString(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/text()')[0])
         self.assertEqual(['id:2/oai_dc', 'id:3/oai_dc'], xpath(oai, '//mock:record/text()'))
         self.assertEqual('1/2', str(resumptionToken.partition))
         header, body = ''.join(compose(self.oaiList.listRecords(arguments={'verb':['ListRecords'], 'resumptionToken': [str(resumptionToken)]}, **self.httpkwargs))).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(['id:5/oai_dc', 'id:6/oai_dc'], xpath(oai, '//mock:record/text()'))
 
 
@@ -337,7 +339,7 @@ class OaiListTest(SeecrTestCase):
             if oaiUntil:
                 arguments['until'] = [oaiUntil]
             header, body = ''.join(compose(self.oaiList.listRecords(arguments=arguments, **self.httpkwargs))).split(CRLF*2)
-            oai = parse(StringIO(body))
+            oai = parse(BytesIO(body.encode()))
             self.assertEqual(['isKnownPrefix', 'oaiSelect'], [m.name for m in self.observer.calledMethods][:2])
             selectKwargs = self.observer.calledMethods[1].kwargs
             return selectKwargs['oaiFrom'], selectKwargs['oaiUntil']
@@ -358,7 +360,7 @@ class OaiListTest(SeecrTestCase):
             if oaiUntil:
                 arguments['until'] = [oaiUntil]
             header, body = ''.join(compose(self.oaiList.listRecords(arguments=arguments, **self.httpkwargs))).split(CRLF*2)
-            oai = parse(StringIO(body))
+            oai = parse(BytesIO(body.encode()))
             self.assertEqual(1, len(xpath(oai, '//oai:error')), body)
             error = xpath(oai, '//oai:error')[0]
             return error.attrib['code']
@@ -390,7 +392,7 @@ class OaiListTest(SeecrTestCase):
 
         header, body = ''.join(s for s in compose(self.oaiList.listRecords(arguments={'verb': ['ListRecords'], 'metadataPrefix': ['oai_dc'], 'x-count': ['True']}, **self.httpkwargs)) if not s is Yield).split(CRLF*2)
         firstBatch = body
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(2, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/mock:record')))
         recordsRemaining = xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/@recordsRemaining')[0]
         self.assertEqual('97', recordsRemaining)
@@ -398,7 +400,7 @@ class OaiListTest(SeecrTestCase):
         resumptionToken = str(ResumptionToken(metadataPrefix='oai_dc', continueAfter=continueAfter))
 
         header, body = ''.join(s for s in compose(self.oaiList.listRecords(arguments={'verb': ['ListRecords'], 'resumptionToken': [resumptionToken], 'x-count': ['True']}, **self.httpkwargs)) if not s is Yield).split(CRLF*2)
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(1, len(xpath(oai, '//mock:record')))
         self.assertEqual(0, len(xpath(oai, '/oai:OAI-PMH/oai:ListRecords/oai:resumptionToken/@recordsRemaining')))
 
@@ -417,7 +419,7 @@ class OaiListTest(SeecrTestCase):
         self.observer.methods['oaiRecord'] = oaiRecord
 
         body = asString(self.oaiList.listRecords(arguments=dict(verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)).split(CRLF*2,1)[-1]
-        oai = parse(StringIO(body))
+        oai = parse(BytesIO(body.encode()))
         self.assertEqual(['id0', 'id1', 'id2', 'id3', 'id4', 'id5', 'id6', 'id7', 'id8', 'id9'], xpath(oai, '//oai:ListRecords/oai:data/@id'))
 
         self.assertEqual(['isKnownPrefix',
@@ -442,8 +444,13 @@ class OaiListTest(SeecrTestCase):
 
 
     def _addRecords(self, identifiers, sets=None):
+        sets = [] if sets is None else sets
+        self.oaiJazz.updateMetadataFormat(prefix="oai_dc", schema='', namespace='')
+        for spec, name in sets:
+            self.oaiJazz.updateSet(setSpec=spec, setName=name)
+        setSpecs = [s for s,n in sets]
         for identifier in identifiers:
-            self.oaiJazz.addOaiRecord(identifier=identifier, sets=sets, metadataFormats=[('oai_dc', '', '')])
+            self.oaiJazz.addOaiRecord(identifier=identifier, setSpecs=setSpecs, metadataPrefixes=['oai_dc'])
 
 namespaces = namespaces.copyUpdate({'mock':'uri:mock'})
 xpath = namespaces.xpath
