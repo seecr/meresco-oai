@@ -66,18 +66,18 @@ from oailisttest import OaiListTest
 from oailistmetadataformatstest import OaiListMetadataFormatsTest
 from oailistsetstest import OaiListSetsTest
 from oaipmhtest import OaiPmhTest, OaiPmhWithIdentifierTest, HttpPostOaiPmhTest
-#from oaiprovenancetest import OaiProvenanceTest
-#from oairecordtest import OaiRecordTest
-#from oairepositorytest import OaiRepositoryTest
-#from oaisetmasktest import OaiSetMaskTest
-#from oaisetselecttest import OaiSetSelectTest
-#from oaitooltest import OaiToolTest
-#from streaminglxmltest import StreamingLxmlTest
-#from suspendregistertest import SuspendRegisterTest
+from oaiprovenancetest import OaiProvenanceTest
+from oairecordtest import OaiRecordTest
+from oairepositorytest import OaiRepositoryTest
+from oaisetmasktest import OaiSetMaskTest
+from oaisetselecttest import OaiSetSelectTest
+from oaitooltest import OaiToolTest
+from streaminglxmltest import StreamingLxmlTest
+from suspendregistertest import SuspendRegisterTest
 
-#from info.oaiinfotest import OaiInfoTest
+from info.oaiinfotest import OaiInfoTest
 
-#from tools.removesetsfromoaitest import RemoveSetsFromOaiTest
+from tools.removesetsfromoaitest import RemoveSetsFromOaiTest
 
 if __name__ == '__main__':
     unittest.main()

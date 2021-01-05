@@ -129,7 +129,8 @@ class OaiProvenanceTest(SeecrTestCase):
                 path='/oai',
                 port=1234,
             ))
-        provenanceResult = xpathFirst(XML(result.split(CRLF*2)[-1]), '//oai:about/oaiprov:provenance')
+        _, body = result.split(CRLF*2)
+        provenanceResult = xpathFirst(XML(body.encode()), '//oai:about/oaiprov:provenance')
         self.assertXmlEquals("""<provenance xmlns="http://www.openarchives.org/OAI/2.0/provenance"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/provenance

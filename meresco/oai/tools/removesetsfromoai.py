@@ -36,8 +36,7 @@ BEWARE: Oai does not support deleted sets. Harvesters for specifically this set 
 We assume there is no active oaiJazz in this directory
 
 Usage: removeSetsFromOai(jazzDir, sets=['a:b'], prefix='your_prefix')"""
-    from meresco.oai.oaijazz import OaiJazz, lazyImport
-    lazyImport()
+    from meresco.oai.oaijazz import OaiJazz
     from meresco.oai.oaijazz import Document, StringField, IDENTIFIER_FIELD, Field, PREFIX_FIELD, SETS_FIELD, SETS_DELETED_FIELD
     from meresco.oai.oaijazz import _setSpecAndSubsets
 

@@ -37,9 +37,10 @@ class RemoveSetsFromOaiTest(SeecrTestCase):
         oaiJazz = OaiJazz(self.tempdir)
         oaiJazz.updateSet('a:b', 'set A/B')
         oaiJazz.updateSet('a:c', 'set A/C')
-        oaiJazz.addOaiRecord('id:0', setSpecs=['a:b', 'a:c'], metadataFormats=[('prefix', '', '')])
-        oaiJazz.addOaiRecord('id:1', setSpecs=['a:b'], metadataFormats=[('prefix', '', '')])
-        oaiJazz.addOaiRecord('id:2', setSpecs=['a:c'], metadataFormats=[('prefix', '', '')])
+        oaiJazz.updateMetadataFormat(prefix="prefix", schema="", namespace="")
+        oaiJazz.addOaiRecord('id:0', setSpecs=['a:b', 'a:c'], metadataPrefixes=['prefix'])
+        oaiJazz.addOaiRecord('id:1', setSpecs=['a:b'], metadataPrefixes=['prefix'])
+        oaiJazz.addOaiRecord('id:2', setSpecs=['a:c'], metadataPrefixes=['prefix'])
 
         self.assertEqual([
                 ('id:0', set(['a', 'a:b', 'a:c']), False),
