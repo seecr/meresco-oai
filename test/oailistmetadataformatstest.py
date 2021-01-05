@@ -67,14 +67,14 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual(['oai_dc', 'rdf'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
+        self.assertEqual(['oai_dc', 'rdf'], xpath(XML(body.encode()), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
         response = self.listMetadataFormats.listMetadataFormats(arguments=dict(
                 verb=['ListMetadataFormats'],
                 identifier=['id0'],
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual(['oai_dc'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
+        self.assertEqual(['oai_dc'], xpath(XML(body.encode()), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
 
     def testListMetadataFormatsWithRepositoryIdentifier(self):
         self.init('example.org')
@@ -84,7 +84,7 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertTrue(xpath(XML(body), '/oai:OAI-PMH/oai:error[@code="idDoesNotExist"]'), body)
+        self.assertTrue(xpath(XML(body.encode()), '/oai:OAI-PMH/oai:error[@code="idDoesNotExist"]'), body)
 
         response = self.listMetadataFormats.listMetadataFormats(arguments=dict(
                 verb=['ListMetadataFormats'],
@@ -92,7 +92,7 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual(['oai_dc'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
+        self.assertEqual(['oai_dc'], xpath(XML(body.encode()), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
 
     def testListMetadataFormatsWithIdentifierAndSomeDeletes(self):
         self.init()
@@ -103,7 +103,7 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual(['oai_dc', 'rdf'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
+        self.assertEqual(['oai_dc', 'rdf'], xpath(XML(body.encode()), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
 
         self.oaijazz.deleteOaiRecordInPrefixes(identifier="id1", metadataPrefixes=['oai_dc'])
         response = self.listMetadataFormats.listMetadataFormats(arguments=dict(
@@ -112,6 +112,6 @@ class OaiListMetadataFormatsTest(SeecrTestCase):
             ),
             **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual(['oai_dc', 'rdf'], xpath(XML(body), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
+        self.assertEqual(['oai_dc', 'rdf'], xpath(XML(body.encode()), '/oai:OAI-PMH/oai:ListMetadataFormats/oai:metadataFormat/oai:metadataPrefix/text()'))
 
 
