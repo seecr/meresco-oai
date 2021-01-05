@@ -105,7 +105,7 @@ def checkNoRepeatedArguments(arguments):
 def checkNoMoreArguments(arguments):
     if len(arguments) > 0:
         raise OaiBadArgumentException('Argument(s) ' +\
-                ', '.join('"%s"' % t for t in arguments.keys()) +\
+                ', '.join('"%s"' % t for t in sorted(list(arguments.keys()))) +\
                 ' is/are illegal.')
 
 def checkArgument(arguments, name, validatedArguments):

@@ -83,7 +83,8 @@ The response may include multiple instances of the following optional elements:
     def identify(self, arguments, **httpkwargs):
         responseDate = zuluTime()
         if list(arguments.keys()) != ['verb']:
-            additionalMessage = 'Argument(s) %s is/are illegal.' % ", ".join('"%s"' % key for key in list(arguments.keys()) if key != 'verb')
+            allArguments = sorted(list(arguments.keys()))
+            additionalMessage = 'Argument(s) %s is/are illegal.' % ", ".join('"%s"' % key for key in allArguments if key != 'verb')
             yield oaiError('badArgument',
                     additionalMessage=additionalMessage,
                     arguments=arguments,

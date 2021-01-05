@@ -32,7 +32,7 @@
 from seecr.test import SeecrTestCase, CallTrace
 from oaischema import assertValidOai
 
-from io import StringIO
+from io import BytesIO
 from lxml.etree import parse
 from os.path import join
 from socket import gethostname
@@ -88,7 +88,17 @@ class _OaiPmhTest(SeecrTestCase):
             if 10 <= i < 15:
                 sets.append(('hierarchical', 'hierarchical toplevel only'))
             sleep(0.001) # avoid timestamps being equals on VMs
-            jazz.addOaiRecord(recordId, sets=sets, metadataFormats=metadataFormats)
+
+            setSpecs = []
+            for spec, name in sets:
+                setSpecs.append(spec)
+                jazz.updateSet(setSpec=spec, setName=name)
+            formats = []
+            for prefix,schema,namespace in metadataFormats:
+                formats.append(prefix)
+                jazz.updateMetadataFormat(prefix=prefix, schema=schema, namespace=namespace)
+
+            jazz.addOaiRecord(recordId, setSpecs=setSpecs, metadataPrefixes=formats)
             if i % 5 == 0:
                 list(compose(jazz.delete(recordId)))
 
@@ -124,7 +134,7 @@ class _OaiPmhTest(SeecrTestCase):
                 arguments=arguments,
                 path='/oai' if path is None else path,
             ))).split(CRLF * 2)
-        parsedBody = parse(StringIO(str(body)))
+        parsedBody = parse(BytesIO(body.encode()))
         if validate:
             assertValidOai(parsedBody)
         return header, parsedBody

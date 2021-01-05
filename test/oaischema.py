@@ -64,7 +64,7 @@ def getSchema():
 def assertValidOai(lxmlTree=None, aXmlString=None):
     schema = getSchema()
     aXmlString = lxmltostring(lxmlTree, pretty_print=True) if aXmlString == None else aXmlString
-    tree = parse(StringIO(aXmlString))
+    tree = parse(BytesIO(aXmlString.encode()))
     schema.validate(tree)
     if schema.error_log:
         for nr, line in enumerate(aXmlString.split('\n')):
