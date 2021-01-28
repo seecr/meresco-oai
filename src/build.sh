@@ -26,72 +26,9 @@
 #
 ## end license ##
 
-set -o errexit
-
-mydir=$(cd $(dirname $0); pwd)
-buildDir=$mydir/build
-libDir=$1
-if [ -z "$libDir" ]; then
-    libDir=$(dirname $mydir)/lib
-fi
-
-export PYTHONPATH=~/EG/pyl/dist/usr/local/lib/python3.7/dist-packages/:${PYTHONPATH}
-
-pythonVersion=$(python3 --version 2>&1 | awk '{print $2}' | cut -d. -f-2)
-pythonPackagesDir=/usr/lib64/python${pythonVersion}/site-packages
-if [ -f /etc/debian_version ]; then
-    pythonPackagesDir=/usr/lib/python3/dist-packages
-fi
-
-#JCC_VERSION=3.6
-#if ! grep -q "VERSION=\"${JCC_VERSION}\"" ${pythonPackagesDir}/jcc/config.py; then
-#    echo "JCC ${JCC_VERSION} is required."
-#    exit 1
-#fi
-
-JAVA_HOME=
-test -f /etc/debian_version && JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-test -f /etc/redhat_version && JAVA_HOME=/usr/lib/jvm/java
-if [ -z "${JAVA_HOME}" ]; then
-    echo "Unable to determine JAVA_HOME"
-    exit 0
-fi
-
-if [ ! -d "${JAVA_HOME}" ]; then
-    echo "${JAVA_HOME} does not exist"
-    exit 0
-fi
-export JAVA_HOME
-javac=${JAVA_HOME}/bin/javac
-
-luceneJarDir=${pythonPackagesDir}/lucene
-
-LUCENE_VERSION=8.6.1
-classpath=${luceneJarDir}/lucene-core-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-analyzers-common-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-facet-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-queries-${LUCENE_VERSION}.jar:${luceneJarDir}/lucene-misc-${LUCENE_VERSION}.jar
-
-rm -rf $buildDir $libDir
-mkdir --parents $buildDir $libDir
-
-${javac} -cp ${classpath} -d ${buildDir} org/meresco/oai/*.java
-(cd $buildDir; jar -c org > $buildDir/meresco-oai.jar)
-
-
-python3 -m jcc.__main__ \
-    --shared \
-    --use_full_names \
-    --import lucene \
-    --arch x86_64 \
-    --jar $buildDir/meresco-oai.jar \
-    --python meresco_oai \
-    --build \
-    --install \
-    --root $mydir/root 
-
-rootLibDir=$mydir/root/usr/lib64/python${pythonVersion}/site-packages/meresco_oai
-if [ -f /etc/debian_version ]; then
-    rootLibDir=$mydir/root/usr/local/lib/python${pythonVersion}/dist-packages/meresco_oai
-fi
-
-mv ${rootLibDir} $libDir/
-
-rm -rf $buildDir $mydir/root $mydir/meresco_oai.egg-info
+seecr-build-jcc \
+    --path=$(cd $(dirname $0); pwd) \
+    --name=meresco-oai \
+    --package=org/meresco/oai \
+    --jcc=3.8 \
+    --lucene=8.6.1

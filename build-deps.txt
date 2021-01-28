@@ -1,9 +1,10 @@
-jcc (>= 3.6)
-jcc (<< 3.7)
-python-setuptools
+jcc (>= 3.8)
+jcc (<< 3.9)
+seecr-tools (>= 1.0.3.1)
+python3-setuptools
 gcc
-#debian:python-dev
+#debian:python3-dev
 #centos7:python-devel
-#centos8:python2-devel
-python-meresco-pylucene (>= 8.1.1)
-python-meresco-pylucene (<< 8.2)
+#centos8:python3-devel
+python3-meresco-pylucene (>= 8.1.1)
+python3-meresco-pylucene (<< 8.2)
