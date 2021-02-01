@@ -8,9 +8,12 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2011-2012, 2016 Seecr (Seek You Too B.V.) http://seecr.nl
-# Copyright (C) 2011 Stichting Kennisnet http://www.kennisnet.nl
+# Copyright (C) 2011-2012, 2016, 2020-2021 Seecr (Seek You Too B.V.) https://seecr.nl
+# Copyright (C) 2011, 2020-2021 Stichting Kennisnet https://www.kennisnet.nl
 # Copyright (C) 2016 SURFmarket https://surf.nl
+# Copyright (C) 2020-2021 Data Archiving and Network Services https://dans.knaw.nl
+# Copyright (C) 2020-2021 SURF https://www.surf.nl
+# Copyright (C) 2020-2021 The Netherlands Institute for Sound and Vision https://beeldengeluid.nl
 #
 # This file is part of "Meresco Oai"
 #
