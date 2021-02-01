@@ -121,7 +121,7 @@ class OaiIntegrationTest(SeecrTestCase):
         responses = []
         def doOaiListRecord(port):
             header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, additionalHeaders={'X-Meresco-Oai-Client-Identifier': clientId}, parse=False)
-            responses.append((header.decode(), body.decode()))
+            responses.append((header.decode(), body))
 
         oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent, suspendRegister))
         harvestThread1 = Thread(None, lambda: doOaiListRecord(portNumber))

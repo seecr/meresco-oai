@@ -54,6 +54,8 @@ sysPath.insert(0,'..')                            #DO_NOT_DISTRIBUTE
 import unittest
 from warnings import simplefilter
 simplefilter('default')
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
