@@ -35,7 +35,7 @@
 
 from meresco.components import XmlCompose
 from lxml.etree import parse
-from io import StringIO
+from io import BytesIO
 
 PROVENANCE_TEMPLATE = """<provenance xmlns="http://www.openarchives.org/OAI/2.0/provenance"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -66,4 +66,5 @@ class OaiProvenance(XmlCompose):
         yield self.getRecord(identifier=identifier)
 
     def _getPart(self, identifier, partname):
-        return parse(StringIO(self.call.getData(identifier=identifier, name=partname)))
+        data = self.call.getData(identifier=identifier, name=partname)
+        return parse(BytesIO(data))

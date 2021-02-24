@@ -121,7 +121,7 @@ class OaiIntegrationTest(SeecrTestCase):
         responses = []
         def doOaiListRecord(port):
             header, body = getRequest(port=portNumber, path="/", arguments={"verb": "ListRecords", "metadataPrefix": "prefix", "x-wait": "True"}, additionalHeaders={'X-Meresco-Oai-Client-Identifier': clientId}, parse=False)
-            responses.append((header.decode(), body))
+            responses.append((header, body))
 
         oaiPmhThread = Thread(None, lambda: self.startOaiPmh(portNumber, oaiJazz, storageComponent, suspendRegister))
         harvestThread1 = Thread(None, lambda: doOaiListRecord(portNumber))
@@ -143,9 +143,9 @@ class OaiIntegrationTest(SeecrTestCase):
                 self.assertTrue(harvest1Suspend != suspendRegister._suspendObject(clientId))
 
                 self.assertEqual(1, len(responses))
-                header, body = responses[0]
-                self.assertTrue('204' in header, header)
-                self.assertTrue(body.startswith('Aborting suspended request'), body)
+                statusAndHeader, body = responses[0]
+                self.assertEqual("204", statusAndHeader['StatusCode'])
+                self.assertTrue(body.startswith(b'Aborting suspended request'), body)
 
                 storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
                 oaiJazz.addOaiRecord(identifier="id1", metadataPrefixes=["prefix"])

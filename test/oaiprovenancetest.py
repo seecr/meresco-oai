@@ -40,6 +40,7 @@ from io import StringIO
 from seecr.test import SeecrTestCase, CallTrace
 
 from weightless.core import asString, be
+from weightless.core.utils import generatorToString
 from meresco.core import Observable
 from meresco.xml.namespaces import xpathFirst
 from meresco.components import RetrieveToGetDataAdapter
@@ -126,7 +127,7 @@ class OaiProvenanceTest(SeecrTestCase):
             )
         ))
 
-        result = asString(observable.all.handleRequest(
+        result = generatorToString(observable.all.handleRequest(
                 Method='GET',
                 arguments=dict(verb=['GetRecord'], identifier=["recordId"], metadataPrefix=['oai_dc']),
                 Headers=dict(Host='oaiserver.example.org'),
@@ -173,13 +174,13 @@ class MockStorage(object):
     def getData(self, identifier, name):
         self.timesCalled += 1
         if name == 'meta':
-            return "<meta><repository><metadataNamespace>METADATANAMESPACE</metadataNamespace><baseurl>BASEURL</baseurl><harvestDate>HARVESTDATE</harvestDate></repository></meta>"
+            return b"<meta><repository><metadataNamespace>METADATANAMESPACE</metadataNamespace><baseurl>BASEURL</baseurl><harvestDate>HARVESTDATE</harvestDate></repository></meta>"
         elif name == 'header':
-            return """<header xmlns="http://www.openarchives.org/OAI/2.0/">
+            return bytes("""<header xmlns="http://www.openarchives.org/OAI/2.0/">
     <identifier>{0}</identifier>
     <datestamp>DATESTAMP</datestamp>
 
-  </header>""".format(identifier)
+  </header>""".format(identifier), encoding='utf-8')
         elif name == 'oai_dc':
-            return """<oai_dc/>"""
+            return b"""<oai_dc/>"""
 
