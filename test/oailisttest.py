@@ -37,15 +37,15 @@
 
 from io import BytesIO
 from xml.sax.saxutils import escape as escapeXml
-from lxml.etree import parse
+from lxml.etree import parse, XML
 from uuid import uuid4
 from os.path import join
 
 from seecr.test import SeecrTestCase, CallTrace
 from seecr.test.io import stderr_replaced
 
-from weightless.core import compose, Yield, NoneOfTheObserversRespond, asString, consume
-from meresco.components.http.utils import CRLF
+from weightless.core import compose, Yield, NoneOfTheObserversRespond, asString, asBytes, consume
+from meresco.components.http.utils import parseResponse, CRLF
 from meresco.oai.oairepository import OaiRepository
 from meresco.sequentialstore import MultiSequentialStorage
 
@@ -150,7 +150,7 @@ class OaiListTest(SeecrTestCase):
         identifier = "id0"
         self.oaiJazz.updateMetadataFormat(prefix='oai_dc', schema='', namespace='')
         oaijazz.addOaiRecord(identifier, metadataPrefixes=['oai_dc'])
-        storage.addData(identifier=identifier, name="oai_dc", data="data01")
+        storage.addData(identifier=identifier, name="oai_dc", data=b"data01")
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
         _, body = asString(response).split("\r\n\r\n")
@@ -167,11 +167,11 @@ class OaiListTest(SeecrTestCase):
         self.oaiJazz.updateMetadataFormat(prefix='oai_dc', schema='', namespace='')
         for id in ['id0', 'id1', 'id1']:
             oaijazz.addOaiRecord(id, metadataPrefixes=['oai_dc'])
-            storage.addData(identifier=id, name="oai_dc", data="data_%s" % id)
+            storage.addData(identifier=id, name="oai_dc", data=bytes("data_%s" % id, encoding='utf-8'))
         response = oailist.listRecords(arguments=dict(
                 verb=['ListRecords'], metadataPrefix=['oai_dc']), **self.httpkwargs)
-        _, body = asString(response).split("\r\n\r\n")
-        self.assertEqual(["data_id0", "data_id1"], xpath(parse(BytesIO(body.encode())), '//oai:metadata/text()'))
+        _, body = parseResponse(asBytes(response))
+        self.assertEqual(["data_id0", "data_id1"], xpath(XML(body), '//oai:metadata/text()'))
 
     def testListIdentifiers(self):
         self._addRecords(['id:0&0', 'id:1&1'])

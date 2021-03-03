@@ -92,7 +92,7 @@ class OaiIntegrationTest(SeecrTestCase):
             observer.calledMethods.reset()
 
             requests += 1
-            storageComponent.addData(identifier="id3", name="prefix", data="<a>a3</a>")
+            storageComponent.addData(identifier="id3", name="prefix", data=b"<a>a3</a>")
             oaiJazz.addOaiRecord(identifier="id3", metadataPrefixes=["prefix"])
             sleepWheel(1)
 
@@ -147,7 +147,7 @@ class OaiIntegrationTest(SeecrTestCase):
                 self.assertEqual("204", statusAndHeader['StatusCode'])
                 self.assertTrue(body.startswith(b'Aborting suspended request'), body)
 
-                storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
+                storageComponent.addData(identifier="id1", name="prefix", data=b"<a>a1</a>")
                 oaiJazz.addOaiRecord(identifier="id1", metadataPrefixes=["prefix"])
                 sleep(0.1)
 
@@ -268,7 +268,7 @@ class OaiIntegrationTest(SeecrTestCase):
         stop()
         observer.calledMethods.reset()
 
-        storageComponent.addData(identifier="id1", name="prefix", data="<a>a1</a>")
+        storageComponent.addData(identifier="id1", name="prefix", data=b"<a>a1</a>")
         oaiJazz.addOaiRecord(identifier="id1", metadataPrefixes=["prefix"])
 
         start()
@@ -320,7 +320,7 @@ class OaiIntegrationTest(SeecrTestCase):
     def _addOaiRecords(self, storageComponent, oaiJazz, count):
         oaiJazz.updateMetadataFormat(prefix="prefix", schema="", namespace="")
         for i in range(count):
-            storageComponent.addData(identifier="id%s" % i, name="prefix", data="<a>a%s</a>" % i)
+            storageComponent.addData(identifier="id%s" % i, name="prefix", data=bytes("<a>a%s</a>" % i, encoding="utf-8"))
             oaiJazz.addOaiRecord(identifier="id%s" % i, metadataPrefixes=["prefix"])
 
     def _loopReactor(self, reactor):

@@ -36,7 +36,7 @@ from seecr.test import SeecrTestCase, CallTrace
 from oaischema import assertValidOai
 
 from io import BytesIO
-from lxml.etree import parse
+from lxml.etree import parse, XML
 from os.path import join
 from socket import gethostname
 from time import sleep
@@ -44,12 +44,12 @@ from urllib.parse import urlencode
 
 from meresco.core import Observable
 from meresco.components import lxmltostring, RetrieveToGetDataAdapter
-from meresco.components.http.utils import CRLF
+from meresco.components.http.utils import parseResponse, CRLF
 from meresco.sequentialstore import MultiSequentialStorage
 from meresco.xml import namespaces
 
 from meresco.oai import OaiPmh, OaiJazz, OaiBranding, SuspendRegister
-from weightless.core import be, compose
+from weightless.core import be, compose, asBytes
 
 
 namespaces = namespaces.copyUpdate({
@@ -105,9 +105,15 @@ class _OaiPmhTest(SeecrTestCase):
             if i % 5 == 0:
                 list(compose(jazz.delete(recordId)))
 
-            self.storage.addData(identifier=identifier, name='oai_dc', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%s</dc:identifier></oai_dc:dc>' % recordId)
+            self.storage.addData(
+                identifier=identifier,
+                name='oai_dc',
+                data=b'<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier>%b</dc:identifier></oai_dc:dc>' % bytes(recordId, encoding="utf-8"))
             if i >= 10:
-                self.storage.addData(identifier=identifier, name='prefix2', data='<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%s</dc:subject></oai_dc:dc>' % recordId)
+                self.storage.addData(
+                    identifier=identifier,
+                    name='prefix2',
+                    data=b'<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:subject>%b</dc:subject></oai_dc:dc>' %  bytes(recordId, encoding="utf-8"))
 
     def tearDown(self):
         self.jazz.close()
@@ -125,9 +131,9 @@ class _OaiPmhTest(SeecrTestCase):
             RequestURI += '?' + queryString
             Body = None
         else:
-            Body = queryString
+            Body = bytes(queryString, encoding="utf-8")
             arguments = {}
-        header, body = ''.join(compose(self.root.all.handleRequest(
+        header, body = parseResponse(asBytes(compose(self.root.all.handleRequest(
                 RequestURI=RequestURI,
                 Headers={},
                 Body=Body,
@@ -136,8 +142,8 @@ class _OaiPmhTest(SeecrTestCase):
                 port=9000,
                 arguments=arguments,
                 path='/oai' if path is None else path,
-            ))).split(CRLF * 2)
-        parsedBody = parse(BytesIO(body.encode()))
+            ))))
+        parsedBody = XML(body)
         if validate:
             assertValidOai(parsedBody)
         return header, parsedBody
@@ -258,9 +264,10 @@ class _OaiPmhTest(SeecrTestCase):
         self.assertEqual(['noSetHierarchy'], xpath(body, '/oai:OAI-PMH/oai:error/@code'), lxmltostring(body, pretty_print=True))
 
     def testIdentify(self):
-        header, body = self._request(verb=['Identify'])
-
-        self.assertEqual("Content-Type: text/xml; charset=utf-8", header.split(CRLF)[-1])
+        statusAndHeaders, body = self._request(verb=['Identify'])
+       
+        headers = statusAndHeaders['Headers']
+        self.assertEqual("text/xml; charset=utf-8", headers['Content-Type'])
         self.assertEqual(0, len(xpath(body, '/oai:OAI-PMH/oai:error')))
         self.assertEqual(['http://%s:9000/oai' % HOSTNAME], xpath(body, '/oai:OAI-PMH/oai:request/text()'))
         identify = xpath(body, '/oai:OAI-PMH/oai:Identify')[0]

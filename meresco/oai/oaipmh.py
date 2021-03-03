@@ -103,7 +103,7 @@ class OaiPmh(object):
 
     def handleRequest(self, Method, arguments, Body=None, **kwargs):
         if Method == 'POST':
-            arguments.update(parse_qs(Body, keep_blank_values=True))
+            arguments.update(parse_qs(str(Body, encoding="utf-8"), keep_blank_values=True))
         verb = arguments.get('verb', [None])[0]
         message = verb[0].lower() + verb[1:] if verb else ''
         yield self._internalObserverTree.all.unknown(message, arguments=arguments, **kwargs)

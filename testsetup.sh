@@ -28,28 +28,22 @@
 set -o errexit
 rm -rf tmp build
 mydir=$(cd $(dirname $0); pwd)
-source /usr/share/seecr-test/functions
+source /usr/share/seecr-tools/functions.d/test
 
-pyversions="2.6"
-if distro_is_debian_wheezy; then
-    pyversions="2.6 2.7"
-fi
+definePythonVars
+$PYTHON setup.py install --root tmp
+removeDoNotDistribute tmp
+cp -r test tmp/test
 
 VERSION="x.y.z"
-
-for pyversion in $pyversions; do
-    definePythonVars $pyversion
-    echo "###### $pyversion, $PYTHON"
-    (cd $mydir/src; ./build.sh ${SITEPACKAGES}/meresco/oai)
-    ${PYTHON} setup.py install --root tmp
-done
-cp -r test tmp/test
-removeDoNotDistribute tmp
 find tmp -name '*.py' -exec sed -r -e "
     s,^binDir.*$,binDir='${SEECRTEST_USR_BIN}',;
     s/\\\$Version:[^\\\$]*\\\$/\\\$Version: ${VERSION}\\\$/;
     " -i '{}' \;
 
-cp -r test tmp/test
-runtests "$@"
+if [ -z "$@" ]; then
+    runtests "alltests.sh"
+else
+    runtests "$@"
+fi
 rm -rf tmp build

@@ -72,7 +72,7 @@ class OaiGetRecordTest(SeecrTestCase):
         ))
 
         oaijazz.addOaiRecord(identifier="id0", metadataPrefixes=['oai_dc'])
-        storage.addData(identifier="id0", name="oai_dc", data="data01")
+        storage.addData(identifier="id0", name="oai_dc", data=b"data01")
         response = oaigetrecord.getRecord(arguments=dict(
                 verb=['GetRecord'],
                 metadataPrefix=['oai_dc'],
