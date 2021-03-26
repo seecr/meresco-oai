@@ -44,25 +44,22 @@ from warnings import warn
 from json import load, dump, dumps, loads
 from meresco.core import Observable
 from meresco.oaicommon import timeToNumber, stamp2zulutime, timestamp, Partition
-#from meresco.pylucene import getJVM
 
-from lucene import initVM
-initVM()
-from meresco_oai import initVM
-initVM()
-
-from java.lang import Long
-from java.nio.file import Paths
-from org.apache.lucene.document import Document, StringField, Field, StoredField, LongPoint, IntPoint
-from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, MatchAllDocsQuery
-from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
-from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
-from org.apache.lucene.store import FSDirectory
-from org.apache.lucene.document import NumericDocValuesField
-from org.apache.lucene.util import BytesRef, Version
-from lucene import JArray
-from org.apache.lucene.analysis.core import WhitespaceAnalyzer
-from org.meresco.oai import OaiSortingCollector
+try:
+    from java.lang import Long
+    from java.nio.file import Paths
+    from org.apache.lucene.document import Document, StringField, Field, StoredField, LongPoint, IntPoint
+    from org.apache.lucene.search import IndexSearcher, TermQuery, BooleanQuery, MatchAllDocsQuery
+    from org.apache.lucene.search import BooleanClause, TotalHitCountCollector, Sort, SortField
+    from org.apache.lucene.index import DirectoryReader, Term, IndexWriter, IndexWriterConfig
+    from org.apache.lucene.store import FSDirectory
+    from org.apache.lucene.document import NumericDocValuesField
+    from org.apache.lucene.util import BytesRef, Version
+    from lucene import JArray
+    from org.apache.lucene.analysis.core import WhitespaceAnalyzer
+    from org.meresco.oai import OaiSortingCollector
+except ImportError:
+    raise ImportError("initVM() not called: please add to your project: 'from lucene import initVM; initVM(); from meresco_oai import initVM; initVM()'")
 
 
 DEFAULT_BATCH_SIZE = 200

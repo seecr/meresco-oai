@@ -57,6 +57,11 @@ simplefilter('default')
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
+from lucene import initVM
+initVM()
+from meresco_oai import initVM
+initVM()
+
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
 from oaiaddrecordwithdefaultstest import OaiAddRecordWithDefaultsTest
