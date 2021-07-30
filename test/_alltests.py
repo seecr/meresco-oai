@@ -59,6 +59,8 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 from lucene import initVM
 initVM()
+from meresco_sequentialstore import initVM
+initVM()
 from meresco_oai import initVM
 initVM()
 
