@@ -41,5 +41,5 @@ seecr-build-jcc \
     --name=meresco-oai \
     --package=org/meresco/oai \
     --jcc=3.10 \
-    --lucene=8.6.1 \
+    --lucene=8.9.0 \
     --target=${target}
