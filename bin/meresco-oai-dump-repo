@@ -44,7 +44,7 @@ def main(baseurl, metadataPrefix, outputDir, set=None):
         filename = oaiItem.identifier.replace("/", "_")
         with open(join(outputDir, filename), "w") as fp:
             fp.write(tostring(oaiItem.record, pretty_print=True))
-        print "harvested ", oaiItem.identifier
+        print("harvested ", oaiItem.identifier)
 
 if __name__ == '__main__':
     parser = ParseArguments()
