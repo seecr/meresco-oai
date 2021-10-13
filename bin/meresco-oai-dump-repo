@@ -25,6 +25,12 @@
 #
 ## end license ##
 
+from lucene import initVM
+initVM()
+from meresco_oai import initVM
+initVM()
+
+
 from seecrdeps import includeParentAndDeps  # DO_NOT_DISTRIBUTE
 includeParentAndDeps(__file__)              # DO_NOT_DISTRIBUTE
 
@@ -36,13 +42,13 @@ from meresco.components import ParseArguments
 
 
 def main(baseurl, metadataPrefix, outputDir, set=None):
-    
+
     if not isdir(outputDir):
         makedirs(outputDir)
 
     for oaiItem in iterateOaiPmh(baseurl=baseurl, metadataPrefix=metadataPrefix, set=set):
         filename = oaiItem.identifier.replace("/", "_")
-        with open(join(outputDir, filename), "w") as fp:
+        with open(join(outputDir, filename), "wb") as fp:
             fp.write(tostring(oaiItem.record, pretty_print=True))
         print("harvested ", oaiItem.identifier)
 
@@ -53,7 +59,7 @@ if __name__ == '__main__':
     parser.addOption('', '--set', help='Set to fetch')
     parser.addOption('', '--outputDir', help='Directory to dump records to', mandatory=True)
 
-    options, arguments = parser.parse() 
+    options, arguments = parser.parse()
 
     main(**vars(options))
-    
+
