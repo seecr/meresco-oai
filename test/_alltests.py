@@ -57,12 +57,7 @@ simplefilter('default')
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-from lucene import initVM
-initVM()
-from meresco_sequentialstore import initVM
-initVM()
-from meresco_oai import initVM
-initVM()
+import seecr_initvm; seecr_initvm.initvm("meresco_lucene", "meresco_sequentialstore", "meresco_oai")
 
 from fields2oairecordtest import Fields2OaiRecordTest
 from oaiaddrecordtest import OaiAddRecordTest
