@@ -25,11 +25,7 @@
 #
 ## end license ##
 
-from lucene import initVM
-initVM()
-from meresco_oai import initVM
-initVM()
-
+import seecr_initvm; seecr_initvm.initvm("meresco_lucene", "meresco_oai")
 
 from seecrdeps import includeParentAndDeps  # DO_NOT_DISTRIBUTE
 includeParentAndDeps(__file__)              # DO_NOT_DISTRIBUTE
