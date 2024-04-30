@@ -40,6 +40,6 @@ seecr-build-jcc \
     --path=$(cd $(dirname $0); pwd) \
     --name=meresco-oai \
     --package=org/meresco/oai \
-    --jcc=3.10 \
+    --jcc=3.13 \
     --lucene=8.9.0 \
     --target=${target}
