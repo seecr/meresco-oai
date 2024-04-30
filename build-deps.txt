@@ -1,6 +1,6 @@
-jcc-py3 (>= 3.10)
-jcc-py3 (<< 3.11)
-seecr-tools (>= 1.0.6)
+jcc-py3 (>= 3.13)
+jcc-py3 (<< 3.14)
+seecr-tools (>= 1.0.16)
 seecr-tools (<< 1.1)
 python3-setuptools
 gcc
