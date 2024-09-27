@@ -3,7 +3,7 @@
 # "Meresco Oai" are components to build Oai repositories, based on
 # "Meresco Core" and "Meresco Components".
 #
-# Copyright (C) 2012, 2016, 2020-2021 Seecr (Seek You Too B.V.) https://seecr.nl
+# Copyright (C) 2012, 2016, 2020-2021, 2024 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012, 2020-2021 Stichting Kennisnet https://www.kennisnet.nl
 # Copyright (C) 2016 SURFmarket https://surf.nl
 # Copyright (C) 2020-2021 Data Archiving and Network Services https://dans.knaw.nl
@@ -30,11 +30,13 @@
 
 from seecr.test import SeecrTestCase, CallTrace
 
-from weightless.core import compose, be, Yield
+from weightless.core import compose, be, Yield, asString
 from meresco.core import Observable
 
-from meresco.oai.oaierror import OaiError
+from meresco.oai.oaierror import OaiError, oaiError
 from meresco.oai.oairepository import OaiRepository
+from meresco.xml import xpathFirst
+from lxml.etree import XML
 
 
 class OaiErrorTest(SeecrTestCase):
@@ -90,4 +92,14 @@ class OaiErrorTest(SeecrTestCase):
 
         self.assertEqual(callablesAndYields, initial)
         self.assertEqual('data', remaining)
+
+    def testProperEscapingOaiError(self):
+        # https://data.dc4eu.nl/oai?<<<<<<<<<<foo"bar'314>>>>>=1&verb=Identify
+        headers_error = asString(oaiError('badArgument',
+                    additionalMessage="some <not> escaped stuff",
+                    arguments={},
+                    requestUrl="https://example.com/oai",
+                    ))
+        error = headers_error.split('\r\n\r\n', 1)[-1].encode("utf-8")
+        self.assertTrue("some <not> escaped stuff" in xpathFirst(XML(error), '//oai:error/text()'))
 
