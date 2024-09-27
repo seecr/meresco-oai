@@ -8,7 +8,7 @@
 # Copyright (C) 2007-2009 Stichting Kennisnet Ict op school. http://www.kennisnetictopschool.nl
 # Copyright (C) 2009 Delft University of Technology http://www.tudelft.nl
 # Copyright (C) 2009 Tilburg University http://www.uvt.nl
-# Copyright (C) 2012, 2014, 2016, 2020-2021 Seecr (Seek You Too B.V.) https://seecr.nl
+# Copyright (C) 2012, 2014, 2016, 2020-2021, 2024 Seecr (Seek You Too B.V.) https://seecr.nl
 # Copyright (C) 2012, 2020-2021 Stichting Kennisnet https://www.kennisnet.nl
 # Copyright (C) 2014 Netherlands Institute for Sound and Vision http://instituut.beeldengeluid.nl/
 # Copyright (C) 2016 SURFmarket https://surf.nl
@@ -36,6 +36,7 @@
 
 from meresco.core import Observable
 from weightless.core import compose, Yield
+from xml.sax.saxutils import escape as escapeXml
 from .oaiutils import oaiHeader, oaiFooter, oaiRequestArgs, zuluTime
 
 
@@ -71,7 +72,7 @@ class OaiError(Observable):
 def oaiError(statusCode, additionalMessage, arguments, requestUrl, **httpkwargs):
     responseDate = zuluTime()
     space = additionalMessage and ' ' or ''
-    message = ERROR_CODES[statusCode] + space + additionalMessage
+    message = ERROR_CODES[statusCode] + space + escapeXml(additionalMessage)
 
     yield oaiHeader(responseDate=responseDate)
     if statusCode in ["badArgument", "badResumptionToken", "badVerb"]:
